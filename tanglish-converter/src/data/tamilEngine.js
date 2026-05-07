@@ -1,0 +1,3515 @@
+import Sanscript from '@indic-transliteration/sanscript';
+import { disambiguateLa, generateLaCandidates, isLaAmbiguous, disambiguateRa, isRaAmbiguous } from './tamilLaDisambiguator.js';
+
+// ================================================================
+// PERFECT TAMIL CONVERSION ENGINE v2.0  (Backend-powered)
+// Dictionary is loaded from the backend API at startup.
+// Priority: 1. Learned → 2. Exact Dictionary → 3. Vallinam/Sandhi → 4. Rules → 5. Sanscript
+// ================================================================
+
+// Re-export la-disambiguation helper so TanglishEditor can show
+// "Did you mean ல/ள/ழ?" inline popups for uncertain conversions.
+export { generateLaCandidates };
+
+// ============ DICTIONARY (populated from backend) ============
+const exactDictionary = new Map();
+
+// Track loading state
+let _dictionaryLoaded = false;
+let _dictionaryLoadPromise = null;
+
+/**
+ * Load the full dictionary from the backend API.
+ * Called once at startup. Safe to call multiple times (deduplicates).
+ */
+export async function loadDictionaryFromBackend() {
+    if (_dictionaryLoaded) return;
+    if (_dictionaryLoadPromise) return _dictionaryLoadPromise;
+
+    _dictionaryLoadPromise = (async () => {
+        try {
+            console.log('[Engine] Loading dictionary from backend...');
+            const response = await fetch('/api/usil/suggestions/dictionary');
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const data = await response.json();
+
+            // Populate the exactDictionary Map + backendFrequencyMap
+            // Backend now sends {tanglish: {t: tamil, f: frequency}}
+            // Backward compat: also handles old {tanglish: tamilString} format
+            let count = 0;
+            for (const [key, value] of Object.entries(data)) {
+                const lowerKey = key.toLowerCase();
+                let tamilValue, freq;
+                if (typeof value === 'object' && value !== null && value.t) {
+                    // New format: {t: tamil, f: frequency}
+                    tamilValue = value.t;
+                    freq = value.f || 0;
+                } else {
+                    // Old format: plain string
+                    tamilValue = Array.isArray(value) ? value[0] : value;
+                    freq = 0;
+                }
+                exactDictionary.set(lowerKey, tamilValue);
+                // Store backend frequency so trie gets real frequency data
+                _backendFrequency.set(lowerKey, freq);
+                if (key.includes(' ')) {
+                    exactDictionary.set(key.replace(/ /g, ''), tamilValue);
+                    _backendFrequency.set(key.replace(/ /g, '').toLowerCase(), freq);
+                }
+                count++;
+            }
+
+            _dictionaryLoaded = true;
+            console.log(`[Engine] Dictionary loaded: ${count} words from backend`);
+
+            // Rebuild mappings and tries now that dictionary is populated
+            buildFullWordMapping();
+            buildSuggestionTrie();
+            buildPhoneticIndex();
+        } catch (err) {
+            console.error('[Engine] Failed to load dictionary from backend:', err.message);
+            console.warn('[Engine] Falling back to rule-based transliteration only');
+        }
+    })();
+
+    return _dictionaryLoadPromise;
+}
+
+// Backend frequency data: tanglish → frequency from database
+// Used when building the trie so popular words rank higher
+const _backendFrequency = new Map();
+
+/**
+ * preloadCommonChunks — now just triggers the backend dictionary load.
+ * Kept for backward compatibility with components that call it.
+ */
+export function preloadCommonChunks() {
+    loadDictionaryFromBackend();
+}
+
+// NOTE: Extra words previously defined here have been moved to tamilDictionary.json
+// The dictionary JSON is now the single source of truth for all word mappings.
+
+// ============ NORMALIZATION & FULL WORD MAPPING ============
+
+// Build full word mapping from dictionary
+const fullWordMapping = new Map();
+
+function buildFullWordMapping() {
+    // Add all exact dictionary entries
+    for (const [tanglish, tamil] of exactDictionary.entries()) {
+        fullWordMapping.set(tanglish.toLowerCase(), tamil);
+    }
+
+    console.log(`✅ Built full word mapping with ${fullWordMapping.size} entries`);
+}
+
+// ============ TANGLISH SPELLING CORRECTION MAP ============
+// Maps common shortened/informal Tanglish spellings to their canonical
+// dictionary keys.  Users often drop vowels, shorten double consonants,
+// or use phonetic shortcuts.  This map is checked BEFORE dictionary lookup
+// so "naaliku" → "naalaikku" → நாளைக்கு etc.
+//
+// Organised by category for maintainability.
+
+const _tanglishSpellingMap = new Map([
+    // ── TIME WORDS ───────────────────────────────────────────────────────
+    ['naaliku', 'naalaikku'],
+    ['naaliku', 'naalaikku'],
+    ['naliku', 'naalaikku'],
+    ['nalikku', 'naalaikku'],
+    ['naleku', 'naalaikku'],
+    ['nalekku', 'naalaikku'],    // already in dict
+    ['naaleku', 'naalaikku'],
+    ['naleiku', 'naalaikku'],
+    ['naalaiku', 'naalaikku'],
+    ['nalaku', 'naalaikku'],
+    ['naalku', 'naalaikku'],
+    ['nalei', 'naalai'],
+    ['nalai', 'naalai'],
+    ['nale', 'naalai'],
+    ['naale', 'naalai'],
+    ['naali', 'naalai'],
+    ['nethu', 'nethu'],        // already in dict
+    ['netha', 'nethu'],
+    ['nethe', 'nethu'],        // already in dict
+    ['neethu', 'nethu'],
+    ['neku', 'nethu'],
+    ['iniku', 'inniku'],       // already → inniku → இன்னிக்கு
+    ['inikku', 'inniku'],
+    ['innik', 'inniku'],
+    ['iniki', 'inniki'],       // already in dict
+    ['inaku', 'inniku'],
+    ['innaku', 'inniku'],
+    ['innaiku', 'innaiku'],      // already in dict
+
+    // ── QUESTION WORDS ───────────────────────────────────────────────────
+    ['ena', 'enna'],
+    ['yena', 'enna'],
+    ['ene', 'enna'],
+    ['enaku', 'enakku'],
+    ['enaku', 'enakku'],       // already in dict
+    ['unaku', 'unakku'],
+    ['epaddi', 'eppadi'],
+    ['epdi', 'eppadi'],       // already in dict
+    ['yepdi', 'eppadi'],
+    ['epidi', 'eppadi'],
+    ['epo', 'eppo'],         // already in dict
+    ['yepo', 'eppo'],
+    ['enge', 'enge'],         // already in dict
+    ['eng', 'enga'],
+    ['evlo', 'evlo'],         // already in dict
+    ['evalu', 'evvalo'],
+    ['evalo', 'evvalo'],
+    ['ethna', 'ethanai'],
+    ['ethane', 'ethanai'],
+    ['ethu', 'ethu'],         // already in dict
+
+    // ── PRONOUNS / PERSON ────────────────────────────────────────────────
+    ['nan', 'naan'],
+    ['ni', 'nii'],
+    ['ninga', 'neenga'],
+    ['nenga', 'neenga'],
+    ['ningal', 'neenga'],
+    ['neegal', 'neenga'],
+    ['aven', 'avan'],
+    ['avl', 'aval'],
+    ['avanga', 'avanga'],       // already in dict
+    ['ivn', 'ivan'],
+    ['ivl', 'ival'],
+    ['namba', 'namma'],
+    ['nambaku', 'nammakku'],
+
+    // ── COMMON VERBS (shortened forms) ───────────────────────────────────
+    ['poren', 'poren'],        // already in dict
+    ['porn', 'poren'],
+    ['porin', 'poren'],
+    ['porein', 'poren'],
+    ['varen', 'varen'],        // already in dict
+    ['varn', 'varen'],
+    ['varain', 'varen'],
+    ['varien', 'varen'],
+    ['panren', 'pannren'],      // already in dict
+    ['paniren', 'panniren'],
+    ['pannien', 'panniren'],
+    ['sapren', 'saapren'],
+    ['sapidren', 'saapidren'],
+    ['sapitaen', 'saapitaen'],
+    ['sapiten', 'saapitten'],
+    ['sapitan', 'saapittan'],
+    ['sapitten', 'saapitten'],
+    ['saptu', 'saapitu'],
+    ['sapadu', 'saapadu'],
+    ['irukein', 'irukken'],
+    ['irukin', 'irukken'],
+    ['irukan', 'irukkaan'],
+    ['irukal', 'irukkaal'],
+    ['irukum', 'irukku'],
+    ['podren', 'poren'],
+    ['padikren', 'padikiren'],
+    ['padikran', 'padikiran'],
+    ['solren', 'solren'],       // already in dict
+    ['solirin', 'solren'],
+    ['paren', 'paakiren'],
+    ['pakren', 'paakiren'],
+    ['parkren', 'paakiren'],
+    ['pakiren', 'paakiren'],
+    ['kelkren', 'kelkiren'],
+    ['keliren', 'kelkiren'],
+
+    // ── VERB PAST TENSE shortened ────────────────────────────────────────
+    ['ponen', 'poiten'],       // poiten = போய்ட்டேன்
+    ['ponan', 'poitan'],
+    ['vandhen', 'vandhen'],      // already in dict
+    ['vandhein', 'vandhen'],
+    ['vanden', 'vandhen'],
+    ['vandhan', 'vandhan'],      // already in dict
+    ['vandan', 'vandhan'],
+    ['paten', 'paathen'],
+    ['pathen', 'paathen'],      // already in dict
+    ['pathan', 'paathan'],      // already in dict
+    ['panninen', 'panninen'],     // already in dict
+    ['paninen', 'panninen'],
+    ['sonen', 'sonnen'],       // already in dict
+    ['sonein', 'sonnen'],
+    ['sonan', 'sonnan'],       // already in dict
+    ['kelten', 'kelten'],       // already in dict
+    ['keten', 'kelten'],
+
+    // ── VERB FUTURE shortened ────────────────────────────────────────────
+    ['poven', 'poven'],        // already in dict
+    ['povin', 'poven'],
+    ['varuven', 'varuven'],      // already in dict
+    ['varuvin', 'varuven'],
+    ['vareven', 'varuven'],
+    ['solven', 'solven'],       // already in dict
+    ['solvin', 'solven'],
+    ['papen', 'paaphen'],
+    ['paphen', 'paaphen'],      // already in dict
+    ['seivin', 'seiven'],
+
+    // ── COMMON NOUNS / PLACES shortened ──────────────────────────────────
+    ['vidu', 'veedu'],
+    ['vedu', 'veedu'],
+    ['viduku', 'veetuku'],
+    ['veduku', 'veetuku'],
+    ['veeduku', 'veetuku'],
+    ['viiduku', 'veetuku'],
+    ['vidutuku', 'veetuku'],
+    ['vetuku', 'veetuku'],      // already in dict
+    ['vetukku', 'veetukku'],     // already in dict
+    ['vidukku', 'veetukku'],
+    ['veedukku', 'veetukku'],
+    ['oruku', 'oorukku'],      // already in dict
+    ['uruku', 'oorukku'],
+    ['oorkku', 'oorukku'],
+    ['oru', 'ooru'],         // already in dict
+    ['uru', 'ooru'],
+    ['kadai', 'kadai'],        // already in dict
+    ['kade', 'kadai'],
+    ['kadaiku', 'kadaikku'],
+    ['kadeku', 'kadaikku'],
+    ['skul', 'school'],
+    ['skuluku', 'schoolukku'],
+    ['skulku', 'schoolukku'],
+    ['kolej', 'college'],
+    ['kolejku', 'collegekku'],
+    ['hosptl', 'hospital'],
+    ['hosptalku', 'hospitalukku'],
+    ['ofis', 'office'],
+    ['ofisku', 'officekku'],
+
+    // ── COMMON ADJECTIVES / ADVERBS ──────────────────────────────────────
+    ['nala', 'nalla'],        // already in dict
+    ['nalaa', 'nallaa'],       // already in dict
+    ['romba', 'romba'],        // already in dict
+    ['rompa', 'romba'],
+    ['rombha', 'romba'],
+    ['roma', 'romba'],
+    ['peria', 'periya'],
+    ['china', 'chinna'],
+    ['cinna', 'chinna'],
+    ['pudhu', 'pudhu'],        // already in dict
+    ['pudu', 'pudhu'],
+    ['puthia', 'pudhu'],
+    ['pazhaia', 'pazhaiya'],
+
+    // ── COMMON GREETINGS / PHRASES ───────────────────────────────────────
+    ['vanakam', 'vanakkam'],     // already in dict
+    ['vnkm', 'vanakkam'],
+    ['vanakm', 'vanakkam'],
+    ['vanakam', 'vanakkam'],
+    ['nanri', 'nanri'],        // already in dict
+    ['nandri', 'nandri'],       // already in dict
+    ['thanks', 'nanri'],
+    ['seri', 'seri'],         // already in dict
+    ['sari', 'seri'],
+    ['ceri', 'seri'],
+    ['ok', 'ok'],           // already in dict
+
+    // ── NEGATION / AFFIRMATION ───────────────────────────────────────────
+    ['ila', 'illa'],         // already in dict
+    ['ile', 'illai'],
+    ['ilai', 'illai'],        // already in dict
+    ['illay', 'illai'],
+    ['aama', 'aama'],         // already in dict
+    ['ama', 'aama'],
+    ['venam', 'venam'],        // already in dict
+    ['vena', 'venam'],
+    ['venum', 'venum'],        // already in dict
+    ['venu', 'venum'],
+    ['vendum', 'vendum'],       // already in dict
+    ['vendam', 'vendam'],       // already in dict
+    ['matein', 'mudiyala'],
+    ['mudiala', 'mudiyala'],
+
+    // ── SUFFIXES shortened (common postpositions) ────────────────────────
+    ['kita', 'kita'],         // already in dict → கிட்ட
+    ['kuda', 'kita'],
+    ['pathi', 'pathi'],        // already in dict → பத்தி
+    ['pati', 'pathi'],
+    ['mela', 'mela'],         // already in dict → மேல
+    ['kela', 'kela'],         // already in dict → கீழ
+    ['ula', 'ulla'],         // already in dict → உள்ள
+
+    // ── FOOD WORDS ───────────────────────────────────────────────────────
+    ['soru', 'soru'],         // already in dict
+    ['tani', 'thanni'],
+    ['tanir', 'thanneer'],
+    ['taneer', 'thanneer'],
+    ['pal', 'paal'],
+    ['tair', 'thayir'],
+    ['tayir', 'thayir'],
+    ['sadam', 'sadam'],        // already in dict
+    ['satam', 'sadam'],
+    ['idli', 'idly'],         // already in dict
+    ['dosai', 'dosa'],
+    ['dose', 'dosa'],
+
+    // ── RELATIONSHIP WORDS ───────────────────────────────────────────────
+    ['ama', 'amma'],
+    ['apa', 'appa'],
+    ['anan', 'annan'],
+    ['tambi', 'thambi'],
+    ['aka', 'akka'],
+    ['tangachi', 'thangachi'],
+    ['tangaci', 'thangachi'],
+    ['mama', 'mama'],         // already in dict
+    ['mami', 'maami'],
+    ['tata', 'thatha'],
+    ['pati', 'paati'],
+
+    // ── MISC COMMON WORDS ────────────────────────────────────────────────
+    ['konjam', 'konjam'],       // already in dict
+    ['konja', 'konjam'],
+    ['koncham', 'konjam'],
+    ['koncha', 'konjam'],
+    ['super', 'super'],        // already in dict
+    ['supr', 'super'],
+    ['bayankara', 'bayankara'],    // already in dict
+    ['baynkra', 'bayankara'],
+    ['panam', 'panam'],        // already in dict
+    ['pana', 'panam'],
+    ['kasu', 'kaasu'],
+    ['velai', 'velai'],        // already in dict
+    ['vela', 'velai'],
+    ['padippu', 'padippu'],      // already in dict
+    ['padipu', 'padippu'],
+    ['arivu', 'arivu'],        // already in dict
+    ['arive', 'arivu'],
+    ['tamil', 'tamil'],        // already in dict
+    ['tamizh', 'tamizh'],       // already in dict
+    ['tamiz', 'tamizh'],
+
+    // ── BODY PARTS ───────────────────────────────────────────────────────
+    ['talai', 'thalai'],
+    ['tale', 'thalai'],
+    ['kan', 'kannu'],
+    ['katu', 'kaadhu'],
+    ['muku', 'mooku'],
+    ['moku', 'mooku'],
+    ['kal', 'kaal'],
+
+    // ── EMOTION WORDS ────────────────────────────────────────────────────
+    ['sandosam', 'santhosham'],
+    ['santosam', 'santhosham'],
+    ['sandosham', 'santhosham'],
+    ['kopam', 'kovam'],
+    ['kobam', 'kovam'],
+    ['bayam', 'bayam'],        // already in dict
+    ['kadal', 'kadhal'],
+    ['anbu', 'anbu'],         // already in dict
+    ['kastam', 'kastam'],       // already in dict
+    ['kasdam', 'kastam'],
+    ['kashtam', 'kastam'],
+
+    // ── LOCATION WORDS ───────────────────────────────────────────────────
+    ['inga', 'inga'],
+    ['inge', 'inge'],
+    ['anga', 'anga'],
+    ['ange', 'ange'],
+    ['ingae', 'inga'],
+    ['angae', 'anga'],
+
+    // ── DEMONSTRATIVES ───────────────────────────────────────────────────
+    ['inda', 'intha'],        // already in dict → இந்த
+    ['inta', 'intha'],
+    ['anda', 'antha'],        // already in dict → அந்த
+    ['anta', 'antha'],
+    ['eda', 'entha'],        // already in dict → எந்த
+    ['enta', 'entha'],
+    ['idu', 'ithu'],
+    ['itu', 'ithu'],
+    ['adu', 'adhu'],
+    ['atu', 'adhu'],
+]);
+
+// ============ HARDCODED FALLBACK TAMIL MAP ============
+// Direct Tanglish → Tamil for the most common words.
+// Checked BEFORE the rule engine so common informal spellings always
+// produce the correct Tamil even when the backend dictionary is offline.
+// Both the informal spelling AND the canonical form are included.
+const _fallbackTamilMap = new Map([
+    // ── TIME ─────────────────────────────────────────────────────────────
+    ['naalaikku', 'நாளைக்கு'], ['naaliku', 'நாளைக்கு'],
+    ['naliku', 'நாளைக்கு'], ['nalikku', 'நாளைக்கு'],
+    ['naleku', 'நாளைக்கு'], ['nalekku', 'நாளைக்கு'],
+    ['naaleku', 'நாளைக்கு'], ['naleiku', 'நாளைக்கு'],
+    ['naalaiku', 'நாளைக்கு'], ['nalaku', 'நாளைக்கு'],
+    ['naalku', 'நாளைக்கு'],
+    ['naalai', 'நாளை'], ['nalai', 'நாளை'],
+    ['nalei', 'நாளை'], ['nale', 'நாளை'],
+    ['naale', 'நாளை'], ['naali', 'நாளை'],
+    ['nethu', 'நேத்து'], ['netha', 'நேத்து'],
+    ['nethe', 'நேத்து'], ['neethu', 'நேத்து'],
+    ['neku', 'நேத்து'],
+    ['inniku', 'இன்னிக்கு'], ['iniku', 'இன்னிக்கு'],
+    ['inikku', 'இன்னிக்கு'], ['innik', 'இன்னிக்கு'],
+    ['inaku', 'இன்னிக்கு'], ['innaku', 'இன்னிக்கு'],
+    ['inniki', 'இன்னிக்கு'], ['iniki', 'இன்னிக்கு'],
+    ['innaiku', 'இன்னைக்கு'],
+    // ── QUESTION WORDS ───────────────────────────────────────────────────
+    ['enna', 'என்ன'], ['yenna', 'என்ன'],
+    ['ena', 'என்ன'], ['ene', 'என்ன'],
+    ['enakku', 'எனக்கு'], ['enaku', 'எனக்கு'],
+    ['unakku', 'உனக்கு'], ['unaku', 'உனக்கு'],
+    ['eppadi', 'எப்படி'], ['epaddi', 'எப்படி'],
+    ['epdi', 'எப்படி'], ['yepdi', 'எப்படி'],
+    ['epidi', 'எப்படி'], ['yeppadi', 'எப்படி'],
+    ['eppo', 'எப்போ'], ['epo', 'எப்போ'],
+    ['yepo', 'எப்போ'],
+    ['enga', 'எங்க'], ['enge', 'எங்கே'],
+    ['eng', 'எங்க'],
+    ['evvalo', 'எவ்வளோ'], ['evalo', 'எவ்வளோ'],
+    ['evlo', 'எவ்வளோ'], ['evalu', 'எவ்வளோ'],
+    ['ethanai', 'எத்தனை'], ['ethna', 'எத்தனை'],
+    ['ethane', 'எத்தனை'], ['ethu', 'எது'],
+    // ── PRONOUNS ─────────────────────────────────────────────────────────
+    ['naan', 'நான்'], ['nan', 'நான்'],
+    ['nii', 'நீ'], ['ni', 'நீ'],
+    ['neenga', 'நீங்க'], ['ninga', 'நீங்க'],
+    ['nenga', 'நீங்க'], ['ningal', 'நீங்க'],
+    ['avan', 'அவன்'], ['aven', 'அவன்'],
+    ['aval', 'அவள்'], ['avl', 'அவள்'],
+    ['avanga', 'அவங்க'],
+    ['ivan', 'இவன்'], ['ivn', 'இவன்'],
+    ['ival', 'இவள்'], ['ivl', 'இவள்'],
+    ['namma', 'நம்ம'], ['namba', 'நம்ம'],
+    ['nammakku', 'நம்மக்கு'], ['nambaku', 'நம்மக்கு'],
+    // ── COMMON VERBS (present) ────────────────────────────────────────────
+    ['poren', 'போறேன்'], ['porn', 'போறேன்'],
+    ['porin', 'போறேன்'], ['porein', 'போறேன்'],
+    ['varen', 'வாறேன்'], ['varn', 'வாறேன்'],
+    ['varain', 'வாறேன்'], ['varien', 'வாறேன்'],
+    ['pannren', 'பண்றேன்'], ['panren', 'பண்றேன்'],
+    ['panniren', 'பண்றேன்'], ['paniren', 'பண்றேன்'],
+    ['saapren', 'சாப்றேன்'], ['sapren', 'சாப்றேன்'],
+    ['saapitten', 'சாப்பிட்டேன்'], ['sapitten', 'சாப்பிட்டேன்'],
+    ['saapittan', 'சாப்பிட்டான்'], ['sapitan', 'சாப்பிட்டான்'],
+    ['saapitu', 'சாப்பிட்டு'], ['saptu', 'சாப்பிட்டு'],
+    ['saapadu', 'சாப்பாடு'], ['sapadu', 'சாப்பாடு'],
+    ['irukken', 'இருக்கேன்'], ['irukein', 'இருக்கேன்'],
+    ['irukin', 'இருக்கேன்'],
+    ['irukkaan', 'இருக்கான்'], ['irukan', 'இருக்கான்'],
+    ['irukkaal', 'இருக்காள்'], ['irukal', 'இருக்காள்'],
+    ['irukku', 'இருக்கு'], ['irukum', 'இருக்கு'],
+    ['paakiren', 'பாக்கிறேன்'], ['paren', 'பாக்கிறேன்'],
+    ['pakren', 'பாக்கிறேன்'], ['parkren', 'பாக்கிறேன்'],
+    ['pakiren', 'பாக்கிறேன்'],
+    ['kelkiren', 'கேக்கிறேன்'], ['kelkren', 'கேக்கிறேன்'],
+    ['keliren', 'கேக்கிறேன்'],
+    ['padikiren', 'படிக்கிறேன்'], ['padikren', 'படிக்கிறேன்'],
+    ['padikiran', 'படிக்கிறான்'], ['padikran', 'படிக்கிறான்'],
+    ['solren', 'சொல்றேன்'], ['solirin', 'சொல்றேன்'],
+    // ── PAST TENSE ───────────────────────────────────────────────────────
+    ['poiten', 'போய்ட்டேன்'], ['ponen', 'போய்ட்டேன்'],
+    ['poitan', 'போய்ட்டான்'], ['ponan', 'போய்ட்டான்'],
+    ['vandhen', 'வந்தேன்'], ['vanden', 'வந்தேன்'],
+    ['vandhan', 'வந்தான்'], ['vandan', 'வந்தான்'],
+    ['paathen', 'பாத்தேன்'], ['paten', 'பாத்தேன்'],
+    ['pathen', 'பாத்தேன்'],
+    ['paathan', 'பாத்தான்'], ['pathan', 'பாத்தான்'],
+    ['panninen', 'பண்ணினேன்'], ['paninen', 'பண்ணினேன்'],
+    ['sonnen', 'சொன்னேன்'], ['sonen', 'சொன்னேன்'],
+    ['sonnan', 'சொன்னான்'], ['sonan', 'சொன்னான்'],
+    ['kelten', 'கேட்டேன்'], ['keten', 'கேட்டேன்'],
+    // ── FUTURE ───────────────────────────────────────────────────────────
+    ['poven', 'போவேன்'], ['povin', 'போவேன்'],
+    ['varuven', 'வருவேன்'], ['varuvin', 'வருவேன்'],
+    ['vareven', 'வருவேன்'],
+    ['solven', 'சொல்வேன்'], ['solvin', 'சொல்வேன்'],
+    ['seiven', 'செய்வேன்'], ['seivin', 'செய்வேன்'],
+    // ── NEGATION / AFFIRMATION ───────────────────────────────────────────
+    ['illai', 'இல்லை'], ['ile', 'இல்லை'],
+    ['ilai', 'இல்லை'], ['illay', 'இல்லை'],
+    ['illa', 'இல்ல'], ['ila', 'இல்ல'],
+    ['aama', 'ஆமா'], ['ama', 'ஆமா'],
+    ['venam', 'வேணாம்'], ['vena', 'வேணாம்'],
+    ['venum', 'வேணும்'], ['venu', 'வேணும்'],
+    ['vendum', 'வேண்டும்'],
+    ['vendam', 'வேண்டாம்'],
+    ['mudiyala', 'முடியல'], ['mudiala', 'முடியல'],
+    ['matein', 'முடியல'],
+    // ── NOUNS / PLACES ────────────────────────────────────────────────────
+    ['veedu', 'வீடு'], ['vidu', 'வீடு'],
+    ['vedu', 'வீடு'],
+    ['veetuku', 'வீட்டுக்கு'], ['viduku', 'வீட்டுக்கு'],
+    ['veeduku', 'வீட்டுக்கு'], ['veduku', 'வீட்டுக்கு'],
+    ['veetukku', 'வீட்டுக்கு'], ['veedukku', 'வீட்டுக்கு'],
+    ['vidukku', 'வீட்டுக்கு'],
+    ['ooru', 'ஊரு'], ['oru', 'ஊரு'],
+    ['oorukku', 'ஊருக்கு'], ['oruku', 'ஊருக்கு'],
+    ['uruku', 'ஊருக்கு'],
+    ['kadai', 'கடை'], ['kade', 'கடை'],
+    ['kadaikku', 'கடைக்கு'], ['kadaiku', 'கடைக்கு'],
+    ['kadeku', 'கடைக்கு'],
+    // ── ADJECTIVES / ADVERBS ─────────────────────────────────────────────
+    ['nalla', 'நல்ல'], ['nala', 'நல்ல'],
+    ['nallaa', 'நல்லா'], ['nalaa', 'நல்லா'],
+    ['romba', 'ரொம்ப'], ['rompa', 'ரொம்ப'],
+    ['rombha', 'ரொம்ப'], ['roma', 'ரொம்ப'],
+    ['periya', 'பெரிய'], ['peria', 'பெரிய'],
+    ['chinna', 'சின்ன'], ['china', 'சின்ன'],
+    ['pudhu', 'புது'], ['pudu', 'புது'],
+    // ── GREETINGS ─────────────────────────────────────────────────────────
+    ['vanakkam', 'வணக்கம்'], ['vanakam', 'வணக்கம்'],
+    ['vanakm', 'வணக்கம்'], ['vnkm', 'வணக்கம்'],
+    ['nanri', 'நன்றி'], ['nandri', 'நன்றி'],
+    ['seri', 'சேரி'], ['sari', 'சேரி'],
+    ['ceri', 'சேரி'],
+    // ── LOCATION ─────────────────────────────────────────────────────────
+    ['inga', 'இங்க'], ['inge', 'இங்கே'],
+    ['anga', 'அங்க'], ['ange', 'அங்கே'],
+    // ── DEMONSTRATIVES ───────────────────────────────────────────────────
+    ['intha', 'இந்த'], ['inda', 'இந்த'],
+    ['inta', 'இந்த'],
+    ['antha', 'அந்த'], ['anda', 'அந்த'],
+    ['anta', 'அந்த'],
+    ['entha', 'எந்த'], ['eda', 'எந்த'],
+    ['enta', 'எந்த'],
+    ['ithu', 'இது'], ['idu', 'இது'],
+    ['itu', 'இது'],
+    ['adhu', 'அது'], ['adu', 'அது'],
+    ['atu', 'அது'],
+    // ── COMMON NOUNS ─────────────────────────────────────────────────────
+    ['konjam', 'கொஞ்சம்'], ['konja', 'கொஞ்சம்'],
+    ['koncham', 'கொஞ்சம்'], ['koncha', 'கொஞ்சம்'],
+    ['panam', 'பணம்'], ['pana', 'பணம்'],
+    ['kaasu', 'காசு'], ['kasu', 'காசு'],
+    ['velai', 'வேலை'], ['vela', 'வேலை'],
+    ['thanni', 'தண்ணி'], ['tani', 'தண்ணி'],
+    ['thanneer', 'தண்ணீர்'], ['tanir', 'தண்ணீர்'],
+    ['taneer', 'தண்ணீர்'],
+    ['paal', 'பால்'], ['pal', 'பால்'],
+    ['thayir', 'தயிர்'], ['tair', 'தயிர்'],
+    ['tayir', 'தயிர்'],
+    ['sadam', 'சாதம்'], ['satam', 'சாதம்'],
+    ['santhosham', 'சந்தோஷம்'],
+    ['kovam', 'கோபம்'], ['kopam', 'கோபம்'],
+    ['kobam', 'கோபம்'], ['bayam', 'பயம்'],
+    ['kadhal', 'காதல்'], ['kadal', 'காதல்'],
+    ['anbu', 'அன்பு'],
+    ['kastam', 'கஷ்டம்'], ['kasdam', 'கஷ்டம்'],
+    ['kashtam', 'கஷ்டம்'],
+    // ── BODY PARTS ───────────────────────────────────────────────────────
+    ['thalai', 'தலை'], ['talai', 'தலை'],
+    ['tale', 'தலை'],
+    ['kannu', 'கண்ணு'], ['kan', 'கண்'],
+    ['kaadhu', 'காது'], ['katu', 'காது'],
+    ['mooku', 'மூக்கு'], ['muku', 'மூக்கு'],
+    ['kaal', 'கால்'], ['kal', 'கால்'],
+    // ── FAMILY ───────────────────────────────────────────────────────────
+    ['amma', 'அம்மா'], ['apa', 'அப்பா'],
+    ['appa', 'அப்பா'],
+    ['annan', 'அண்ணன்'], ['anan', 'அண்ணன்'],
+    ['thambi', 'தம்பி'], ['tambi', 'தம்பி'],
+    ['akka', 'அக்கா'], ['aka', 'அக்கா'],
+    ['thangachi', 'தங்கச்சி'], ['tangachi', 'தங்கச்சி'],
+    ['maami', 'மாமி'], ['mami', 'மாமி'],
+    ['thatha', 'தாத்தா'], ['tata', 'தாத்தா'],
+    ['paati', 'பாட்டி'],
+    // ── LANGUAGE ─────────────────────────────────────────────────────────
+    ['tamil', 'தமிழ்'], ['tamizh', 'தமிழ்'],
+    ['tamiz', 'தமிழ்'],
+    // ── PERSON WORDS ─────────────────────────────────────────────────────
+    ['oruthar', 'ஒருத்தர்'], ['orutharr', 'ஒருத்தர்'],
+    ['oruththar', 'ஒருத்தர்'], ['oruththarr', 'ஒருத்தர்'],
+    // ── NAMES ────────────────────────────────────────────────────────────
+    ['thilothama', 'திலோத்தம்மா'],
+]);
+
+function normalizeInput(input) {
+    if (!input) return input;
+
+    let normalized = input.toLowerCase().trim();
+
+    // ── STEP 0: Whole-word spelling correction ──────────────────────────
+    // Check if the entire typed word matches a known misspelling
+    if (_tanglishSpellingMap.has(normalized)) {
+        normalized = _tanglishSpellingMap.get(normalized);
+    }
+
+    // ye + consonant cluster = colloquial எ (yedhu=எது, yellam=எல்லாம்)
+    normalized = normalized.replace(/^ye(dh|th|ll|pp|lv|ng|tt|nn|nk|nj|zh|tr)/g, 'e$1');
+
+    // Specific whole-word ye- colloquial normalization
+    const yeWords = {
+        'yenna': 'enna', 'yennanu': 'ennanu', 'yenga': 'enga', 'yenge': 'enge',
+        'yeppadi': 'eppadi', 'yepdi': 'eppadi', 'yeppo': 'eppo',
+        'yellam': 'ellam', 'yella': 'ella', 'yethanai': 'ethanai',
+        'yevlo': 'evlo', 'yevvalo': 'evvalo',
+    };
+    if (yeWords[normalized]) normalized = yeWords[normalized];
+
+    // Normalize double-aa at end → single a for lookup (nallaa → nalla)
+    // but preserve internal double vowels like kaadu, maadu
+    // EXCEPTION: skip stripping when a consonant immediately precedes the
+    // trailing long vowel — e.g. subaash ends in sh+aa, rakesh in sh+ee —
+    // stripping would corrupt the spelling before dictionary lookup.
+    if (!/[bcdfghjklmnpqrstvwxyz]aa$/.test(normalized)) {
+        normalized = normalized.replace(/aa$/, 'a');
+    }
+    if (!/[bcdfghjklmnpqrstvwxyz]ee$/.test(normalized)) {
+        normalized = normalized.replace(/ee$/, 'e');
+    }
+    if (!/[bcdfghjklmnpqrstvwxyz]oo$/.test(normalized)) {
+        normalized = normalized.replace(/oo$/, 'o');
+    }
+
+    // Common informal shortenings → canonical form for lookup
+    const shortcuts = {
+        // trailing -la (locative) variants
+        'la': 'la', 'le': 'la',
+        // -ku/-kku suffix
+        'ku': 'ku', 'kku': 'kku',
+        // spelling normalizations
+        'ph': 'f',  // ph → f sound
+        // double consonant simplifications for lookup
+    };
+
+    // Normalize: pandren/pannren → pannren (double-n before suffixes)
+    normalized = normalized
+        // saap variants → saapi
+        .replace(/^saap([td])/, 'saapit$1')
+        // paakirren → paakiren
+        .replace(/rren$/, 'ren')
+        .replace(/rran$/, 'ran')
+        .replace(/rral$/, 'ral')
+        // handle -inja variants: -inju / -inja / -icha all → check dict first
+        // kaanom → kaanom (already in dict now)
+        // therla → theriyala (expand short forms)
+        .replace(/therla$/, 'theriyala')
+        .replace(/purla$/, 'puriyala')
+        .replace(/mudla$/, 'mudiyala')
+        .replace(/varla$/, 'varala')
+        .replace(/porla$/, 'porala')
+        // -nga → -inga (common suffix drop)
+        .replace(/^(po|va|so|pa|pe)nga$/, '$1inga');
+
+    return normalized;
+}
+
+function checkCompoundWord(normalized) {
+    const compoundPatterns = [
+        /^(.+?)(?:aana|aanaa|aanaal)$/i,
+        /^(.+?)(?:kku|kku)$/i,
+        /^(.+?)(?:la|le|il)$/i,
+        /^(.+?)(?:ukku|ukku)$/i,
+        /^(.+?)(?:ulla|ule)$/i,
+    ];
+
+    for (const pattern of compoundPatterns) {
+        const match = normalized.match(pattern);
+        if (match && match[1] && fullWordMapping.has(match[1])) {
+            return fullWordMapping.get(match[1]);
+        }
+    }
+    return null;
+}
+
+// ============ TRIE DATA STRUCTURE FOR FAST SUGGESTIONS ============
+// Trie provides O(L) lookup where L is prefix length, vs O(N) linear search
+// This gives instant suggestions as user types
+
+class TrieNode {
+    constructor() {
+        this.children = new Map();      // Character -> TrieNode
+        this.isEnd = false;              // Marks end of a word
+        this.tamilValue = null;          // Tamil translation if this is a word
+        this.frequency = 0;              // Usage frequency for ranking
+        this.word = null;                // Original tanglish word
+    }
+}
+
+class Trie {
+    constructor() {
+        this.root = new TrieNode();
+        this.size = 0;
+    }
+
+    // Insert a word into the trie
+    insert(tanglishWord, tamilValue, frequency = 0) {
+        if (!tanglishWord || !tamilValue) return false;
+
+        let node = this.root;
+        const lowerWord = tanglishWord.toLowerCase();
+
+        for (const char of lowerWord) {
+            if (!node.children.has(char)) {
+                node.children.set(char, new TrieNode());
+            }
+            node = node.children.get(char);
+        }
+
+        if (!node.isEnd) {
+            node.isEnd = true;
+            node.tamilValue = tamilValue;
+            node.word = lowerWord;
+            node.frequency = frequency;
+            this.size++;
+            return true;
+        }
+        return false;
+    }
+
+    // Search for exact word
+    search(tanglishWord) {
+        if (!tanglishWord) return null;
+
+        let node = this.root;
+        const lowerWord = tanglishWord.toLowerCase();
+
+        for (const char of lowerWord) {
+            if (!node.children.has(char)) return null;
+            node = node.children.get(char);
+        }
+
+        return node.isEnd ? { tamil: node.tamilValue, frequency: node.frequency } : null;
+    }
+
+    // Get all words that start with a given prefix
+    getWordsWithPrefix(prefix, limit = 8) {
+        if (!prefix) return [];
+
+        let node = this.root;
+        const lowerPrefix = prefix.toLowerCase();
+
+        for (const char of lowerPrefix) {
+            if (!node.children.has(char)) return [];
+            node = node.children.get(char);
+        }
+
+        const results = [];
+        this._collectWords(node, lowerPrefix, results);
+
+        // Filter invalid Tamil word starts (kills னீ, றா, ளா etc.)
+        const _badStart = /^[னறளா-ௌ]/;
+        const _valid = results.filter(r => r.tamil && !_badStart.test(r.tamil));
+        _valid.sort((a, b) => {
+            if (a.frequency !== b.frequency) return b.frequency - a.frequency;
+            return a.word.length - b.word.length;
+        });
+
+        return _valid.slice(0, limit);
+    }
+
+    _collectWords(node, currentWord, results) {
+        if (node.isEnd) {
+            results.push({
+                tanglish: currentWord,
+                tamil: node.tamilValue,
+                frequency: node.frequency,
+                word: node.word
+            });
+        }
+
+        for (const [char, childNode] of node.children) {
+            this._collectWords(childNode, currentWord + char, results);
+        }
+    }
+
+    hasPrefix(prefix) {
+        if (!prefix) return false;
+
+        let node = this.root;
+        const lowerPrefix = prefix.toLowerCase();
+
+        for (const char of lowerPrefix) {
+            if (!node.children.has(char)) return false;
+            node = node.children.get(char);
+        }
+        return true;
+    }
+
+    getAutoComplete(prefix, limit = 5) {
+        if (!prefix || prefix.length < 1) return [];
+        return this.getWordsWithPrefix(prefix, limit);
+    }
+}
+
+// Initialize Trie
+const suggestionTrie = new Trie();
+
+// ============ PHONETIC NORMALIZATION ============
+// Collapses the many ways Tanglish users spell the same sound into one
+// canonical form. Both the dictionary keys AND the user's typed prefix are
+// run through this before being stored/queried in the phonetic trie, so
+// "oorukula" (user) matches "oorukkulla" (dict) because both normalize to
+// the same skeleton.
+//
+// Rules cover the most common Tamil Tanglish spelling variations:
+//   Long vowels:  aa→a, ee/ii→i, oo/uu→u
+//   Aspirates:    th→t, dh→d, kh→k, gh→g, ph→p, bh→b
+//   Retroflex:    zh→z, Lh→l
+//   Doubled cons: kk/pp/tt/nn/mm/ll/rr/ss → single
+//   h-endings:    silent h at word end dropped
+//   nh/ng:        ng→n (e.g. "inga"→"ina")  — keeps the nasal
+//   Special:      ck→k, tch→ch, dj→j
+//
+// The result is intentionally lossy — we only want phonetically similar
+// words to cluster together, not to reconstruct the original spelling.
+
+export function phoneticNormalize(str) {
+    if (!str) return '';
+    let s = str.toLowerCase().trim();
+
+    // ── 1. Long vowels → short ──────────────────────────────────────────
+    s = s.replace(/aa/g, 'a');
+    s = s.replace(/ee/g, 'i');
+    s = s.replace(/ii/g, 'i');
+    s = s.replace(/oo/g, 'u');
+    s = s.replace(/uu/g, 'u');
+
+    // ── 2. Aspirate / alternate spellings → plain consonant ─────────────
+    s = s.replace(/th/g, 't');         // th → t  (both த and ட spellings)
+    s = s.replace(/dh/g, 'd');         // dh → d
+    s = s.replace(/kh/g, 'k');         // kh → k
+    s = s.replace(/gh/g, 'g');         // gh → g
+    s = s.replace(/ph/g, 'p');         // ph → p
+    s = s.replace(/bh/g, 'b');         // bh → b
+    s = s.replace(/sh/g, 's');         // sh → s  (ஷ/ஸ both → s)
+    s = s.replace(/tch/g, 'ch');       // tch → ch
+
+    // ── 3. Retroflex / special Tamil sounds ─────────────────────────────
+    s = s.replace(/zh/g, 'z');         // zh (ழ) → z
+    s = s.replace(/lh/g, 'l');         // Lh → l
+
+    // ── 4. ck / ck clusters ─────────────────────────────────────────────
+    s = s.replace(/ck/g, 'k');
+    s = s.replace(/dj/g, 'j');
+
+    // ── 5. Nasal clusters ───────────────────────────────────────────────
+    // nk/ng/nj → n  (user often drops the velar: "inga"→"ina", "enga"→"ena")
+    s = s.replace(/ng/g, 'n');
+    s = s.replace(/nk/g, 'n');
+    s = s.replace(/nj/g, 'n');
+    s = s.replace(/nd/g, 'n');
+    s = s.replace(/nt/g, 'n');
+
+    // ── 6. Doubled consonants → single ──────────────────────────────────
+    s = s.replace(/(.)\1+/g, '$1');    // any doubled char → one
+
+    // ── 7. Silent / trailing h ──────────────────────────────────────────
+    s = s.replace(/h$/, '');           // trailing h (aah→aa→a after step 1)
+    s = s.replace(/h/g, '');           // remaining h (mainly between vowels)
+
+    // ── 8. y/w as semi-vowel variants ───────────────────────────────────
+    // "yenna"→"enna", "waa"→"a" — only at word start to avoid over-merging
+    s = s.replace(/^y([aeiou])/, '$1');
+    s = s.replace(/^w/, 'v');          // w → v (rare but users do type it)
+
+    // ── 9. c → k when not followed by e/i/h ─────────────────────────────
+    // "ceri"→"seri" handled below; general c+non-front → k
+    s = s.replace(/c([^eih])/g, 'k$1');
+    s = s.replace(/^c([ei])/, 's$1'); // ce/ci → se/si  (ceri→seri)
+
+    // ── 10. Final cleanup: collapse any new doubles created above ────────
+    s = s.replace(/(.)\1+/g, '$1');
+
+    return s;
+}
+
+// Phonetic trie: keyed on phoneticNormalize(tanglishKey)
+// Stores  { tanglish: originalKey, tamil: value, frequency }  at each node
+// so we can return the real tanglish word alongside the Tamil for display.
+const phoneticTrie = new Trie();
+
+// Build Trie from exactDictionary
+function buildSuggestionTrie() {
+    console.log('🔨 Building suggestion trie...');
+    let count = 0;
+    let startTime = Date.now();
+
+    for (const [tanglish, tamil] of exactDictionary.entries()) {
+        // Combine backend DB frequency + local user frequency for ranking
+        const backendFreq = _backendFrequency.get(tanglish) || 0;
+        const localFreq = typeof getWordFrequency === 'function' ? getWordFrequency(tamil) : 0;
+        const freq = backendFreq + localFreq;
+        suggestionTrie.insert(tanglish, tamil, freq);
+
+        // ── Also insert under the phonetic-normalised key ──
+        const phoneticKey = phoneticNormalize(tanglish);
+        if (phoneticKey && phoneticKey !== tanglish) {
+            phoneticTrie.insert(phoneticKey, tamil, freq);
+        }
+        count++;
+
+        if (count % 5000 === 0) {
+            console.log(`   Added ${count} words to trie...`);
+        }
+    }
+
+    const elapsed = Date.now() - startTime;
+    console.log(`✅ Trie built with ${count} words in ${elapsed}ms`);
+}
+
+// Side-map: phoneticNormalized(tanglish) → original tanglish word
+// Needed so fuzzy results show the real spelling, not the collapsed key.
+const phoneticToOriginal = new Map();
+
+function buildPhoneticIndex() {
+    for (const [tanglish] of exactDictionary.entries()) {
+        const key = phoneticNormalize(tanglish);
+        // Keep the shortest / most common spelling for each phonetic key
+        if (!phoneticToOriginal.has(key) || tanglish.length < phoneticToOriginal.get(key).length) {
+            phoneticToOriginal.set(key, tanglish);
+        }
+    }
+    console.log(`✅ Phonetic index built with ${phoneticToOriginal.size} phonetic keys`);
+}
+
+// Fast suggestion function using Trie
+export function getTypingSuggestions(typedText, limit = 8) {
+    if (!typedText || typedText.length < 1) return [];
+
+    const lower = typedText.toLowerCase();
+    const results = [];
+    const seen = new Set();   // dedup by tamil value
+    const seenKeys = new Set(); // dedup by tanglish key
+
+    // ── PASS 1: Trie exact match (fastest - O(L)) ──
+    const trieExact = suggestionTrie.search(lower);
+    if (trieExact) {
+        results.push({
+            tanglish: lower,
+            tamil: trieExact.tamil,
+            type: '⭐ Match',
+            priority: 0,
+            exact: true,
+            frequency: trieExact.frequency
+        });
+        seen.add(trieExact.tamil);
+        seenKeys.add(lower);
+        if (limit === 1) return results;
+    }
+
+    // ── PASS 2: Trie prefix matches (fast - O(L) with collection) ──
+    const triePrefixMatches = suggestionTrie.getWordsWithPrefix(lower, limit * 2);
+    for (const match of triePrefixMatches) {
+        if (results.length >= limit) break;
+        if (!seenKeys.has(match.tanglish) && !seen.has(match.tamil)) {
+            results.push({
+                tanglish: match.tanglish,
+                tamil: match.tamil,
+                type: '📚 Trie',
+                priority: 1,
+                exact: true,
+                frequency: match.frequency
+            });
+            seen.add(match.tamil);
+            seenKeys.add(match.tanglish);
+        }
+    }
+
+    // ── PASS 2.5: PHONETIC FUZZY PREFIX MATCH ───────────────────────────
+    // Normalise the typed prefix and look it up in the phonetic trie.
+    // This is the layer that makes "oorukula" find "oorukkulla → ஊருக்குள்ள"
+    // even though the exact spellings don't share a common prefix.
+    //
+    // Only kicks in when lower.length >= 4 (avoids false positives on
+    // very short inputs where normalization collapses too much).
+    if (lower.length >= 4) {
+        const phoneticPrefix = phoneticNormalize(lower);
+        // Query phonetic trie
+        const phoneticMatches = phoneticTrie.getWordsWithPrefix(phoneticPrefix, limit * 3);
+        for (const match of phoneticMatches) {
+            if (results.length >= limit) break;
+            if (seen.has(match.tamil)) continue;
+            // Recover the original (un-normalised) tanglish key from our side-map
+            const originalKey = phoneticToOriginal.get(match.tanglish) || match.tanglish;
+            if (seenKeys.has(originalKey)) continue;
+            results.push({
+                tanglish: originalKey,
+                tamil: match.tamil,
+                type: '🔊 Fuzzy',
+                priority: 2,      // sits between trie-prefix (1) and dict-fallback (3)
+                exact: false,
+                frequency: match.frequency || 0
+            });
+            seen.add(match.tamil);
+            seenKeys.add(originalKey);
+        }
+
+        // ── PASS 2.6: Phonetic variant expansion ────────────────────────
+        // Generate a small set of alternate spellings of what the user typed
+        // and run each through the EXACT trie.  Catches cases like:
+        //   user types "ooru kula"  → we also try "oorukkulla", "oorulkulla"
+        //   user types "veetukula"  → also try "veetukulla", "veetulkulla"
+        // We generate alternates by un-collapsing the most common mutations.
+        if (results.length < limit) {
+            for (const variant of generatePhoneticVariants(lower)) {
+                if (results.length >= limit) break;
+                // Exact trie lookup for each variant
+                const vExact = suggestionTrie.search(variant);
+                if (vExact && !seen.has(vExact.tamil) && !seenKeys.has(variant)) {
+                    results.push({
+                        tanglish: variant,
+                        tamil: vExact.tamil,
+                        type: '🔊 Fuzzy',
+                        priority: 2,
+                        exact: false,
+                        frequency: vExact.frequency || 0
+                    });
+                    seen.add(vExact.tamil);
+                    seenKeys.add(variant);
+                    continue;
+                }
+                // Prefix trie lookup for each variant (finds completions)
+                const vPrefix = suggestionTrie.getWordsWithPrefix(variant, 3);
+                for (const m of vPrefix) {
+                    if (results.length >= limit) break;
+                    if (!seen.has(m.tamil) && !seenKeys.has(m.tanglish)) {
+                        results.push({
+                            tanglish: m.tanglish,
+                            tamil: m.tamil,
+                            type: '🔊 Fuzzy',
+                            priority: 2,
+                            exact: false,
+                            frequency: m.frequency || 0
+                        });
+                        seen.add(m.tamil);
+                        seenKeys.add(m.tanglish);
+                    }
+                }
+            }
+        }
+    }
+
+    // ── PASS 3: Dictionary fallback (for words not in Trie yet) ──
+    if (results.length < limit) {
+        for (const [key, value] of exactDictionary.entries()) {
+            if (results.length >= limit) break;
+            if (!seenKeys.has(key) && key.startsWith(lower) && !seen.has(value)) {
+                results.push({
+                    tanglish: key,
+                    tamil: value,
+                    type: '📚 Word',
+                    priority: 3,
+                    exact: true
+                });
+                seen.add(value);
+                seenKeys.add(key);
+            }
+        }
+    }
+
+    // ── PASS 4: Contains match (only if still need more results) ──
+    if (lower.length >= 3 && results.length < limit) {
+        for (const [key, value] of exactDictionary.entries()) {
+            if (results.length >= limit) break;
+            if (seen.has(value) || seenKeys.has(key)) continue;
+            if (key.includes(lower)) {
+                results.push({
+                    tanglish: key,
+                    tamil: value,
+                    type: '🔍 Contains',
+                    priority: 4,
+                    exact: true
+                });
+                seen.add(value);
+                seenKeys.add(key);
+            }
+        }
+    }
+
+    // ── PASS 5: Rule engine fallback (only if no dictionary matches) ──
+    // Also pushes generateWordForms variants so user sees 3-4 forming options.
+    if (results.length === 0 && typedText.length >= 2) {
+        const formed = convertWithRules(typedText);
+        if (formed && /[஀-௿]/.test(formed) && !seen.has(formed)) {
+            results.push({ tanglish: typedText, tamil: formed, type: '🔧 Rule', priority: 5, exact: false });
+            seen.add(formed);
+        }
+        const forms5 = generateWordForms(typedText);
+        for (const f of forms5) {
+            if (results.length >= limit) break;
+            if (!seen.has(f) && /[஀-௿]/.test(f)) {
+                results.push({ tanglish: typedText, tamil: f, type: '🔧 Form', priority: 5, exact: false });
+                seen.add(f);
+            }
+        }
+    }
+
+    // ── PASS 6: Rule preview + word form variants (always show forming options) ──
+    if (typedText.length >= 2 && results.length < limit) {
+        const formed = convertWithRules(typedText);
+        if (formed && /[஀-௿]/.test(formed) && !seen.has(formed)) {
+            results.push({ tanglish: typedText, tamil: formed, type: '🔧 Rule', priority: 6, exact: false });
+            seen.add(formed);
+        }
+        const forms6 = generateWordForms(typedText);
+        for (const f of forms6) {
+            if (results.length >= limit) break;
+            if (!seen.has(f) && /[஀-௿]/.test(f)) {
+                results.push({ tanglish: typedText, tamil: f, type: '🔧 Form', priority: 6, exact: false });
+                seen.add(f);
+            }
+        }
+    }
+    // ── FILTER: Remove Tamil-invalid results before showing ────────────────
+    // Kills garbage like னீ (ன at word start = invalid), lone vowel signs etc.
+    const INVALID_START = /^[னறள]/; // ன ற ள cannot start a word
+    const LONE_VOWEL_SIGN = /^[ா-ௌ]/;     // bare vowel sign with no base
+    const filtered = results.filter(r => {
+        if (!r.tamil) return false;
+        if (INVALID_START.test(r.tamil)) return false;
+        if (LONE_VOWEL_SIGN.test(r.tamil)) return false;
+        if (!/[஀-௿]/.test(r.tamil)) return false;
+        return true;
+    });
+
+    // Sort: priority → exact first → frequency → shorter tanglish length
+    filtered.sort((a, b) => {
+        if (a.priority !== b.priority) return a.priority - b.priority;
+        if (a.exact && !b.exact) return -1;
+        if (!a.exact && b.exact) return 1;
+        if ((a.frequency || 0) !== (b.frequency || 0)) return (b.frequency || 0) - (a.frequency || 0);
+        return a.tanglish.length - b.tanglish.length;
+    });
+
+    return filtered.slice(0, limit);
+}
+
+// ── generatePhoneticVariants ──────────────────────────────────────────────
+// Given a typed prefix, produce a small set of plausible alternate spellings
+// by applying common Tanglish spelling mutations in reverse (un-collapsing).
+// We focus on the highest-impact transformations: vowel length, doubled
+// consonants, and the -kula/-kulla/-kulla/-ulkulla place-suffix cluster.
+//
+// Kept deliberately narrow (max ~8 variants) so it stays fast.
+function generatePhoneticVariants(typed) {
+    const variants = new Set();
+
+    // ── Vowel length alternates ──────────────────────────────────────────
+    // single-o → oo,  single-a → aa,  single-u → uu  (and vice-versa)
+    const withDoubleO = typed.replace(/(?<!o)o(?!o)/g, 'oo');
+    const withDoubleA = typed.replace(/(?<!a)a(?!a)/g, 'aa');
+    const withDoubleU = typed.replace(/(?<!u)u(?!u)/g, 'uu');
+    if (withDoubleO !== typed) variants.add(withDoubleO);
+    if (withDoubleA !== typed) variants.add(withDoubleA);
+    if (withDoubleU !== typed) variants.add(withDoubleU);
+    // long → short
+    variants.add(typed.replace(/oo/g, 'o').replace(/aa/g, 'a').replace(/uu/g, 'u'));
+
+    // ── Double/single consonant alternates ──────────────────────────────
+    // single-k → kk,  single-l → ll,  single-t → tt,  single-p → pp
+    // (the most common doubling points in Tamil)
+    const consonants = ['k', 'l', 't', 'p', 'n', 'm', 'r'];
+    for (const c of consonants) {
+        const re = new RegExp(`(?<!${c})${c}(?!${c})`, 'g');
+        const doubled = typed.replace(re, c + c);
+        if (doubled !== typed) variants.add(doubled);
+    }
+    // double → single
+    variants.add(typed.replace(/(.)\1/g, '$1'));
+
+    // ── Place-suffix specific: -kula → try -kulla / -kulLa / -kkulla ────
+    // This is the exact mismatch from the bug report: user types "oorukula"
+    // but dict has "oorukkulla".
+    if (typed.endsWith('kula')) {
+        const stem = typed.slice(0, -4);
+        variants.add(stem + 'kulla');
+        variants.add(stem + 'kkulla');
+        variants.add(stem + 'kulLa');
+        variants.add(stem + 'kuLLa');
+        variants.add(stem + 'ulkulla');  // l-insertion: oorukula → ooruulkulla
+        variants.add(stem + 'ulkula');
+    }
+    if (typed.endsWith('kulla')) {
+        const stem = typed.slice(0, -5);
+        variants.add(stem + 'kula');
+        variants.add(stem + 'kkulla');
+        variants.add(stem + 'kulLa');
+        variants.add(stem + 'ulkulla');  // oorukulla → ooruulkulla
+    }
+    if (typed.endsWith('kkulla')) {
+        const stem = typed.slice(0, -6);
+        variants.add(stem + 'kula');
+        variants.add(stem + 'kulla');
+        variants.add(stem + 'ulkulla');
+    }
+    // -kule / -kulle / -kulLe variants
+    if (typed.endsWith('kule')) {
+        const stem = typed.slice(0, -4);
+        variants.add(stem + 'kulle');
+        variants.add(stem + 'kkule');
+        variants.add(stem + 'kulLe');
+        variants.add(stem + 'kuLLe');
+    }
+
+    // ── th ↔ t,  dh ↔ d ─────────────────────────────────────────────────
+    if (typed.includes('th')) variants.add(typed.replace(/th/g, 't'));
+    if (typed.includes('dh')) variants.add(typed.replace(/dh/g, 'd'));
+    if (!typed.includes('th') && typed.includes('t'))
+        variants.add(typed.replace(/t(?!h)/g, 'th'));
+
+    // ── zh ↔ l / z ───────────────────────────────────────────────────────
+    if (typed.includes('zh')) {
+        variants.add(typed.replace(/zh/g, 'l'));
+        variants.add(typed.replace(/zh/g, 'z'));
+    }
+    if (typed.includes('z') && !typed.includes('zh'))
+        variants.add(typed.replace(/z/g, 'zh'));
+
+    // Remove the original typed string itself (no point searching for it again)
+    variants.delete(typed);
+
+    return [...variants];
+}
+
+export function wordExistsInTrie(word) {
+    return suggestionTrie.search(word) !== null;
+}
+
+export function getPrefixSuggestions(prefix, limit = 5) {
+    return getTypingSuggestions(prefix, limit);
+}
+
+
+// ============ COLLOQUIAL DATA ============
+// Colloquial words are now in the backend database.
+// The colloquial.json is no longer needed — all words come from the backend.
+console.log('[Engine v2.1-FIX] Dictionary will be loaded from backend on startup');
+
+// ============ TAMIL WORD FORMATION RULES ============
+// Rules about which letters can start/end words and how they combine
+
+// 1. LETTERS THAT CANNOT START A WORD IN TAMIL
+// These are called "Pulli" consonants (consonants without vowels)
+const cannotStartWord = [
+    'க்', 'ங்', 'ச்', 'ஞ்', 'ட்', 'ண்', 'த்', 'ந்', 'ப்', 'ம்',
+    'ய்', 'ர்', 'ற்', 'ல்', 'ள்', 'ழ்', 'வ்', 'ஷ்', 'ஸ்', 'ஹ்', 'ஜ்'
+];
+
+// Helper function to check if a character is a Tamil vowel
+function isVowel(char) {
+    const vowels = ['அ', 'ஆ', 'இ', 'ஈ', 'உ', 'ஊ', 'எ', 'ஏ', 'ஐ', 'ஒ', 'ஓ', 'ஔ'];
+    return vowels.includes(char);
+}
+
+// Helper function to get the ending letter of a Tamil word
+// Tamil pulli consonants are 2 chars: consonant + ் (pulli dot)
+// So we need to check the last 2 characters, not just 1
+function getEndingLetter(word) {
+    if (!word) return '';
+    // Check if word ends with pulli (consonant + ் which is 2 chars)
+    if (word.length >= 2) {
+        const lastTwo = word.slice(-2);
+        // If the last char is pulli dot (்), return the consonant+pulli pair
+        if (lastTwo.endsWith('\u0BCD')) {
+            return lastTwo;
+        }
+    }
+    return word.slice(-1);
+}
+
+// Helper function to check if a word ends with a consonant (Pulli)
+function endsWithPulli(word) {
+    if (!word || word.length < 2) return false;
+    // Check if last char is the pulli dot ்
+    return word.slice(-1) === '\u0BCD';
+}
+
+// 3. VALID WORD FORMATION CHECK
+export function isValidTamilWord(word) {
+    if (!word || word.length === 0) return false;
+
+    const firstChar = word[0];
+    if (cannotStartWord.includes(firstChar)) {
+        return false;
+    }
+
+    const tamilRegex = /^[\u0B80-\u0BFF]+$/;
+    if (!tamilRegex.test(word)) {
+        return false;
+    }
+
+    return true;
+}
+
+// 4. AUTO-CORRECT WORD START
+export function autoCorrectWordStart(word) {
+    if (!word || word.length === 0) return word;
+
+    const firstChar = word[0];
+
+    if (cannotStartWord.includes(firstChar)) {
+        const corrections = {
+            'க்': 'க', 'ச்': 'ச', 'ட்': 'ட', 'த்': 'த',
+            'ப்': 'ப', 'ற்': 'ற', 'ல்': 'ல்'
+        };
+
+        if (corrections[firstChar]) {
+            return corrections[firstChar] + word.slice(1);
+        }
+        return 'அ' + word;
+    }
+
+    return word;
+}
+
+// 5. SANDHI RULES FOR WORD COMBINATIONS
+export function applySandhiRules(word1, word2) {
+    if (!word1 || !word2) return word1 + word2;
+
+    const ending1 = getEndingLetter(word1);
+    const start2 = word2[0];
+
+    // Rule 1: word ending in 'ம்' + vowel start → 'வ்'
+    if (ending1 === 'ம்' && isVowel(start2)) {
+        return word1.slice(0, -1) + 'வ்' + word2;
+    }
+    // Rule 2: word ending in 'ன்' + vowel start → 'ன'
+    if (ending1 === 'ன்' && isVowel(start2)) {
+        return word1.slice(0, -1) + 'ன' + word2;
+    }
+    // Rule 3: word ending in 'ல்' + vowel start → 'ல்ல'
+    if (ending1 === 'ல்' && isVowel(start2)) {
+        return word1.slice(0, -2) + 'ல்ல' + word2;
+    }
+    // Rule 4: word ending in 'ர்' + vowel start → 'ர'
+    if (ending1 === 'ர்' && isVowel(start2)) {
+        return word1.slice(0, -1) + 'ர' + word2;
+    }
+    // Rule 5: word ending in 'ட்' + 'ப' start → 'ற்'
+    if (ending1 === 'ட்' && start2 === 'ப') {
+        return word1.slice(0, -1) + 'ற்' + word2;
+    }
+
+    return word1 + word2;
+}
+
+// 6. COMMON WORD COMBINATION CORRECTIONS
+const commonCombinations = {
+    'போகின்றேன்': 'போகிறேன்',
+    'செய்கின்றேன்': 'செய்கிறேன்',
+    'பார்க்கின்றேன்': 'பார்க்கிறேன்',
+    'என்ன என்று': 'என்று',
+    'இல்லை என்று': 'இல்லென்று',
+    'வேண்டும் என்று': 'வேண்டுமென்று',
+    'கீழ் உள்ள': 'கீழுள்ள',
+    'மேல் உள்ள': 'மேலுள்ள',
+    'பின் உள்ள': 'பினுள்ள',
+};
+
+// 7. POST-PROCESS SENTENCE FOR GRAMMAR RULES
+export function applyGrammarRules(sentence) {
+    if (!sentence) return sentence;
+
+    let result = sentence;
+
+    for (const [wrong, correct] of Object.entries(commonCombinations)) {
+        result = result.replace(new RegExp(wrong, 'g'), correct);
+    }
+
+    const words = result.split(/(\s+)/);
+    const fixedWords = words.map(word => {
+        if (word.trim() && !isValidTamilWord(word.trim())) {
+            return autoCorrectWordStart(word);
+        }
+        return word;
+    });
+
+    return fixedWords.join('');
+}
+
+// 8. VALIDATE AND FIX COMPOUND WORDS
+export function validateCompoundWord(word) {
+    if (!word) return word;
+
+    const doubleVowel = /[அஆஇஈஉஊஎஏஒஓ][அஆஇஈஉஊஎஏஒஓ]/;
+    if (doubleVowel.test(word) && !word.includes('ஐ') && !word.includes('ஔ')) {
+        word = word.replace(/([அஆஇஈஉஊஎஏஒஓ])([அஆஇஈஉஊஎஏஒஓ])/g, '$1ய்$2');
+    }
+
+    return word;
+}
+
+// 9. VALIDATION FUNCTION FOR UI
+export function validateTamilText(text) {
+    if (!text) return { valid: true, issues: [] };
+
+    const issues = [];
+    const words = text.split(/\s+/);
+
+    words.forEach((word, index) => {
+        if (word.length > 0 && cannotStartWord.includes(word[0])) {
+            issues.push({
+                word: word,
+                position: index,
+                issue: 'Word starts with a consonant (Pulli)',
+                suggestion: autoCorrectWordStart(word),
+                rule: 'Tamil words cannot start with consonant without vowel'
+            });
+        }
+
+        if (/([அஆஇஈஉஊஎஏஒஓ])\1/.test(word) && !word.includes('ஐ') && !word.includes('ஔ')) {
+            issues.push({
+                word: word,
+                position: index,
+                issue: 'Double vowels not allowed',
+                suggestion: word.replace(/([அஆஇஈஉஊஎஏஒஓ])\1/g, '$1ய்$1'),
+                rule: 'Insert ய் between repeated vowels'
+            });
+        }
+    });
+
+    return {
+        valid: issues.length === 0,
+        issues: issues
+    };
+}
+
+// ============ VALLINAM DOUBLING RULES ============
+// Tamil rule: vallinam (hard consonant) doubles after short vowels at word junctions
+// e.g. படி + கிறேன் → படிக்கிறேன், வீடு + கிட்ட → வீட்டுக்கிட்ட
+export function applyVallinamDoubling(tamilWord) {
+    if (!tamilWord || !/[\u0B80-\u0BFF]/.test(tamilWord)) return tamilWord;
+
+    let result = tamilWord;
+
+    // short vowel signs: ி(u+0BBF) ு(u+0BC1) ெ(u+0BC6) ொ(u+0BCA)
+    const shortVowelSigns = '\u0BBF\u0BC1\u0BC6\u0BCA';
+
+    // Rule 1: short vowel sign + lone vallinam pulli → double it
+    const vallinamPulliMap = {
+        'க்': 'க்க', 'ச்': 'ச்ச', 'ட்': 'ட்ட',
+        'த்': 'த்த', 'ப்': 'ப்ப', 'ற்': 'ற்ற'
+    };
+    for (const [pulli, doubled] of Object.entries(vallinamPulliMap)) {
+        const pattern = new RegExp(`([${shortVowelSigns}])(${pulli})`, 'g');
+        result = result.replace(pattern, (_, vowel, cons) => vowel + doubled);
+    }
+
+    // Rule 2: suffix-based doubling for common case markers after short vowel letters
+    // அ(0B85) இ(0B87) உ(0B89) எ(0B8E) ஒ(0B92)
+    const shortVowelLetters = '\u0B85\u0B87\u0B89\u0B8E\u0B92';
+    const doublingSuffixes = [
+        { suffix: 'கு', doubled: 'க்கு' },
+        { suffix: 'கே', doubled: 'க்கே' },
+        { suffix: 'கிட்ட', doubled: 'க்கிட்ட' },
+        { suffix: 'தில்', doubled: 'த்தில்' },
+        { suffix: 'திலிருந்து', doubled: 'த்திலிருந்து' },
+        { suffix: 'துக்கு', doubled: 'த்துக்கு' },
+        { suffix: 'பார்', doubled: 'ப்பார்' },
+        { suffix: 'போ', doubled: 'ப்போ' },
+    ];
+    for (const { suffix, doubled } of doublingSuffixes) {
+        const pat = new RegExp(`([${shortVowelLetters}])(${suffix})`, 'g');
+        result = result.replace(pat, (_, v, s) => v + doubled);
+    }
+
+    // Rule 3: fix triple stacking that can result from above rules
+    result = result
+        .replace(/க்க்க/g, 'க்க')
+        .replace(/ட்ட்ட/g, 'ட்ட')
+        .replace(/த்த்த/g, 'த்த')
+        .replace(/ப்ப்ப/g, 'ப்ப')
+        .replace(/ச்ச்ச/g, 'ச்ச')
+        .replace(/ற்ற்ற/g, 'ற்ற');
+
+    return result;
+}
+
+// ============ POST-PROCESS CORRECTIONS ============
+const postProcessRules = [
+    { pattern: /வீடில்/, replace: 'வீட்டில்' },
+    { pattern: /வீடுல்/, replace: 'வீட்டுல' },
+    { pattern: /வீடுக்கு/, replace: 'வீட்டுக்கு' },
+    { pattern: /கடில்/, replace: 'கடையில்' },
+    { pattern: /படில்/, replace: 'படத்தில்' },
+    // Fix: j after ஞ் in colloquial words → ச (therinja, purinja, mudinja etc.)
+    // ஞ்ஜ is always wrong in Tamil — should be ஞ்ச
+    { pattern: /ஞ்ஜ/g, replace: 'ஞ்ச' },
+    { pattern: /ஞ்ஜி/g, replace: 'ஞ்சி' },
+    { pattern: /ஞ்ஜு/g, replace: 'ஞ்சு' },
+    { pattern: /ஞ்ஜா/g, replace: 'ஞ்சா' },
+    { pattern: /ஞ்ஜே/g, replace: 'ஞ்சே' },
+    // Fix: நஜ → ஞ்ச (vaninja type words)
+    { pattern: /னஜ/g, replace: 'ஞ்ச' },
+    // Fix: word-internal ல்ல after vowel sign in common positions → ள்ள
+    // palli → பல்லி should be பள்ளி — tokenizer gives ல்ல, needs ள்ள
+    // BUT: nalla → நல்ல is CORRECT (ல்ல stays)
+    // Rule: ல்ல after certain vowels (அ/இ/உ/எ short vowel signs) in middle of word
+    // where the base is a retroflex context → ள்ள
+    // We handle this via dictionary for known words; tokenizer now has ll→ல்ல
+    // Post-process: if word has no dictionary hit and contains ல்ல,
+    // check if it's a known ள்ள pattern word
+    // Specific known wrong outputs:
+    { pattern: /பல்லி/g, replace: 'பள்ளி' },      // palli
+    { pattern: /குல்ல/g, replace: 'குள்ள' },      // kulla
+    { pattern: /குல்லே/g, replace: 'குள்ளே' },    // kulle
+    { pattern: /புல்ல/g, replace: 'புள்ள' },      // pulla
+    { pattern: /புல்லை/g, replace: 'புள்ளை' },    // pullai
+    { pattern: /கல்லூரி/g, replace: 'கல்லூரி' },  // kalluri - already correct
+    // Fix: standalone ஓரு → ஊரு (oor/ooru — oo sounds like ஊ here not ஓ)
+    // The tokenizer reads 'oo' as ஓ (long-o), but in 'ooru/oor' Tanglish 
+    // convention, oo = ஊ (long-u). Dictionary has 'ooru'→ஊரு but 
+    // compound forms like 'oorulkulla' need this post-fix as backup.
+    { pattern: /^ஓரு/, replace: 'ஊரு' },
+    { pattern: /^ஓர்/, replace: 'ஊர்' },
+    // Fix: word-medial dental-na: ன before vowels in common positions should be ந
+    // e.g. neram → நேரம் (n at start fixed elsewhere, but also after space)
+    // Fix triple consonant stacks
+    { pattern: /க்க்/, replace: 'க்க' },
+    { pattern: /ட்ட்/, replace: 'ட்ட' },
+    { pattern: /த்த்/, replace: 'த்த' },
+    { pattern: /ப்ப்/, replace: 'ப்ப' },
+    { pattern: /ற்ற்/, replace: 'ற்ற' },
+    { pattern: /ல்ல்/, replace: 'ல்ல' },
+    { pattern: /ண்ண்/, replace: 'ண்ண' },
+    { pattern: /ன்ன்/, replace: 'ன்ன' },
+    { pattern: /ம்ம்/, replace: 'ம்ம' },
+    // Fix: ஹ at word start for h-words that should be other letters
+    // Fix: trailing lone vowel signs that have no base consonant
+    { pattern: /^[\u0BBE-\u0BCC]/, replace: '' },
+    // Fix: ஒம் at end of words → ஓம் (kaanom → காணோம்)
+    { pattern: /ஒம்$/, replace: 'ஓம்' },
+    // Fix: word ending னொ → னோ
+    { pattern: /னொ/g, replace: 'னோ' },
+    // Fix: ரொ at word END after consonant → ரோ (poren → போறோம் type)
+    { pattern: /ணொம்/g, replace: 'ணோம்' },
+    // Fix: common wrong outputs from tokenizer
+    { pattern: /தெரிஞ்ஜ/g, replace: 'தெரிஞ்ச' },
+    { pattern: /புரிஞ்ஜ/g, replace: 'புரிஞ்ச' },
+    { pattern: /முடிஞ்ஜ/g, replace: 'முடிஞ்ச' },
+    { pattern: /பிடிஞ்ஜ/g, replace: 'பிடிஞ்ச' },
+];
+
+function applyPostProcess(word) {
+    let result = word;
+    for (const rule of postProcessRules) {
+        result = result.replace(rule.pattern, rule.replace);
+
+    }
+    return result;
+}
+
+// ============ VOWEL HIATUS FIX ============
+// When the greedy tokenizer produces a standalone vowel (அ-ஔ) right after
+// a vowel sign (ா-ௌ), it means the user typed something like "poi" which
+// tokenized as po→பொ + i→இ = பொஇ. In Tamil this is invalid — a glide
+// consonant ய (ya) must bridge the two vowel sounds.
+// Fix: பொ+இ → பொய், மெ+இ → மெய், etc.
+
+// Maps standalone vowel characters to the corresponding ய+vowel-sign form
+const _vowelToYaForm = {
+    '\u0b85': '\u0baf\u0bcd',     // அ → ய்  (ya pulli — rare but valid)
+    '\u0b86': '\u0baf\u0bbe',     // ஆ → யா
+    '\u0b87': '\u0baf\u0bcd',     // இ → ய்  (most common: poi→பொய், mei→மெய்)
+    '\u0b88': '\u0baf\u0bc0',     // ஈ → யீ
+    '\u0b89': '\u0baf\u0bc1',     // உ → யு
+    '\u0b8a': '\u0baf\u0bc2',     // ஊ → யூ
+    '\u0b8e': '\u0baf\u0bc6',     // எ → யெ
+    '\u0b8f': '\u0baf\u0bc7',     // ஏ → யே
+    '\u0b90': '\u0baf\u0bc8',     // ஐ → யை
+    '\u0b92': '\u0baf\u0bca',     // ஒ → யொ
+    '\u0b93': '\u0baf\u0bcb',     // ஓ → யோ
+    '\u0b94': '\u0baf\u0bcc',     // ஔ → யௌ
+};
+
+// Tamil vowel signs (matras) range: \u0BBE to \u0BCC
+const _vowelSignRegex = /[\u0bbe-\u0bcc]/;
+// Tamil standalone vowels: \u0B85 to \u0B94
+const _standaloneVowelRegex = /[\u0b85-\u0b94]/;
+
+function applyVowelHiatusFix(word) {
+    if (!word || word.length < 2) return word;
+
+    let result = '';
+    for (let i = 0; i < word.length; i++) {
+        const ch = word[i];
+        const prev = i > 0 ? word[i - 1] : '';
+
+        // If current char is a standalone vowel AND previous char is a vowel sign,
+        // this is a hiatus — insert ய glide instead
+        if (_standaloneVowelRegex.test(ch) && _vowelSignRegex.test(prev)) {
+            const yaForm = _vowelToYaForm[ch];
+            if (yaForm) {
+                result += yaForm;
+                continue;
+            }
+        }
+        result += ch;
+    }
+    return result;
+}
+
+// ============ SANDHI RULES ============
+export function applySandhi(word1, word2) {
+    if (!word1 || !word2) return word1 + word2;
+
+    const tamilVowelRegex = /^[\u0B85-\u0B94]/;
+
+    if (/ல்$/.test(word1) && tamilVowelRegex.test(word2)) {
+        return word1.slice(0, -2) + 'ல்ல' + word2;
+    }
+
+    if (/ண்$/.test(word1) && tamilVowelRegex.test(word2)) {
+        return word1.slice(0, -2) + 'ண்ண' + word2;
+    }
+
+    if (/ன்$/.test(word1) && tamilVowelRegex.test(word2)) {
+        return word1.slice(0, -2) + 'ன்ன' + word2;
+    }
+
+    if (/ம்$/.test(word1) && tamilVowelRegex.test(word2)) {
+        return word1.slice(0, -2) + 'ம்ம' + word2;
+    }
+
+    const vallinam = ['க', 'ச', 'ட', 'த', 'ப', 'ற'];
+
+    if (/[\u0B85-\u0B94]$/.test(word1) && vallinam.some(v => word2.startsWith(v))) {
+        const firstChar = word2[0];
+        return word1 + firstChar + '்' + word2;
+    }
+
+    return word1 + word2;
+}
+
+// ============ RULE-BASED ENGINE ============
+// NOTE: The old regex-based replacementRules array has been removed.
+// The segment-based converter below (_buildTokenTable + greedy tokenizer) 
+// handles all transliteration. It is faster and avoids ordering bugs.
+
+// ============================================================
+// SEGMENT-BASED CONVERTER
+// Greedy longest-match tokenizer — fixes "s fires before nd" bug
+// sandai: tries chunks left→right longest first → sa=ச, ndai=ண்டை → சண்டை ✅
+// ============================================================
+
+// Build token table programmatically
+function _buildTokenTable() {
+    const t = [];
+
+    function addFamily(roman, tamil) {
+        // Long vowels first (must try before short)
+        t.push([roman + 'aa', tamil + '\u0bbe']); // ா
+        t.push([roman + 'ii', tamil + '\u0bc0']); // ீ
+        t.push([roman + 'uu', tamil + '\u0bc2']); // ூ
+        t.push([roman + 'ee', tamil + '\u0bc7']); // ே
+        t.push([roman + 'oo', tamil + '\u0bcb']); // ோ
+        t.push([roman + 'ai', tamil + '\u0bc8']); // ை
+        t.push([roman + 'au', tamil + '\u0bcc']); // ௌ
+        // Short vowels
+        t.push([roman + 'a', tamil]);
+        t.push([roman + 'i', tamil + '\u0bbf']); // ி
+        t.push([roman + 'u', tamil + '\u0bc1']); // ு
+        t.push([roman + 'e', tamil + '\u0bc6']); // ெ
+        t.push([roman + 'o', tamil + '\u0bca']); // ொ
+        // Bare consonant (pulli)
+        t.push([roman, tamil + '\u0bcd']);      // ்
+    }
+
+    // ── 1. MULTI-CHAR CLUSTERS (longest first, MUST be before singles) ──
+
+    // ndra/ndri/ndru
+    t.push(['ndru', '\u0ba9\u0bcd\u0bb1\u0bc1']); // ன்று
+    t.push(['ndra', '\u0ba9\u0bcd\u0bb1']);      // ன்ற
+    t.push(['ndri', '\u0ba9\u0bcd\u0bb1\u0bbf']); // ன்றி
+    // stree / stra
+    t.push(['stree', '\u0bb8\u0bcd\u0ba4\u0bcd\u0bb0\u0bc0']);
+    t.push(['straa', '\u0bb8\u0bcd\u0ba4\u0bcd\u0bb0\u0bbe']);
+    t.push(['stra', '\u0bb8\u0bcd\u0ba4\u0bcd\u0bb0']);
+    // thra/thri/thru
+    t.push(['thraa', '\u0ba4\u0bcd\u0bb0\u0bbe']);
+    t.push(['thrii', '\u0ba4\u0bcd\u0bb0\u0bc0']);
+    t.push(['thruu', '\u0ba4\u0bcd\u0bb0\u0bc2']);
+    t.push(['thra', '\u0ba4\u0bcd\u0bb0']);
+    t.push(['thri', '\u0ba4\u0bcd\u0bb0\u0bbf']);
+    t.push(['thru', '\u0ba4\u0bcd\u0bb0\u0bc1']);
+    t.push(['thre', '\u0ba4\u0bcd\u0bb0\u0bc6']);
+    // shri / sri
+    t.push(['shri', '\u0bb8\u0bcd\u0bb0\u0bc0']); // shri → ஸ்ரீ
+    t.push(['sri', '\u0bb8\u0bcd\u0bb0\u0bc0']);   // sri → ஸ்ரீ
+
+    // Special combinations (MISSING RULES FROM AZHAGI)
+    t.push(['nH', '\u0ba9\u0bcd\u0bb9']);  // nH for ன்ஹ் (manHattan)
+    t.push(['nkh', '\u0ba9\u0bcd\u0b95']); // nkh for ன்க்
+    t.push(['nKh', '\u0ba9\u0bcd\u0b95']); // nKh for ன்க்
+    t.push(['nK', '\u0ba9\u0bcd\u0b95']);   // nK for ன்க்
+    t.push(['ngh', '\u0ba9\u0bcd\u0b95']); // ngh for ன்க்
+    t.push(['nG', '\u0b99\u0bcd']);        // nG for ங்
+    t.push(['Gn', '\u0b9e\u0bcd']);        // Gn for ஞ் (Gnaani)
+    t.push(['nDr', '\u0ba9\u0bcd\u0b9f\u0bcd\u0bb0']); // nDr for ன்ட்ர் (aanDraaid)
+    t.push(['nTh', '\u0ba9\u0bcd\u0ba4\u0bbe\u0ba9\u0bcd']); // nTh for ன்தான் (avanThaan)
+    t.push(['Tr', '\u0b9f\u0bcd\u0bb0']);  // Tr for ட்ர் (venkaTraaman)
+    t.push(['Sh', '\u0bb6\u0bcd']);         // Sh for ஶ் (Shivan)
+    t.push(['Sr', '\u0bb8\u0bcd\u0bb0\u0bcd']);   // Sr for ஸ்ர் (naSreen)
+    t.push(['srii', '\u0bb8\u0bcd\u0bb0\u0bc0']); // srii for ஸ்ரீ
+    t.push(['Srii', '\u0bb8\u0bcd\u0bb0\u0bc0']); // Srii for ஸ்ரீ
+    t.push(['Mr', '\u0bb8\u0bcd\u0bb0\u0bc0']);   // Mr for ஸ்ரீ
+    t.push(['F', '\u0b83\u0baa']);          // F for ஃப்
+    t.push(['ph', '\u0b83\u0baa']);         // ph for ஃப்
+    t.push(['Z', '\u0b83\u0b9c\u0bcd']);    // Z for ஃஜ்
+    t.push(['X', '\u0b83\u0bb8\u0bcd']);    // X for ஃஸ்
+    t.push(['ow', '\u0b94']);               // ow for ஔ
+    t.push(['ou', '\u0b94']);               // ou for ஔ
+    // NOTE: Removed broken diphthong tokens (aai, ooi, ei, oi, etc.)
+    // They produced wrong output. Vowel-hiatus is now handled in applyVowelHiatusFix().
+    t.push(['ae', '\u0b8f']);               // ae for ஏ (aetram)
+    t.push(['oa', '\u0b93']);               // oa for ஓ (koavil)
+    t.push(['nh', '\u0ba8\u0bcd']);         // nh for ந் (nhagar)
+    t.push(['aum', '\u0b90']);              // aum for ௐ
+    t.push(['Aum', '\u0b90']);              // Aum for ௐ
+    t.push(['OM', '\u0b90']);               // OM for ௐ
+
+
+    // chr cluster (English loanwords: Christ, chrome)
+    t.push(['chri', '\u0B95\u0BBF\u0BB1\u0BBF']); // கிறி
+    t.push(['chru', '\u0B95\u0BBF\u0BB1\u0BC1']); // கிறு  
+    t.push(['chre', '\u0B95\u0BBF\u0BB1\u0BC6']); // கிறெ
+    t.push(['chr', '\u0B95\u0BBF\u0BB1\u0BCD']); // கிற்
+
+
+    // tr family (Sanskrit) → த்ர
+    addFamily('tr', '\u0ba4\u0bcd\u0bb0');
+
+    // NOTE: Duplicate thr/ndr/str blocks removed — already defined above in section 1.
+
+    // nth → ந்த
+    addFamily('nth', '\u0ba8\u0bcd\u0ba4');
+    // ksh → க்ஷ
+    addFamily('ksh', '\u0b95\u0bcd\u0bb7');
+    // sth → ஸ்த
+    addFamily('sth', '\u0bb8\u0bcd\u0ba4');
+    // nd → ண்ட
+    addFamily('ndh', '\u0ba8\u0bcd\u0ba4');
+    addFamily('nd', '\u0ba3\u0bcd\u0b9f');
+    // nt → ண்ட
+    addFamily('nt', '\u0ba3\u0bcd\u0b9f');
+    // nk → ங்க AND ng → ங்க
+    addFamily('nk', '\u0b99\u0bcd\u0b95');
+    addFamily('ng', '\u0b99\u0bcd\u0b95');
+    // mb → ம்ப
+    addFamily('mb', '\u0bae\u0bcd\u0baa');
+    // nch → ஞ்ச AND nc → ஞ்ச
+    addFamily('nch', '\u0b9e\u0bcd\u0b9a');
+    addFamily('nc', '\u0b9e\u0bcd\u0b9a');
+    // nn → ன்ன
+    addFamily('nn', '\u0ba9\u0bcd\u0ba9');
+
+    // ── ll → ல்ல (MUST be before single l) ──
+    // In Tamil, double-l in Tanglish = ல்ல (e.g. palli=பள்ளி, nalla=நல்ல, kulla=குள்ள)
+    // NOTE: palli, nalla etc. are in dictionary; this handles unseen ll words
+    addFamily('ll', '\u0bb2\u0bcd\u0bb2'); // ll → ல்ல
+
+    // ── LL → ள்ள (retroflex double-L, e.g. paLLi=பள்ளி) ──
+    addFamily('LL', '\u0bb3\u0bcd\u0bb3'); // LL → ள்ள
+
+    // ── 2. TWO-CHAR CONSONANT COMBOS ──
+    addFamily('sh', '\u0bb7');
+    addFamily('ddh', '\u0ba4\u0bcd\u0ba4');
+    addFamily('dh', '\u0ba4');
+    addFamily('th', '\u0ba4');
+    addFamily('ch', '\u0b9a');
+    addFamily('zh', '\u0bb4');
+    addFamily('nj', '\u0b9e');
+
+    // ── 3. SINGLE CONSONANTS ──
+    addFamily('k', '\u0b95'); addFamily('g', '\u0b95');
+    addFamily('p', '\u0baa'); addFamily('b', '\u0baa');
+    addFamily('m', '\u0bae');
+    addFamily('y', '\u0baf');
+    addFamily('r', '\u0bb0');
+    addFamily('l', '\u0bb2');
+    addFamily('v', '\u0bb5');
+    addFamily('h', '\u0bb9'); // h → ஹ (ha, hi, hu etc.)
+    addFamily('s', '\u0b9a');
+    addFamily('t', '\u0b9f'); addFamily('d', '\u0b9f');
+    addFamily('j', '\u0b9c');
+    addFamily('n', '\u0ba9');
+    addFamily('w', '\u0ba8'); // w → ந (dental na — distinct from n=ன)
+    addFamily('N', '\u0ba3');
+    addFamily('L', '\u0bb3');
+    addFamily('R', '\u0bb1');
+    addFamily('z', '\u0bb4');
+    addFamily('f', '\u0b83\u0baa');
+
+    // ── 4. VOWELS (long before short) ──
+    t.push(['aa', '\u0b86'], ['ii', '\u0b88'], ['uu', '\u0b8a'],
+        ['ee', '\u0b8f'], ['oo', '\u0b93'], ['ai', '\u0b90'], ['au', '\u0b94']);
+    t.push(['A', '\u0b86'], ['I', '\u0b88'], ['E', '\u0b8f'],
+        ['U', '\u0b8a'], ['O', '\u0b93']);
+    t.push(['a', '\u0b85'], ['i', '\u0b87'], ['u', '\u0b89'],
+        ['e', '\u0b8e'], ['o', '\u0b92']);
+
+    // NOTE: Removed duplicate ee/oo/uu vowel mappings that were already defined above.
+
+    return t;
+}
+
+const _tokenTable = _buildTokenTable();
+
+export function convertWithRules(tanglishWord) {
+    if (!tanglishWord || !tanglishWord.trim()) return '';
+
+    // STEP 1: Normalize
+    const normalized = normalizeInput(tanglishWord);
+
+    // STEP 2: Check full word first
+    if (fullWordMapping.has(normalized)) {
+        return fullWordMapping.get(normalized);
+    }
+
+    const lowerOriginal = tanglishWord.toLowerCase().trim();
+    if (fullWordMapping.has(lowerOriginal)) {
+        return fullWordMapping.get(lowerOriginal);
+    }
+
+    // Check compound words
+    const compoundResult = checkCompoundWord(normalized);
+    if (compoundResult) return compoundResult;
+
+    // Check verb forms
+    const verbForms = conjugateVerb(normalized);
+    if (verbForms && verbForms.length > 0 && verbForms[0]) {
+        return verbForms[0];
+    }
+
+    // STEP 3: Letter mapping (greedy tokenizer)
+    let result = '';
+    let pos = 0;
+    const input = normalized;
+
+    while (pos < input.length) {
+        let matched = false;
+        const maxLen = Math.min(6, input.length - pos);
+
+        for (let len = maxLen; len >= 1; len--) {
+            const chunk = input.slice(pos, pos + len);
+            for (const [key, val] of _tokenTable) {
+                if (key === chunk) {
+                    result += val;
+                    pos += len;
+                    matched = true;
+                    break;
+                }
+            }
+            if (matched) break;
+        }
+
+        if (!matched) {
+            result += input[pos];
+            pos++;
+        }
+    }
+
+    result = applyVowelHiatusFix(result);
+    result = applyPostProcess(result);
+    result = applyVallinamDoubling(result);
+
+    // Fix word start issues: ன→ந, ற→ர, ள→ல at word start (invalid in Tamil)
+    // Must check first Tamil char (may be followed by vowel signs)
+    if (result.length > 0) {
+        const firstChar = result[0];
+        if (firstChar === '\u0ba9') result = '\u0ba8' + result.slice(1); // ன → ந
+        else if (firstChar === '\u0bb1') result = '\u0bb0' + result.slice(1); // ற → ர
+        else if (firstChar === '\u0bb3') result = '\u0bb2' + result.slice(1); // ள → ல
+    }
+
+    // Fix medial dental-na: ன followed immediately by a vowel sign in the
+    // middle of a word is usually ந in genuine Tamil words.
+    // Pattern: consonant + ன + vowel sign (not word boundary)
+    // e.g. neram: ன + ே → should be ந + ே
+    // We apply a targeted fix for the most common cases:
+    result = result
+        // ன before long vowel signs in medial position → ந
+        .replace(/([\u0BBE\u0BBF\u0BC0\u0BC1\u0BC2\u0BC6\u0BC7\u0BC8\u0BCA\u0BCB\u0BCC])\u0BA9([\u0BBE\u0BC7\u0BC0\u0BCB])/g, '$1\u0BA8$2')
+        // standalone நே / நா patterns (neram, naal type words already fixed by start)
+        // Fix: -ன்னு (nnu) at end is correct, but lone ன in middle before vowel → ந
+        .replace(/\u0BA9(\u0BC7)/g, '\u0BA8$1')  // னே → நே in middle
+        .replace(/\u0BA9(\u0BBE)/g, '\u0BA8$1')  // னா → நா in middle (naan = நான்)
+        .replace(/\u0BA9(\u0BCB)/g, '\u0BA8$1'); // னோ → நோ in middle
+
+    // ── ல/ள/ழ DISAMBIGUATION ──────────────────────────────────────────────
+    // Only runs for words NOT found in dictionary (those are already correct).
+    // Fixes: palli→பள்ளி, vaazhkai→வாழ்க்கை, ulla→உள்ள, nalla stays நல்ல etc.
+    if (isLaAmbiguous(tanglishWord)) {
+        result = disambiguateLa(tanglishWord.toLowerCase(), result);
+    }
+
+    // ── ர/ற DISAMBIGUATION ────────────────────────────────────────────────
+    // Fixes lowercase 'r' being used where ற (hard Ra) is correct.
+    // Most common case: verb present-tense suffix -kura/-ura → குற
+    //   veekura → வேகுற, paakura → பாக்குற, solura → சொல்லுற
+    // Also fixes: maru- → மறு, veru → வேறு, uravu → உறவு, paravai → பறவை etc.
+    if (isRaAmbiguous(tanglishWord)) {
+        result = disambiguateRa(tanglishWord.toLowerCase(), result);
+    }
+
+    return result;
+}
+
+// ============ FUZZY MATCHING ============
+function levenshteinDistance(a, b) {
+    const matrix = [];
+    for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+    for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+    for (let i = 1; i <= b.length; i++) {
+        for (let j = 1; j <= a.length; j++) {
+            if (b.charAt(i - 1) === a.charAt(j - 1)) {
+                matrix[i][j] = matrix[i - 1][j - 1];
+            } else {
+                matrix[i][j] = Math.min(
+                    matrix[i - 1][j - 1] + 1,
+                    matrix[i][j - 1] + 1,
+                    matrix[i - 1][j] + 1
+                );
+            }
+        }
+    }
+    return matrix[b.length][a.length];
+}
+
+function findClosestMatch(word, maxDistance = 1) {
+    const wordLower = word.toLowerCase();
+    let bestMatch = null;
+    let bestDistance = Infinity;
+
+    if (wordLower.length < 4) return null;
+
+    for (const [key, value] of exactDictionary.entries()) {
+        if (Math.abs(key.length - wordLower.length) > maxDistance) continue;
+        const distance = levenshteinDistance(wordLower, key);
+        if (distance < bestDistance && distance <= maxDistance) {
+            bestDistance = distance;
+            bestMatch = { tanglish: key, tamil: value, distance };
+        }
+    }
+    return bestMatch;
+}
+
+// ============ LEARNED CORRECTIONS ============
+const learnedCorrections = new Map();
+
+export function learnCorrection(original, corrected) {
+    const lower = original.toLowerCase();
+    learnedCorrections.set(lower, corrected);
+    try {
+        const saved = JSON.parse(localStorage.getItem('tamilLearned') || '{}');
+        saved[lower] = corrected;
+        localStorage.setItem('tamilLearned', JSON.stringify(saved));
+    } catch (_) { }
+}
+
+export function getLearnedCorrection(word) {
+    return learnedCorrections.get(word.toLowerCase());
+}
+
+export function loadLearnedCorrections() {
+    try {
+        const saved = localStorage.getItem('tamilLearned');
+        if (saved) {
+            for (const [k, v] of Object.entries(JSON.parse(saved))) {
+                learnedCorrections.set(k, v);
+            }
+        }
+    } catch (_) { }
+}
+
+// ============ MAIN TRANSLITERATION ============
+
+export function transliterateWord(word) {
+    if (!word || !word.trim()) return '';
+
+    const lower = word.toLowerCase().trim();
+    const orig = word.trim();
+
+    // 1. Learned corrections
+    // Guard: skip cached values that look like corrupted backend data
+    // (phrases with spaces, or values clearly shorter than the input)
+    const learned = getLearnedCorrection(lower);
+    if (learned) {
+        const learnedBad = learned.includes(' '); // cached phrase → bad
+        if (!learnedBad) return learned;
+        // Clear the bad cached entry so it doesn't persist
+        learnedCorrections.delete(lower);
+        try {
+            const saved = JSON.parse(localStorage.getItem('tamilLearned') || '{}');
+            delete saved[lower];
+            localStorage.setItem('tamilLearned', JSON.stringify(saved));
+        } catch (_) { }
+    }
+
+    // 2. Full word mapping (exact dictionary)
+    // Guard: skip backend entries that look wrong:
+    //   • Contains spaces → it's a phrase mapping, not a word translation
+    //   • Tamil value is clearly truncated (Tanglish ends in consonant but
+    //     Tamil value ends in a vowel sign, suggesting the final consonant
+    //     was dropped by bad database data)
+    function isBackendValueSuspect(tanglishKey, tamilValue) {
+        if (!tamilValue) return true;
+        // Reject phrase mappings (multi-word Tamil for a single Tanglish word)
+        if (tamilValue.includes(' ')) return true;
+        // Reject if Tanglish ends in a consonant (no vowel) but Tamil value
+        // ends in a vowel sign (ா-ௌ, U+0BBE-U+0BCC) OR a bare Tamil consonant
+        // letter — means the final consonant of the Tanglish was dropped by bad
+        // backend data (e.g. oruthar → ஒருத instead of ஒருத்தர்)
+        const tanglishEndsConsonant = /[bcdfghjklmnpqrstvwxyz]$/.test(tanglishKey);
+        // Tamil vowel signs ா-ௌ (U+0BBE-U+0BCC)
+        const tamilEndsVowelSign = /[\u0BBE-\u0BCC]$/.test(tamilValue);
+        // Tamil base consonant letters க-ஹ WITHOUT pulli — means no final ் was added
+        // i.e. the Tamil word ends in an open syllable when Tanglish implies closed
+        // A consonant WITH pulli (்\u0BCD) at the end is a valid Tamil word-ending
+        // e.g. சுபாஷ் ends in ஷ் — last char is ் so this is correct, not "bare".
+        // Only flag as bare if the last char is a consonant letter WITHOUT pulli.
+        const tamilEndsBareCons = /[\u0B95-\u0BB9]$/.test(tamilValue) && !tamilValue.endsWith('\u0BCD');
+        if (tanglishEndsConsonant && (tamilEndsVowelSign || tamilEndsBareCons)) return true;
+        return false;
+    }
+    if (fullWordMapping.has(lower)) {
+        const val = fullWordMapping.get(lower);
+        if (!isBackendValueSuspect(lower, val)) return val;
+        // else: fall through to rule engine
+    }
+    if (fullWordMapping.has(orig)) {
+        const val = fullWordMapping.get(orig);
+        if (!isBackendValueSuspect(orig, val)) return val;
+        // else: fall through to rule engine
+    }
+
+    // 2a. Spelling correction map → dictionary lookup
+    // Catches "naaliku" → "naalaikku" → நாளைக்கு
+    const spellingCorrected = _tanglishSpellingMap.get(lower);
+    if (spellingCorrected && fullWordMapping.has(spellingCorrected)) {
+        const result = fullWordMapping.get(spellingCorrected);
+        // Cache so future lookups are instant
+        learnCorrection(lower, result);
+        return result;
+    }
+
+    // 2b. Try normalized form in dictionary
+    const normalizedLower = normalizeInput(lower);
+    if (normalizedLower !== lower && fullWordMapping.has(normalizedLower)) {
+        return fullWordMapping.get(normalizedLower);
+    }
+
+    // 2c. Hardcoded fallback map — works even when backend is offline.
+    // This is the safety net that prevents the rule engine from producing
+    // phonetically-wrong outputs (e.g. "naliku" → நலிகு instead of நாளைக்கு).
+    const fallback = _fallbackTamilMap.get(lower);
+    if (fallback) {
+        learnCorrection(lower, fallback); // cache for instant future lookup
+        return fallback;
+    }
+    // Also check spelling-corrected form in fallback map
+    if (spellingCorrected) {
+        const fallbackCorrected = _fallbackTamilMap.get(spellingCorrected);
+        if (fallbackCorrected) {
+            learnCorrection(lower, fallbackCorrected);
+            return fallbackCorrected;
+        }
+    }
+    // Also check normalized form in fallback map
+    if (normalizedLower !== lower) {
+        const fallbackNorm = _fallbackTamilMap.get(normalizedLower);
+        if (fallbackNorm) {
+            learnCorrection(lower, fallbackNorm);
+            return fallbackNorm;
+        }
+    }
+
+    // 3. (Dictionary chunks removed — all words are in exactDictionary from backend)
+
+    // 4. Compound words
+    const compoundResult = checkCompoundWord(normalizeInput(lower));
+    if (compoundResult) return compoundResult;
+
+    // 5. Verb conjugations
+    const verbForms = conjugateVerb(normalizeInput(lower));
+    if (verbForms && verbForms.length > 0 && verbForms[0]) {
+        return verbForms[0];
+    }
+
+    // 6. Rule engine  ← MOVED BEFORE fuzzy match so rule output is always preferred
+    //    (fuzzy was running first and returning wrong prefix-matches like
+    //     orutha for oruthar, giving ஒருத instead of ஒருதர்)
+    const normalized = normalizeInput(orig);
+    const ruled = convertWithRules(normalized);
+    if (ruled && ruled !== normalized && /[\u0B80-\u0BFF]/.test(ruled)) {
+        // ── ல/ள/ழ DISAMBIGUATION ──────────────────────────────────────────
+        // convertWithRules() already calls disambiguateLa() internally,
+        // but we also run it here on the final result to catch any remaining
+        // ambiguity in the normalized form vs original typed form.
+        let finalResult = ruled;
+        if (isLaAmbiguous(lower)) {
+            finalResult = disambiguateLa(lower, ruled);
+        }
+        // If the word has ambiguous letters (l/n/r) and is long enough, flag for AI
+        // but return ruled result immediately (AI runs async in background)
+        if (isUncertainConversion(lower, finalResult)) {
+            // fire-and-forget: AI will learnCorrection() if it finds a better answer
+            aiDisambiguate(lower, '').then(aiResult => {
+                if (aiResult) learnCorrection(lower, aiResult);
+            }).catch(() => { });
+        }
+        return finalResult;
+    }
+
+    // 7. Fuzzy match — last resort before Sanscript, only when rule engine
+    //    produced nothing useful. Max distance 1 to avoid false positives.
+    const closest = findClosestMatch(lower, 1);
+    if (closest && closest.tamil) return closest.tamil;
+
+    // 8. Sanscript fallback — also flag for AI async correction
+    try {
+        const result = Sanscript.t(lower, 'itrans', 'tamil');
+        if (result && result !== lower) {
+            // Any word reaching Sanscript is a candidate for AI improvement
+            aiDisambiguate(lower, '').then(aiResult => {
+                if (aiResult) learnCorrection(lower, aiResult);
+            }).catch(() => { });
+            return result;
+        }
+    } catch (_) { }
+
+    return word;
+}
+
+export function transliterateSentence(sentence) {
+    if (!sentence) return '';
+
+    const parts = sentence.split(/(\s+|[.,!?;:।\-])/);
+    let transliterated = parts.map(part => {
+        if (/[a-zA-Z]/.test(part)) {
+            return transliterateWord(part);
+        }
+        return part;
+    }).join('');
+
+    // Apply sandhi rules between words
+    const finalWords = transliterated.split(/(\s+)/);
+    let result = '';
+    let prevWord = '';
+
+    for (let i = 0; i < finalWords.length; i++) {
+        const word = finalWords[i];
+        if (word.trim() && prevWord) {
+            const combined = applySandhiRules(prevWord, word);
+            if (combined !== prevWord + word) {
+                result = result.slice(0, -prevWord.length) + combined;
+                prevWord = combined;
+                continue;
+            }
+        }
+        result += word;
+        if (word.trim()) {
+            prevWord = word;
+        }
+    }
+
+    // Apply final grammar rules
+    result = applyGrammarRules(result);
+
+    return result;
+}
+
+// ============ TYPING SUGGESTIONS ============
+
+
+export function getWordSuggestions(partial, limit = 8) {
+    return getTypingSuggestions(partial, limit);
+}
+
+// ============ LIVE WORD FORMING OPTIONS ============
+// Returns 3–4 distinct Tamil candidates while the user is still typing.
+// Combines:
+//   1. Best trie/dictionary suggestion (highest confidence)
+//   2. Rule engine output (phonetic transliteration)
+//   3. generateWordForms variants (safe letter alternates)
+//   4. Phonetic fuzzy match (if different from above)
+//
+// Each entry: { tamil: string, source: string }
+// source values: 'dict' | 'rule' | 'form' | 'fuzzy'
+//
+// Usage in UI:  show these as inline chips above/below the composing word.
+// When user taps one, commit that Tamil value and clear the composing buffer.
+
+export function getLiveWordFormingOptions(typedText, maxOptions = 4) {
+    if (!typedText || typedText.trim().length < 1) return [];
+
+    const lower = typedText.toLowerCase().trim();
+    const seen = new Set();
+    const options = [];
+
+    function push(tamil, source) {
+        if (!tamil) return;
+        if (!/[஀-௿]/.test(tamil)) return;
+        if (seen.has(tamil)) return;
+        seen.add(tamil);
+        options.push({ tamil, source });
+    }
+
+    // 0. Exact transliterateWord — always first (catches நீ for nee, நான் for naan etc.)
+    const exactResult = transliterateWord(lower);
+    push(exactResult, 'dict');
+
+    // 1. Vowel ambiguity alternates for short words
+    // In Tanglish: ee/ii, oo/uu, aa/a are interchangeable
+    // e.g. 'nee' -> also try 'nii' -> gets நீ; 'poo' -> also 'puu'
+    if (lower.length <= 6) {
+        const vowelAlts = new Set();
+        if (lower.includes('ee')) vowelAlts.add(lower.replace(/ee/g, 'ii'));
+        if (lower.includes('ii')) vowelAlts.add(lower.replace(/ii/g, 'ee'));
+        if (lower.includes('oo')) vowelAlts.add(lower.replace(/oo/g, 'uu'));
+        if (lower.includes('uu')) vowelAlts.add(lower.replace(/uu/g, 'oo'));
+        if (lower.includes('aa')) vowelAlts.add(lower.replace(/aa/g, 'a'));
+        if (!lower.includes('aa')) vowelAlts.add(lower.replace(/(?<!a)a(?!a)/g, 'aa'));
+        for (const alt of vowelAlts) {
+            if (alt === lower || options.length >= maxOptions) continue;
+            push(transliterateWord(alt), 'dict');
+            push(convertWithRules(alt), 'rule');
+        }
+    }
+
+    // 2. Trie prefix completions (fetch double to get variety)
+    const trieResults = getTypingSuggestions(lower, maxOptions * 2);
+    for (const r of trieResults) {
+        if (options.length >= maxOptions) break;
+        push(r.tamil, r.exact ? 'dict' : 'fuzzy');
+    }
+
+    // 3. Rule engine direct output
+    push(convertWithRules(lower), 'rule');
+
+    // 4. generateWordForms variants (l/L/zh, r/R alternates etc.)
+    if (options.length < maxOptions) {
+        const forms = generateWordForms(lower);
+        for (const f of forms) {
+            if (options.length >= maxOptions) break;
+            push(f, 'form');
+        }
+    }
+
+    // 5. Phonetic fuzzy for longer words
+    if (options.length < maxOptions && lower.length >= 4) {
+        const phoneticKey = phoneticNormalize(lower);
+        const fuzzyMatches = phoneticTrie.getWordsWithPrefix(phoneticKey, maxOptions);
+        for (const m of fuzzyMatches) {
+            if (options.length >= maxOptions) break;
+            push(m.tamil, 'fuzzy');
+        }
+    }
+
+    return options.slice(0, maxOptions);
+}
+export function getDictionary() { return Object.fromEntries(exactDictionary); }
+export const DICTIONARY = new Proxy({}, {
+    get(_, key) { return exactDictionary.get(key) || undefined; },
+    has(_, key) { return exactDictionary.has(key); },
+    ownKeys() { return [...exactDictionary.keys()]; },
+    getOwnPropertyDescriptor(_, key) {
+        if (exactDictionary.has(key)) return { configurable: true, enumerable: true, value: exactDictionary.get(key) };
+    }
+});
+
+loadLearnedCorrections();
+
+
+// ============ CONTROLLED LETTER VARIATIONS ============
+
+function generateSafeVariations(base) {
+    const variations = new Set();
+    variations.add(base);
+
+    // ல → ள only in middle (not at start or end)
+    if (base.includes('ல') && !base.startsWith('ல') && !base.endsWith('ல')) {
+        variations.add(base.replace(/ல/g, 'ள'));
+    }
+
+    // ல → ழ only in middle (limited, only for specific words)
+    if (base.includes('ல') && !base.startsWith('ல') && !base.endsWith('ல')) {
+        variations.add(base.replace(/ல/g, 'ழ'));
+    }
+
+    // ந → ண (only after retro letters: ட, த, ற)
+    if (/([டதற])ந/.test(base)) {
+        variations.add(base.replace(/([டதற])ந/g, '$1ண'));
+    }
+
+    // ர → ற only in middle
+    if (base.includes('ர') && !base.startsWith('ர') && !base.endsWith('ர')) {
+        variations.add(base.replace(/ர/g, 'ற'));
+    }
+
+    return Array.from(variations);
+}
+
+// ============ STRICT WORD FILTER ============
+
+function isLikelyValid(word) {
+    if (!word) return false;
+
+    // ❌ avoid too many repeated letters
+    if (/(.)\1{3,}/.test(word)) return false;
+
+    // ❌ avoid weird endings - too short with 'ல்'
+    if (/ல்$/.test(word) && word.length < 3) return false;
+
+    // ❌ avoid double vowel nonsense
+    if (/[ாிீுூெேொோ]{2,}/.test(word)) return false;
+
+    // ❌ avoid starting with invalid consonant clusters
+    if (/^[க்ச்ட்த்ப்ற்ய்வ]+[்]/.test(word)) return false;
+
+    // ✅ Valid Tamil word must start with a proper character
+    if (!isValidTamilWord(word)) return false;
+
+    return true;
+}
+
+// ============ WORD RANKING ============
+
+function rankWords(words) {
+    const priorityPatterns = [
+        /க்கம்$/,   // common endings
+        /ம்$/,
+        /ன்$/,
+        /து$/,
+        /கிறது$/,
+        /த்த$/
+    ];
+
+    return words.sort((a, b) => {
+        const getScore = (word) => {
+            let s = 0;
+
+            // Priority patterns give higher score
+            priorityPatterns.forEach((pattern, i) => {
+                if (pattern.test(word)) {
+                    s += (20 - i);
+                }
+            });
+
+            // Shorter common words slightly higher
+            if (word.length >= 2 && word.length <= 4) {
+                s += 5;
+            }
+
+            // Words starting with common letters get boost
+            if (/^[அஆஇஈஉஊஎஏஐஒஓகசதபமயரலவழள]/i.test(word)) {
+                s += 3;
+            }
+
+            return s;
+        };
+
+        return getScore(b) - getScore(a);
+    });
+}
+
+// ============ UPDATED MULTI WORD FORMATION WITH CONTROLS ============
+
+export function generateWordForms(tanglish) {
+    if (!tanglish) return [];
+
+    const forms = new Set();
+
+    // Base form
+    const base = convertWithRules(tanglish);
+    if (base && isLikelyValid(base)) {
+        forms.add(enforceTamilPatterns(base));
+    } else if (base) {
+        forms.add(base);
+    }
+
+    // Apply controlled letter variations
+    if (base) {
+        const safeVariations = generateSafeVariations(base);
+        safeVariations.forEach(v => {
+            if (isLikelyValid(v)) forms.add(v);
+        });
+    }
+
+    // Double consonant strengthening (limited)
+    const doubleConsonants = [
+        { from: /க/g, to: 'க்க' },
+        { from: /த/g, to: 'த்த' },
+        { from: /ப/g, to: 'ப்ப' },
+        { from: /ட/g, to: 'ட்ட' }
+    ];
+
+    doubleConsonants.forEach(({ from, to }) => {
+        if (base && base.match(from)) {
+            const doubled = base.replace(from, to);
+            if (isLikelyValid(doubled)) forms.add(doubled);
+        }
+    });
+
+    // Ending vowel corrections (only for words that make sense)
+    if (base && base.length >= 2) {
+        const endings = ['ு', 'ம்', 'ன்'];
+        endings.forEach(ending => {
+            const withEnding = base + ending;
+            if (isLikelyValid(withEnding) && !forms.has(withEnding)) {
+                forms.add(withEnding);
+            }
+        });
+    }
+
+    // Verb endings (only for appropriate length)
+    if (base && base.length >= 2 && base.length <= 6) {
+        const verbEndings = ['ும்', 'து'];
+        verbEndings.forEach(ending => {
+            const withEnding = base + ending;
+            if (isLikelyValid(withEnding)) forms.add(withEnding);
+        });
+    }
+
+    // LIMIT FORMATION EXPLOSION - VERY IMPORTANT
+    if (forms.size > 50) {
+        const limitedForms = Array.from(forms).slice(0, 30);
+        forms.clear();
+        limitedForms.forEach(f => forms.add(f));
+    }
+
+    // Rank and filter
+    let finalForms = Array.from(forms).filter(w => isLikelyValid(w));
+    finalForms = rankWords(finalForms);
+
+    return finalForms.slice(0, 12);
+}
+
+// ============ VERB CONJUGATION ENGINE ============
+// Dynamically generates tense+person forms from a verb root
+// This handles: saptingala → சாப்பிட்டீங்களா style words WITHOUT extraWords entry
+
+const verbRoots = {
+    'saapidu': { past: 'சாப்பிட்ட', present: 'சாப்பிடுகிற', future: 'சாப்பிடுவ' },
+    'saaptu': { past: 'சாப்பிட்ட', present: 'சாப்பிடுகிற', future: 'சாப்பிடுவ' },
+    'po': { past: 'போன', present: 'போற', future: 'போவ' },
+    'poo': { past: 'போன', present: 'போற', future: 'போவ' },
+    'sel': { past: 'சென்ற', present: 'செல்கிற', future: 'செல்வ' },
+    'vaa': { past: 'வந்த', present: 'வர்ற', future: 'வருவ' },
+    'va': { past: 'வந்த', present: 'வர்ற', future: 'வருவ' },
+    'varu': { past: 'வந்த', present: 'வர்ற', future: 'வருவ' },
+    'paar': { past: 'பார்த்த', present: 'பார்க்கிற', future: 'பார்ப்ப' },
+    'paaru': { past: 'பார்த்த', present: 'பார்க்கிற', future: 'பார்ப்ப' },
+    'paak': { past: 'பார்த்த', present: 'பார்க்கிற', future: 'பார்ப்ப' },
+    'sei': { past: 'செய்த', present: 'செய்கிற', future: 'செய்வ' },
+    'pann': { past: 'பண்ண', present: 'பண்றி', future: 'பண்ணுவ' },
+    'pannu': { past: 'பண்ண', present: 'பண்றி', future: 'பண்ணுவ' },
+    'sol': { past: 'சொன்ன', present: 'சொல்றி', future: 'சொல்வ' },
+    'soll': { past: 'சொன்ன', present: 'சொல்றி', future: 'சொல்வ' },
+    'kel': { past: 'கேட்ட', present: 'கேக்கிற', future: 'கேப்ப' },
+    'kekku': { past: 'கேட்ட', present: 'கேக்கிற', future: 'கேப்ப' },
+    'kelu': { past: 'கேட்ட', present: 'கேக்கிற', future: 'கேப்ப' },
+    'thoong': { past: 'தூங்கின', present: 'தூங்குறி', future: 'தூங்குவ' },
+    'thoongku': { past: 'தூங்கின', present: 'தூங்குறி', future: 'தூங்குவ' },
+    'padi': { past: 'படித்த', present: 'படிக்கிற', future: 'படிப்ப' },
+    'padika': { past: 'படித்த', present: 'படிக்கிற', future: 'படிப்ப' },
+    'odu': { past: 'ஓடின', present: 'ஓடுறி', future: 'ஓடுவ' },
+    'kodu': { past: 'கொடுத்த', present: 'கொடுக்கிற', future: 'கொடுப்ப' },
+    'thar': { past: 'தந்த', present: 'தர்றி', future: 'தருவ' },
+    'edu': { past: 'எடுத்த', present: 'எடுக்கிற', future: 'எடுப்ப' },
+    'vaangu': { past: 'வாங்கின', present: 'வாங்குறி', future: 'வாங்குவ' },
+    'vaang': { past: 'வாங்கின', present: 'வாங்குறி', future: 'வாங்குவ' },
+    'ukkaaru': { past: 'உட்கார்ந்த', present: 'உட்கார்றி', future: 'உட்கார்வ' },
+    'ukkaaru': { past: 'உட்கார்ந்த', present: 'உட்கார்றி', future: 'உட்கார்வ' },
+    'ukka': { past: 'உட்கார்ந்த', present: 'உட்கார்றி', future: 'உட்கார்வ' },
+    'nill': { past: 'நின்ற', present: 'நிக்கிற', future: 'நிப்ப' },
+    'nil': { past: 'நின்ற', present: 'நிக்கிற', future: 'நிப்ப' },
+    'ezhudu': { past: 'எழுதின', present: 'எழுதுறி', future: 'எழுதுவ' },
+    'ezhudhu': { past: 'எழுதின', present: 'எழுதுறி', future: 'எழுதுவ' },
+    'theriy': { past: 'தெரிஞ்ச', present: 'தெரியுற', future: 'தெரியும்' },
+    'theri': { past: 'தெரிஞ்ச', present: 'தெரியுற', future: 'தெரியும்' },
+    'puriy': { past: 'புரிஞ்ச', present: 'புரியுற', future: 'புரியும்' },
+    'puri': { past: 'புரிஞ்ச', present: 'புரியுற', future: 'புரியும்' },
+    'vilaya': { past: 'விளையாடின', present: 'விளையாடுறி', future: 'விளையாடுவ' },
+    'aadu': { past: 'ஆடின', present: 'ஆடுறி', future: 'ஆடுவ' },
+    'pesu': { past: 'பேசின', present: 'பேசுறி', future: 'பேசுவ' },
+    'pechu': { past: 'பேசின', present: 'பேசுறி', future: 'பேசுவ' },
+    'iruku': { past: 'இருந்த', present: 'இருக்கிற', future: 'இருப்ப' },
+    'iru': { past: 'இருந்த', present: 'இருக்கிற', future: 'இருப்ப' },
+    'muudi': { past: 'மூடின', present: 'மூடுறி', future: 'மூடுவ' },
+    'tiruppu': { past: 'திருப்பின', present: 'திருப்புறி', future: 'திருப்புவ' },
+    'vidu': { past: 'விட்ட', present: 'விடுறி', future: 'விடுவ' },
+    'vittu': { past: 'விட்ட', present: 'விடுறி', future: 'விடுவ' },
+    'ketku': { past: 'கேட்ட', present: 'கேக்கிற', future: 'கேப்ப' },
+    'peshu': { past: 'பேசின', present: 'பேசுறி', future: 'பேசுவ' },
+    'azhudhu': { past: 'அழுத', present: 'அழுறி', future: 'அழுவ' },
+    'azhu': { past: 'அழுத', present: 'அழுறி', future: 'அழுவ' },
+    'siri': { past: 'சிரித்த', present: 'சிரிக்கிற', future: 'சிரிப்ப' },
+    'odi': { past: 'ஓடின', present: 'ஓடுறி', future: 'ஓடுவ' },
+};
+
+// Person suffixes — colloquial Tamil
+const conjSuffixes = {
+    past: { en: 'ேன்', om: 'ோம்', an: 'ான்', aal: 'ாள்', anga: 'ார்கள்', inga: 'ீங்க', a: 'ா' },
+    present: { en: 'ேன்', om: 'ோம்', an: 'ான்', aal: 'ாள்', anga: 'ார்கள்', inga: 'ீங்க', a: 'ா' },
+    future: { en: 'ேன்', om: 'ோம்', an: 'ான்', aal: 'ாள்', anga: 'ார்கள்', inga: 'ீங்க', a: 'ா' },
+};
+
+function detectPerson(t) {
+    if (t.endsWith('inga') || t.endsWith('enga')) return 'inga';
+    if (t.endsWith('anga')) return 'anga';
+    if (t.endsWith('aal') || t.endsWith('al')) return 'aal';
+    if (t.endsWith('aan') || t.endsWith('an')) return 'an';
+    if (t.endsWith('om') || t.endsWith('oam')) return 'om';
+    if (t.endsWith('en') || t.endsWith('aen')) return 'en';
+    if (t.endsWith('a')) return 'a';
+    return null;
+}
+
+function detectVerbTense(t) {
+    if (/th[ae]n$|tt[ae]n$|nd[ae]n$|tten$|then$|thal$|tthal$|thinga$|ttinga$|ndinga$/.test(t)) return 'past';
+    if (/th[ao]m$|tt[ao]m$|nd[ao]m$/.test(t)) return 'past';
+    if (/inga$/.test(t) && /nth|tt|pp/.test(t)) return 'past';
+    // colloquial past: -itten, -itaan, -ittaal, -inja, -ichu
+    if (/itten$|itaan$|ittaal$|ittom$/.test(t)) return 'past';
+    if (/inja$|injchu$|injchen$|injchan$/.test(t)) return 'past';
+    if (/ichu$|ichen$|ichan$/.test(t)) return 'past';
+    if (/ven$|van$|val$|vom$|vinga$|pen$|pan$|pal$|pom$|pinga$/.test(t)) return 'future';
+    if (/ren$|ran$|ral$|rom$|ringa$|kiren$|kiran$|kiral$|kirom$/.test(t)) return 'present';
+    // colloquial present: -uren, -uran
+    if (/uren$|uran$|ural$|urom$|uringa$/.test(t)) return 'present';
+    return null;
+}
+
+function findVerbRoot(tanglish) {
+    const t = tanglish.toLowerCase();
+    for (const root of Object.keys(verbRoots)) {
+        if (t.startsWith(root)) return root;
+    }
+    // strip suffix patterns and try again
+    const strips = [
+        /[tp]ingala?$/, /[tp]inga$/, /then$/, /than$/, /thal$/, /thom$/, /thinga$/,
+        /tten$/, /ttan$/, /ttal$/, /ttom$/, /ttinga$/, /nden$/, /ndan$/, /ndal$/, /ndom$/,
+        /ven$/, /van$/, /val$/, /vom$/, /vinga$/, /pen$/, /pan$/, /pal$/, /pom$/, /pinga$/,
+        /ren$/, /ran$/, /ral$/, /rom$/, /ringa$/, /kiren$/, /kiran$/, /kiral$/, /kirom$/,
+        /en$/, /an$/, /al$/, /om$/, /la$/, /a$/,
+    ];
+    for (const pat of strips) {
+        const stripped = t.replace(pat, '');
+        if (stripped.length >= 2 && verbRoots[stripped]) return stripped;
+    }
+    return null;
+}
+
+export function conjugateVerb(tanglish) {
+    if (!tanglish || tanglish.length < 3) return [];
+    const rootKey = findVerbRoot(tanglish);
+    if (!rootKey) return [];
+
+    const lower = tanglish.toLowerCase();
+    const suffix = lower.slice(rootKey.length);
+    const tense = detectVerbTense(lower);
+    const person = detectPerson(lower);
+
+    // If the word has extra characters beyond the root but neither tense
+    // nor person suffix is detected, this is NOT a verb form — it's a
+    // different word that happens to start with a verb root.
+    // e.g. "iruthayam" starts with "iru" but is the noun இருதயம் (heart),
+    //      not a conjugation of இரு (to be).
+    if (suffix.length > 0 && !tense && !person) return [];
+
+    const verbData = verbRoots[rootKey];
+    const effectiveTense = tense || 'present';
+    const stem = verbData[effectiveTense] || verbData.present;
+    const suffixes = conjSuffixes[effectiveTense] || conjSuffixes.present;
+    const results = [];
+    if (person && suffixes[person]) {
+        results.push(stem + suffixes[person]);
+    } else {
+        for (const sfx of Object.values(suffixes)) {
+            results.push(stem + sfx);
+        }
+    }
+    return results.filter(Boolean);
+}
+
+export function getVerbFormSuggestions(tanglish) {
+    if (!tanglish || tanglish.length < 4) return [];
+    return conjugateVerb(tanglish).map((word, i) => ({
+        tanglish,
+        tamil: word,
+        type: '🔤 Verb',
+        priority: 2 + i,
+        exact: false
+    }));
+}
+
+// ============ AI FALLBACK FOR UNCERTAIN WORDS ============
+// Called when rule engine is uncertain — same Anthropic API you already use for grammar
+
+const _aiWordCache = new Map();
+
+export async function aiDisambiguate(tanglishWord, surroundingTamil = '') {
+    if (!tanglishWord) return null;
+    const cacheKey = tanglishWord.toLowerCase() + '|' + surroundingTamil.slice(-30);
+    if (_aiWordCache.has(cacheKey)) return _aiWordCache.get(cacheKey);
+
+    try {
+        const prompt = surroundingTamil
+            ? `You are a Tamil transliteration expert. The user typed "${tanglishWord}" in Tanglish. Surrounding Tamil text: "${surroundingTamil}". What is the single most correct Tamil word for "${tanglishWord}" in this context? Reply with ONLY the Tamil word, nothing else.`
+            : `You are a Tamil transliteration expert. The user typed "${tanglishWord}" in Tanglish (Tamil in English letters). What is the single most correct Tamil word? Reply with ONLY the Tamil word, nothing else.`;
+
+        const apiKey = import.meta.env.VITE_CLAUDE_API_KEY;
+        const response = await fetch('/api/claude/v1/messages', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': apiKey || '',
+                'anthropic-version': '2023-06-01'
+            },
+            body: JSON.stringify({
+                model: 'claude-3-haiku-20240307',
+                max_tokens: 50,
+                messages: [{ role: 'user', content: prompt }]
+            })
+        });
+        const data = await response.json();
+        const result = data?.content?.[0]?.text?.trim();
+        if (result && /[\u0B80-\u0BFF]/.test(result)) {
+            _aiWordCache.set(cacheKey, result);
+            learnCorrection(tanglishWord.toLowerCase(), result);
+            return result;
+        }
+    } catch (_) { }
+    return null;
+}
+
+// Returns true when word is ambiguous and should go to AI fallback
+export function isUncertainConversion(tanglish, ruledResult) {
+    if (!tanglish || !ruledResult) return true;
+    if (exactDictionary.has(tanglish.toLowerCase())) return false;
+    if (learnedCorrections.has(tanglish.toLowerCase())) return false;
+    if (tanglish.length <= 3) return false;
+    if (ruledResult === tanglish) return true; // rule engine totally failed
+    // ambiguous letters present in longer words
+    if (/[lLrRnN]/.test(tanglish) && tanglish.length >= 5) return true;
+    return false;
+}
+
+// ============ MULTI-CHOICE WORD SUGGESTIONS ============
+
+export function getWordFormationChoices(input, limit = 6) {
+    if (!input) return [];
+
+    const results = [];
+    const seen = new Set();
+
+    // 1. Dictionary matches (highest priority)
+    for (const [key, value] of exactDictionary.entries()) {
+        if (key.includes(input.toLowerCase()) && !seen.has(value)) {
+            results.push({
+                word: value,
+                type: '📘 Dictionary',
+                priority: 1
+            });
+            seen.add(value);
+        }
+    }
+
+    // 2. Generated forms (RULE ENGINE with controls)
+    const generated = generateWordForms(input);
+
+    generated.forEach(word => {
+        if (!seen.has(word)) {
+            results.push({
+                word: word,
+                type: '⚙️ Formed',
+                priority: 2
+            });
+            seen.add(word);
+        }
+    });
+
+    // 3. Verb conjugation suggestions (dynamic verb forms)
+    const verbSuggestions = getVerbFormSuggestions(input);
+    verbSuggestions.forEach(({ tamil }) => {
+        if (!seen.has(tamil)) {
+            results.push({ word: tamil, type: '🔤 Verb', priority: 1 });
+            seen.add(tamil);
+        }
+    });
+
+    // 4. Direct conversion preview
+    const direct = convertWithRules(input);
+    if (direct && !seen.has(direct)) {
+        results.push({
+            word: direct,
+            type: '🔤 Direct',
+            priority: 0
+        });
+    }
+
+    // Sort by priority
+    results.sort((a, b) => a.priority - b.priority);
+
+    return results.slice(0, limit);
+}
+
+// ============ PATTERN VALIDATION ============
+
+export function enforceTamilPatterns(word) {
+    if (!word) return word;
+
+    // Prevent invalid double vowels
+    word = word.replace(/([அஆஇஈஉஊஎஏஒஓ])\1+/g, '$1ய்$1');
+
+    // Fix ending pulli → add vowel
+    if (endsWithPulli(word)) {
+        word += 'ு';
+    }
+
+    // Prevent invalid start
+    word = autoCorrectWordStart(word);
+
+    return word;
+}
+
+// ============ FREQUENCY DATA SYSTEM ============
+// Usage frequency for contextual ranking
+// Higher number = more common usage
+
+let frequencyData = {};
+
+// Default frequency data (common Tamil words)
+const defaultFrequencyData = {
+    'வணக்கம்': 1000,
+    'நன்றி': 950,
+    'எப்படி': 900,
+    'என்ன': 950,
+    'யார்': 850,
+    'எங்கே': 820,
+    'எப்போ': 800,
+    'ஏன்': 850,
+    'நான்': 990,
+    'நீங்கள்': 980,
+    'அவர்': 950,
+    'அவள்': 920,
+    'அது': 960,
+    'இது': 960,
+    'உள்ளது': 900,
+    'இல்லை': 950,
+    'ஆம்': 880,
+    'சரி': 850,
+    'வேண்டும்': 900,
+    'வேண்டாம்': 750,
+    'செல்கிறேன்': 700,
+    'வருகிறேன்': 720,
+    'பார்க்கிறேன்': 680,
+    'செய்கிறேன்': 650,
+    'பேசுகிறேன்': 600,
+    'கேட்கிறேன்': 580,
+    'எழுதுகிறேன்': 550,
+    'படிக்கிறேன்': 650,
+    'சாப்பிடுகிறேன்': 600,
+    'தூங்குகிறேன்': 500,
+    'சென்றேன்': 680,
+    'வந்தேன்': 750,
+    'பார்த்தேன்': 670,
+    'செய்தேன்': 620,
+    'பேசினேன்': 550,
+    'கேட்டேன்': 560,
+    'எழுதினேன்': 520,
+    'படித்தேன்': 620,
+    'சாப்பிட்டேன்': 580,
+    'செல்வேன்': 650,
+    'வருவேன்': 700,
+    'பார்ப்பேன்': 620,
+    'செய்வேன்': 600,
+    'வீடு': 750,
+    'பள்ளி': 700,
+    'அலுவலகம்': 600,
+    'கடை': 650,
+    'ஊர்': 620,
+    'மனிதன்': 650,
+    'பெண்': 650,
+    'குழந்தை': 700,
+    'குடும்பம்': 680,
+    'நண்பர்': 650,
+    'சந்தோஷம்': 700,
+    'வருத்தம்': 650,
+    'கோபம்': 600,
+    'பயம்': 580,
+    'காதல்': 750,
+    'அன்பு': 700,
+    'நம்பிக்கை': 620,
+    'இன்று': 800,
+    'நேற்று': 750,
+    'நாளை': 780,
+    'இப்போது': 820,
+    'இங்கே': 750,
+    'அங்கே': 730,
+    'நல்ல': 850,
+    'கெட்ட': 600,
+    'பெரிய': 750,
+    'சிறிய': 700,
+    'புதிய': 700,
+    'பழைய': 650,
+    'அழகான': 700,
+    'மற்றும்': 800,
+    'அல்லது': 700,
+    'ஆனால்': 750,
+    'தமிழ்': 950,
+    'இசை': 700,
+    'கலை': 650,
+    'மொழி': 750,
+    'கவிதை': 600,
+    'பாடல்': 650
+};
+
+// Initialize frequency data
+function initFrequencyData() {
+    try {
+        const saved = localStorage.getItem('tamilFrequency');
+        if (saved) {
+            const parsed = JSON.parse(saved);
+            frequencyData = { ...defaultFrequencyData, ...parsed };
+        } else {
+            frequencyData = { ...defaultFrequencyData };
+        }
+    } catch (_) {
+        frequencyData = { ...defaultFrequencyData };
+    }
+}
+
+// Get frequency score for a Tamil word
+export function getWordFrequency(word) {
+    if (!word) return 0;
+    return frequencyData[word] || 0;
+}
+
+// Update frequency data (learn from user usage)
+export function updateFrequency(word, increment = 1) {
+    if (!word) return;
+    const current = frequencyData[word] || 0;
+    frequencyData[word] = current + increment;
+
+    // Store in localStorage for persistence
+    try {
+        localStorage.setItem('tamilFrequency', JSON.stringify(frequencyData));
+    } catch (_) { }
+}
+
+// Get multiple word frequency scores
+export function getFrequencies(words) {
+    const result = {};
+    for (const word of words) {
+        result[word] = getWordFrequency(word);
+    }
+    return result;
+}
+
+// ============ PHONETIC NORMALIZATION LAYER ============
+// Only normalize common TYPING ERRORS — do NOT strip valid Tamil distinctions
+// like sh/zh/th/dh which map to different Tamil letters
+
+const phoneticNormalizations = {
+    // Common ye- colloquial → e- (same as normalizeInput)
+    'yena': 'enna',
+    'yenga': 'enga',
+    'yepdi': 'eppadi',
+    'yepo': 'eppo',
+    'yenge': 'enge',
+    'yeri': 'eri',
+    'yellam': 'ellam',
+    'yerkanave': 'erkanave',
+    // Common Tamil word variations
+    'ille': 'illai',
+    'illay': 'illai',
+    // Short form expansions
+    'therla': 'theriyala',
+    'purla': 'puriyala',
+    'mudla': 'mudiyala',
+    'varla': 'varala',
+    'porla': 'porala',
+    // Common truncations
+    'sap': 'saapidu',
+    'thoong': 'thoongiru',
+    // Alternate spellings
+    'nala': 'nalla',
+    'nalaa': 'nallaa',
+    'rombha': 'romba',
+    'sari': 'seri',
+    'ceri': 'seri',
+    'ena': 'enna',
+    'epdi': 'eppadi',
+    'apdi': 'appadi',
+    'ipdi': 'ippadi',
+    'yepdi': 'eppadi',
+    'kopam': 'kovam',
+    'kashtam': 'kastam',
+    'sandosham': 'santhosham',
+};
+
+export function normalizePhonetic(tanglish) {
+    if (!tanglish) return tanglish;
+
+    let normalized = tanglish.toLowerCase();
+
+    // Only apply safe whole-word normalizations
+    if (phoneticNormalizations[normalized]) {
+        normalized = phoneticNormalizations[normalized];
+    }
+
+    return normalized;
+}
+
+// ============ FREQUENCY-BASED SUGGESTIONS (NEW) ============
+
+export function getFrequencyBasedSuggestions(tanglishWord, limit = 6) {
+    if (!tanglishWord) return [];
+
+    const normalized = normalizePhonetic(tanglishWord);
+    const suggestions = getTypingSuggestions(normalized, 15);
+
+    if (suggestions.length === 0) return [];
+
+    // Score each suggestion based on frequency and match quality
+    const scored = suggestions.map(suggestion => {
+        let score = 0;
+
+        // Frequency score (0-100)
+        const freq = getWordFrequency(suggestion.tamil);
+        score += Math.min(freq / 10, 100);
+
+        // Priority from original suggestion
+        score += (10 - suggestion.priority) * 5;
+
+        // Length similarity boost
+        const lengthDiff = Math.abs(tanglishWord.length - suggestion.tanglish.length);
+        score += Math.max(0, 10 - lengthDiff);
+
+        return {
+            ...suggestion,
+            frequencyScore: score,
+            frequency: freq
+        };
+    });
+
+    // Sort by frequency score
+    scored.sort((a, b) => b.frequencyScore - a.frequencyScore);
+
+    return scored.slice(0, limit);
+}
+
+// ============ AUTO-LEARNING SYSTEM (NEW) ============
+
+// Track user corrections for learning
+let userCorrectionHistory = [];
+let userWordPreferences = new Map();
+
+// Load user learning data
+function loadUserLearning() {
+    try {
+        const savedHistory = localStorage.getItem('tamilCorrectionHistory');
+        if (savedHistory) {
+            userCorrectionHistory = JSON.parse(savedHistory);
+        }
+
+        const savedPreferences = localStorage.getItem('tamilWordPreferences');
+        if (savedPreferences) {
+            const parsed = JSON.parse(savedPreferences);
+            for (const [key, value] of Object.entries(parsed)) {
+                userWordPreferences.set(key, value);
+            }
+        }
+    } catch (_) { }
+}
+
+// Save user learning data
+function saveUserLearning() {
+    try {
+        localStorage.setItem('tamilCorrectionHistory', JSON.stringify(userCorrectionHistory.slice(-100)));
+        const preferencesObj = Object.fromEntries(userWordPreferences);
+        localStorage.setItem('tamilWordPreferences', JSON.stringify(preferencesObj));
+    } catch (_) { }
+}
+
+// Record a user correction (auto-learn)
+export function recordUserCorrection(originalTanglish, correctedTanglish, correctedTamil) {
+    if (!originalTanglish || !correctedTanglish) return;
+
+    const lowerOriginal = originalTanglish.toLowerCase();
+    const lowerCorrected = correctedTanglish.toLowerCase();
+
+    // Store in correction history
+    userCorrectionHistory.unshift({
+        original: lowerOriginal,
+        corrected: lowerCorrected,
+        tamil: correctedTamil,
+        timestamp: Date.now()
+    });
+
+    // Limit history size
+    if (userCorrectionHistory.length > 200) {
+        userCorrectionHistory = userCorrectionHistory.slice(0, 200);
+    }
+
+    // Update user preferences
+    const currentPref = userWordPreferences.get(lowerOriginal) || {};
+    currentPref.preferred = lowerCorrected;
+    currentPref.tamil = correctedTamil;
+    currentPref.count = (currentPref.count || 0) + 1;
+    currentPref.lastUsed = Date.now();
+    userWordPreferences.set(lowerOriginal, currentPref);
+
+    // Also learn in the main correction system
+    learnCorrection(lowerOriginal, correctedTamil);
+
+    // Update frequency for the corrected word
+    if (correctedTamil) {
+        updateFrequency(correctedTamil, 2); // Extra boost for user-corrected words
+    }
+
+    saveUserLearning();
+}
+
+// Get auto-learned suggestion for a word
+export function getLearnedSuggestion(tanglishWord) {
+    if (!tanglishWord) return null;
+
+    const lower = tanglishWord.toLowerCase();
+    const pref = userWordPreferences.get(lower);
+
+    if (pref && pref.preferred) {
+        return {
+            tanglish: pref.preferred,
+            tamil: pref.tamil,
+            confidence: Math.min(pref.count || 1, 10),
+            type: '🎓 Learned'
+        };
+    }
+
+    // Check correction history
+    const recentCorrection = userCorrectionHistory.find(h => h.original === lower);
+    if (recentCorrection) {
+        return {
+            tanglish: recentCorrection.corrected,
+            tamil: recentCorrection.tamil,
+            confidence: 8,
+            type: '🔄 Recent'
+        };
+    }
+
+    return null;
+}
+
+// Get combined suggestions (learned + frequency + context)
+export function getIntelligentSuggestions(tanglishWord, surroundingText = '', limit = 6) {
+    if (!tanglishWord) return [];
+
+    const results = [];
+    const seen = new Set();
+
+    // 1. Learned suggestions (highest priority)
+    const learned = getLearnedSuggestion(tanglishWord);
+    if (learned && !seen.has(learned.tamil)) {
+        results.push({
+            ...learned,
+            priority: 0,
+            rank: 0
+        });
+        seen.add(learned.tamil);
+    }
+
+    // 2. Exact dictionary match
+    const lower = tanglishWord.toLowerCase();
+    if (exactDictionary.has(lower) && !seen.has(exactDictionary.get(lower))) {
+        results.push({
+            tanglish: lower,
+            tamil: exactDictionary.get(lower),
+            type: '📚 Dictionary',
+            priority: 1,
+            rank: 1
+        });
+        seen.add(exactDictionary.get(lower));
+    }
+
+    // 3. Frequency-based suggestions
+    const freqSuggestions = getFrequencyBasedSuggestions(tanglishWord, 10);
+    for (const suggestion of freqSuggestions) {
+        if (!seen.has(suggestion.tamil)) {
+            results.push({
+                ...suggestion,
+                rank: results.length
+            });
+            seen.add(suggestion.tamil);
+        }
+    }
+
+    // 4. Context-aware suggestions (if surrounding text provided)
+    if (surroundingText) {
+        const contextSuggestions = getContextAwareSuggestions(tanglishWord, surroundingText);
+        for (const suggestion of contextSuggestions) {
+            if (!seen.has(suggestion.tamil)) {
+                results.push({
+                    ...suggestion,
+                    rank: results.length
+                });
+                seen.add(suggestion.tamil);
+            }
+        }
+    } else {
+        // Regular typing suggestions
+        const typingSuggestions = getTypingSuggestions(tanglishWord, 8);
+        for (const suggestion of typingSuggestions) {
+            if (!seen.has(suggestion.tamil)) {
+                results.push({
+                    ...suggestion,
+                    rank: results.length
+                });
+                seen.add(suggestion.tamil);
+            }
+        }
+    }
+
+    // 5. Sort by rank/priority
+    results.sort((a, b) => {
+        if (a.priority !== undefined && b.priority !== undefined) {
+            return a.priority - b.priority;
+        }
+        if (a.rank !== undefined && b.rank !== undefined) {
+            return a.rank - b.rank;
+        }
+        return 0;
+    });
+
+    return results.slice(0, limit);
+}
+
+// Enhanced transliteration with auto-learning
+export function transliterateWithLearning(tanglishWord, surroundingText = '') {
+    if (!tanglishWord) return '';
+
+    const lower = tanglishWord.toLowerCase();
+
+    // Check learned correction first
+    const learned = getLearnedSuggestion(lower);
+    if (learned && learned.tamil) {
+        return learned.tamil;
+    }
+
+    // Check dictionary
+    if (exactDictionary.has(lower)) {
+        return exactDictionary.get(lower);
+    }
+
+    // Check closest match
+    const closest = findClosestMatch(lower, 1);
+    if (closest) {
+        return closest.tamil;
+    }
+
+    // Use context-aware transliteration
+    if (surroundingText) {
+        return transliterateWithContext(tanglishWord, surroundingText);
+    }
+
+    // Fallback to standard transliteration
+    return transliterateWord(tanglishWord);
+}
+
+// ============ CONTEXT ENGINE ============
+
+// Word categories for context matching
+const wordCategories = {
+    greetings: ['வணக்கம்', 'வனக்கம்', 'நமஸ்காரம்'],
+    question: ['என்ன', 'யார்', 'எங்கே', 'எப்போ', 'ஏன்', 'எப்படி', 'எவ்வளவு', 'எத்தனை', 'எது', 'எந்த'],
+    time_past: ['நேற்று', 'முன்னர்', 'முன்பு', 'சற்று முன்', 'கடந்த', 'முந்தைய'],
+    time_present: ['இன்று', 'இப்போது', 'தற்போது', 'இப்போ', 'நடப்பு'],
+    time_future: ['நாளை', 'பின்னர்', 'பிறகு', 'அடுத்த', 'வரும்'],
+    location_here: ['இங்கே', 'இங்கு', 'இந்த இடத்தில்', 'இங்க'],
+    location_there: ['அங்கே', 'அங்கு', 'அந்த இடத்தில்', 'அங்க'],
+    location_where: ['எங்கே', 'எங்கு'],
+    affirmation: ['ஆம்', 'சரி', 'சரியானது', 'ஒப்புக்கொள்கிறேன்', 'ஆமாம்', 'ஆகா'],
+    negation: ['இல்லை', 'வேண்டாம்', 'கூடாது', 'அல்ல', 'இல்ல', 'வேணாம்'],
+    conjunction: ['மற்றும்', 'அல்லது', 'ஆனால்', 'ஏனெனில்', 'எனவே', 'பிறகு', 'அப்புறம்'],
+    pronouns: ['நான்', 'நீ', 'நீங்கள்', 'அவன்', 'அவள்', 'அவர்கள்', 'நாம்', 'நாங்கள்', 'நமக்கு', 'எனக்கு'],
+    verbs_go: ['செல்', 'போ', 'செல்கிறேன்', 'போகிறேன்', 'சென்றேன்', 'போனேன்', 'செல்வேன்', 'போவேன்'],
+    verbs_come: ['வா', 'வருகிறேன்', 'வந்தேன்', 'வருவேன்', 'வாருங்கள்'],
+    verbs_see: ['பார்', 'பார்க்கிறேன்', 'பார்த்தேன்', 'பார்ப்பேன்', 'பாருங்கள்'],
+    verbs_do: ['செய்', 'செய்கிறேன்', 'செய்தேன்', 'செய்வேன்', 'பண்ணு', 'பண்றேன்'],
+    verbs_speak: ['பேசு', 'பேசுகிறேன்', 'பேசினேன்', 'பேசுவேன்', 'சொல்', 'சொல்கிறேன்'],
+    verbs_listen: ['கேள்', 'கேட்கிறேன்', 'கேட்டேன்', 'கேட்பேன்', 'கேளுங்கள்'],
+    verbs_eat: ['சாப்பிடு', 'சாப்பிடுகிறேன்', 'சாப்பிட்டேன்', 'சாப்பிடுவேன்', 'சாப்டு'],
+    verbs_give: ['தா', 'தருகிறேன்', 'கொடு', 'கொடுக்கிறேன்', 'கொடுத்தேன்'],
+    verbs_take: ['எடு', 'எடுக்கிறேன்', 'எடுத்தேன்', 'வாங்கு', 'வாங்கினேன்']
+};
+
+// Context state for current session
+let contextState = {
+    lastTopic: null,
+    recentWords: [],
+    recentTamilWords: [],
+    questionMode: false,
+    affirmationMode: false,
+    negationMode: false,
+    locationContext: null,
+    timeContext: null,
+    lastVerb: null,
+    lastSubject: null
+};
+
+// Analyze context from text
+export function analyzeContext(text) {
+    if (!text) return { ...contextState };
+
+    const lowerText = text.toLowerCase();
+
+    let newQuestionMode = false;
+    let newAffirmationMode = false;
+    let newNegationMode = false;
+    let newLocationContext = contextState.locationContext;
+    let newTimeContext = contextState.timeContext;
+    let newLastVerb = contextState.lastVerb;
+    let newLastSubject = contextState.lastSubject;
+
+    if (wordCategories.question.some(q => lowerText.includes(q)) ||
+        text.includes('?') ||
+        /^(என்ன|யார்|எங்கே|எப்போ|ஏன்|எப்படி)/.test(text)) {
+        newQuestionMode = true;
+    }
+
+    if (wordCategories.affirmation.some(a => lowerText.includes(a))) {
+        newAffirmationMode = true;
+        newNegationMode = false;
+    } else if (wordCategories.negation.some(n => lowerText.includes(n))) {
+        newNegationMode = true;
+        newAffirmationMode = false;
+    }
+
+    if (wordCategories.location_here.some(l => lowerText.includes(l))) {
+        newLocationContext = 'here';
+    } else if (wordCategories.location_there.some(l => lowerText.includes(l))) {
+        newLocationContext = 'there';
+    } else if (wordCategories.location_where.some(l => lowerText.includes(l))) {
+        newLocationContext = 'where';
+    }
+
+    if (wordCategories.time_past.some(t => lowerText.includes(t))) {
+        newTimeContext = 'past';
+    } else if (wordCategories.time_present.some(t => lowerText.includes(t))) {
+        newTimeContext = 'present';
+    } else if (wordCategories.time_future.some(t => lowerText.includes(t))) {
+        newTimeContext = 'future';
+    }
+
+    for (const [category, verbs] of Object.entries(wordCategories)) {
+        if (category.startsWith('verbs_')) {
+            for (const verb of verbs) {
+                if (lowerText.includes(verb.toLowerCase())) {
+                    newLastVerb = verb;
+                    break;
+                }
+            }
+        }
+    }
+
+    for (const pronoun of wordCategories.pronouns) {
+        if (lowerText.includes(pronoun.toLowerCase())) {
+            newLastSubject = pronoun;
+            break;
+        }
+    }
+
+    const words = text.split(/\s+/);
+    contextState.recentWords = [...contextState.recentWords, ...words].slice(-15);
+
+    contextState.questionMode = newQuestionMode;
+    contextState.affirmationMode = newAffirmationMode;
+    contextState.negationMode = newNegationMode;
+    contextState.locationContext = newLocationContext;
+    contextState.timeContext = newTimeContext;
+    contextState.lastVerb = newLastVerb;
+    contextState.lastSubject = newLastSubject;
+
+    return { ...contextState };
+}
+
+// Add Tamil word to recent context
+export function addToContext(tamilWord) {
+    if (!tamilWord) return;
+    contextState.recentTamilWords = [...contextState.recentTamilWords, tamilWord].slice(-20);
+}
+
+// Get context-aware suggestions for a word
+export function getContextAwareSuggestions(tanglishWord, surroundingText = '') {
+    const suggestions = getTypingSuggestions(tanglishWord, 10);
+    if (!suggestions.length) return suggestions;
+
+    const context = analyzeContext(surroundingText);
+
+    const scored = suggestions.map(suggestion => {
+        let score = suggestion.priority * 10;
+
+        const freq = getWordFrequency(suggestion.tamil);
+        score += Math.min(freq / 10, 50);
+
+        if (context.timeContext === 'past') {
+            if (suggestion.tamil.includes('ேன்') || suggestion.tamil.includes('த்') ||
+                suggestion.tamil.includes('து') || wordCategories.verbs_go.some(v => suggestion.tamil.includes(v))) {
+                score += 30;
+            }
+        } else if (context.timeContext === 'future') {
+            if (suggestion.tamil.includes('வேன்') || suggestion.tamil.includes('ப்')) {
+                score += 30;
+            }
+        }
+
+        if (context.questionMode && wordCategories.question.some(q => suggestion.tamil.includes(q))) {
+            score += 40;
+        }
+
+        if (context.locationContext === 'here' && (suggestion.tamil.includes('இங்கே') || suggestion.tamil.includes('இந்த'))) {
+            score += 25;
+        } else if (context.locationContext === 'there' && (suggestion.tamil.includes('அங்கே') || suggestion.tamil.includes('அந்த'))) {
+            score += 25;
+        }
+
+        if (context.lastVerb && suggestion.tamil.includes(context.lastVerb)) {
+            score += 20;
+        }
+
+        return { ...suggestion, contextScore: score };
+    });
+
+    scored.sort((a, b) => b.contextScore - a.contextScore);
+
+    return scored.slice(0, 8);
+}
+
+// Rank multiple Tamil word candidates by context and frequency
+export function rankTamilCandidates(candidates, surroundingText = '') {
+    if (!candidates || candidates.length === 0) return candidates;
+
+    const context = analyzeContext(surroundingText);
+
+    const scored = candidates.map(candidate => {
+        let score = 0;
+
+        const freq = getWordFrequency(candidate);
+        score += Math.min(freq / 10, 50);
+
+        if (context.timeContext === 'past') {
+            if (candidate.includes('ேன்') || candidate.includes('த்') || candidate.includes('து')) {
+                score += 25;
+            }
+        } else if (context.timeContext === 'future') {
+            if (candidate.includes('வேன்') || candidate.includes('ப்')) {
+                score += 25;
+            }
+        }
+
+        if (context.questionMode && wordCategories.question.some(q => candidate.includes(q))) {
+            score += 35;
+        }
+
+        if (context.affirmationMode && wordCategories.affirmation.some(a => candidate.includes(a))) {
+            score += 30;
+        }
+        if (context.negationMode && wordCategories.negation.some(n => candidate.includes(n))) {
+            score += 30;
+        }
+
+        return { word: candidate, score };
+    });
+
+    scored.sort((a, b) => b.score - a.score);
+    return scored.map(s => s.word);
+}
+
+// Enhanced transliteration with context awareness
+export function transliterateWithContext(tanglishWord, surroundingText = '') {
+    const lower = tanglishWord.toLowerCase().trim();
+
+    // ── PRIORITY CHECK ──────────────────────────────────────────────────────
+    // If the word is in the hardcoded fallback map OR the full dictionary,
+    // return that result immediately — do NOT let generateWordForms() override
+    // it with phonetically-guessed candidates from the rule engine.
+    // e.g. "naalaikku" → நாளைக்கு (correct), NOT நாலைக்க (wrong rule output)
+    const directFallback = _fallbackTamilMap.get(lower);
+    if (directFallback) return directFallback;
+
+    const directDict = fullWordMapping.get(lower);
+    if (directDict) return directDict;
+
+    // Check spelling correction → dictionary path
+    const spellingCorrected = _tanglishSpellingMap.get(lower);
+    if (spellingCorrected) {
+        const dictResult = fullWordMapping.get(spellingCorrected) || _fallbackTamilMap.get(spellingCorrected);
+        if (dictResult) return dictResult;
+    }
+
+    const standard = transliterateWord(tanglishWord);
+    if (!standard || standard === tanglishWord) return standard;
+
+    const forms = generateWordForms(tanglishWord);
+    if (forms.length <= 1) return standard;
+
+    const ranked = rankTamilCandidates(forms, surroundingText);
+
+    return ranked[0] || standard;
+}
+
+// Update frequency when user accepts a suggestion
+export function recordWordUsage(tamilWord, tanglishWord = '') {
+    if (!tamilWord) return;
+    updateFrequency(tamilWord, 1);
+    addToContext(tamilWord);
+
+    // ── Also boost the trie node frequency so next lookup ranks it higher ──
+    if (tanglishWord) {
+        const lower = tanglishWord.toLowerCase();
+        // Update main trie
+        const node = _findTrieNode(suggestionTrie, lower);
+        if (node && node.isEnd) {
+            node.frequency = (node.frequency || 0) + 5; // boost by 5 per usage
+        }
+        // Update phonetic trie
+        const pKey = phoneticNormalize(lower);
+        if (pKey) {
+            const pNode = _findTrieNode(phoneticTrie, pKey);
+            if (pNode && pNode.isEnd) {
+                pNode.frequency = (pNode.frequency || 0) + 5;
+            }
+        }
+    }
+}
+
+// Helper: walk the trie to find a specific node (does not create nodes)
+function _findTrieNode(trie, word) {
+    if (!word || !trie) return null;
+    let node = trie.root;
+    for (const char of word.toLowerCase()) {
+        if (!node.children.has(char)) return null;
+        node = node.children.get(char);
+    }
+    return node;
+}
+
+// Reset context (for new session or clear)
+export function resetContext() {
+    contextState = {
+        lastTopic: null,
+        recentWords: [],
+        recentTamilWords: [],
+        questionMode: false,
+        affirmationMode: false,
+        negationMode: false,
+        locationContext: null,
+        timeContext: null,
+        lastVerb: null,
+        lastSubject: null
+    };
+}
+
+// Get current context state
+export function getCurrentContext() {
+    return { ...contextState };
+}
+
+// Load all data on init
+buildFullWordMapping();
+initFrequencyData();
+loadUserLearning();
+
+buildSuggestionTrie();
+buildPhoneticIndex();
+
+// Dictionary is loaded from the backend API via loadDictionaryFromBackend()
+// which is called by preloadCommonChunks() in TanglishEditor.vue onMounted hook.
