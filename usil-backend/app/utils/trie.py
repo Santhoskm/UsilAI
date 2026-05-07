@@ -29,7 +29,13 @@ class Trie:
             node.tamil_word = tamil
     
     def search_prefix(self, prefix: str, limit: int = 10) -> list:
-        """Get all words with given prefix, sorted by frequency"""
+        """Get all words with given prefix.
+        
+        Sorting rules:
+        - 1 or 2 letters typed  → sort by frequency (most used first)
+        - 3+ letters typed      → sort by word length ascending (shortest first),
+                                   then alphabetically, so closest matches appear first
+        """
         node = self.root
         prefix = prefix.lower()
         
@@ -41,7 +47,14 @@ class Trie:
         results = []
         self._collect_words(node, prefix, results)
         
-        results.sort(key=lambda x: (-x['frequency'], len(x['tanglish'])))
+        if len(prefix) >= 3:
+            # Increasing order: shortest word first, then A→Z, so the
+            # most "letter-complete" match rises to the top
+            results.sort(key=lambda x: (len(x['tanglish']), x['tanglish']))
+        else:
+            # For short prefixes, frequency-first is more useful
+            results.sort(key=lambda x: (-x['frequency'], len(x['tanglish'])))
+        
         return results[:limit]
     
     def _collect_words(self, node: TrieNode, current: str, results: list):
