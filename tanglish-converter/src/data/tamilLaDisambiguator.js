@@ -431,7 +431,15 @@ function heuristicLateral(tanglish) {
     // ── ள heuristics ──────────────────────────────────────────────────────
     // 4. Double-l in tanglish almost always = ள்ள (retroflex pair)
     //    Exceptions: nalla=நல்ல (dental), kalla=கல்ல (dental) → handle via root map
-    if (/ll/.test(t) && !['nalla', 'kalla', 'mella', 'villa', 'pulla', 'sella'].includes(t)) {
+    if (/ll/.test(t) && ![
+        'nalla', 'nallaa', 'nallavan', 'nallavangal',
+        'kalla', 'kallai', 'kallu', 'kalluri',
+        'mella', 'mellam',
+        'villa', 'villai', 'villain',
+        'pulla', 'pullam',
+        'sella', 'sellam', 'selvan', 'selvi', 'selvam',
+        'solla', 'sollu', 'sollaan',
+    ].includes(t)) {
         return 'La';
     }
 
@@ -496,6 +504,16 @@ export function disambiguateLa(tanglishWord, naiveTamil) {
         return LA_ROOT_MAP.get(t);
     }
 
+    // ── LAYER 1.5: Suffix rules for ll → ள்ள ────────────────────────────────
+    // SUFFIX_RULES_LA_TO_LA_RETROFLEX was defined but never applied — fix that here.
+    // These rules fire for ANY word ending in lla/lli/lle/llai regardless of
+    // whether it's in the root map or not.
+    for (const rule of SUFFIX_RULES_LA_TO_LA_RETROFLEX) {
+        if (rule.tanglish.test(t) && rule.tamil.test(naiveTamil)) {
+            return rule.fix(naiveTamil);
+        }
+    }
+
     // ── LAYER 2: Stem match — try stripping common suffixes then re-check ────
     const suffixesToStrip = [
         'kku', 'ku', 'il', 'la', 'le', 'ula', 'ule', 'ukku', 'aal',
@@ -526,7 +544,14 @@ export function disambiguateLa(tanglishWord, naiveTamil) {
     const lateralType = heuristicLateral(t);
 
     if (lateralType === 'La') {
-        result = replaceDentalWithRetroflex(result);
+        // Only replace ல்ல clusters → ள்ள, not every ல in the word
+        // This prevents converting dental ல in the first syllable when
+        // only the geminate (double-l) part needs to be retroflex
+        result = result
+            .replace(/\u0BB2\u0BCD\u0BB2/g, '\u0BB3\u0BCD\u0BB3')   // ல்ல → ள்ள
+            .replace(new RegExp('\u0BB2([' + VOWEL_SIGNS + '])', 'g'),
+                '\u0BB3$1')                                            // லா/லி/லு etc → ளா/ளி/ளு
+            .replace(/\u0BB2$/g, '\u0BB3');
     } else if (lateralType === 'zh') {
         result = replaceDentalWithApproximant(result);
     }
@@ -613,7 +638,8 @@ export function isLaAmbiguous(tanglishWord) {
     if (!tanglishWord) return false;
     const t = tanglishWord.toLowerCase();
     // Contains 'l', 'L', 'z', 'zh' — potential ambiguity
-    return /[lLzZ]/.test(tanglishWord) && !LA_ROOT_MAP.has(t);
+    //return /[lLzZ]/.test(tanglishWord) && !LA_ROOT_MAP.has(t);
+    return /[lLzZ]/.test(tanglishWord);
 }
 
 /**
