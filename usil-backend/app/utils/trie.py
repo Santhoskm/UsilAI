@@ -26,6 +26,7 @@ class Trie:
             self.size += 1
         elif frequency > node.frequency:
             node.frequency = frequency
+            node.tamil_word = tamil
     
     def search_prefix(self, prefix: str, limit: int = 10) -> list:
         """Get all words with given prefix, sorted by frequency"""

@@ -8,8 +8,12 @@ from dotenv import load_dotenv
 from sqlalchemy import text
 from app.api.v1 import suggestions
 from app.api.v1 import tools_service as tools
-from app.database import engine, Base
+from app.database import engine, Base, AsyncSessionLocal
+from app.utils.trie import Trie
+from sqlalchemy import text
 
+
+trie_cache = Trie()
 # ──────────────────────────────────────────────────────────────────────────────
 # IMPORTANT: Import ALL models here so SQLAlchemy knows about every table
 # before Base.metadata.create_all() is called at startup.
@@ -23,13 +27,14 @@ app = FastAPI(title="Usil AI Backend", version="1.0.0")
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://localhost:3000",
-        "http://192.168.1.8:5173",
-        "http://192.168.1.8:3000",
-        "http://192.168.1.8",
-    ],
+    # allow_origins=[
+    #     "http://localhost:5173",
+    #     "http://localhost:3000",
+    #     "http://192.168.1.8:5173",
+    #     "http://192.168.1.8:3000",
+    #     "http://192.168.1.8",
+    # ],
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -42,9 +47,16 @@ app.include_router(tools.router, prefix="/api/v1")
 
 @app.on_event("startup")
 async def startup():
-    """Create tables if they don't exist yet (idempotent)."""
+    """Create tables and load Trie cache."""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(
+            text("SELECT tanglish, tamil, frequency FROM words")
+        )
+        for row in result.fetchall():
+            trie_cache.insert(row[0], row[1], row[2] or 0)
+    print(f"[Trie] Loaded {trie_cache.size} words into memory")
 
 
 @app.get("/")

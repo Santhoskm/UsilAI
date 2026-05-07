@@ -61,19 +61,19 @@ async def load_dictionary():
             if tanglish and tamil  # skip empty entries
         ]
 
-        batch_size = 1000
+        batch_size = 5000
         total = len(rows)
 
         for i in range(0, total, batch_size):
             batch = rows[i : i + batch_size]
-
-            # ON CONFLICT DO NOTHING - safe to run multiple times
             stmt = pg_insert(Word).values(batch).on_conflict_do_nothing(
                 index_elements=["tanglish"]
             )
             await session.execute(stmt)
-            await session.commit()
             print(f"  [OK] Loaded {min(i + batch_size, total):,} / {total:,} words...")
+
+        await session.commit()   # ONE commit at the end
+        print("[OK] All words committed in single transaction")
 
         result = await session.execute(text("SELECT COUNT(*) FROM words"))
         final_count = result.scalar()

@@ -12,7 +12,10 @@ class Settings(BaseSettings):
     # Application
     APP_NAME: str = "Usil AI Backend"
     DEBUG: bool = False
-    CORS_ORIGINS: list = ["http://localhost:5173", "http://localhost:3000"]
+    CORS_ORIGINS: list = [
+        "http://localhost:5173",
+        "http://localhost:3000",
+    ]
     
     class Config:
         env_file = ".env"
