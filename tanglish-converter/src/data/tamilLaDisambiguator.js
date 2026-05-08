@@ -844,11 +844,13 @@ export function isRaAmbiguous(tanglishWord) {
     if (t.length < 4) return false;
     // Skip if already uses uppercase R (user typed it correctly)
     if (tanglishWord.includes('R')) return false;
-    // Trigger if ends in consonant+ura/ira/ara (verb suffix)
-    // or contains known ற roots
-    return /[bcdfghjklmnpqrstvwxyz][uia]ra$/.test(t) ||
+    // Trigger if ends in consonant+ura/ira (verb present-tense suffix, e.g. veekura, solira)
+    // NOTE: 'ara' is intentionally excluded — Cara endings are nouns/adjectives (kara, mara)
+    // that should stay soft-ர. Only ura/ira verb suffixes reliably indicate hard-ற.
+    // For medial ற patterns (maru, veru, paravai etc.) rely on RA_ROOT_MAP and prefix list.
+    return /[bcdfghjklmnpqrstvwxyz][ui]ra$/.test(t) ||
         RA_ROOT_MAP.has(t) ||
-        /^(maru|veru|uravu|karuppu|porumai|paravai|thirandhu|parandhu|thiramI|thiran)/.test(t);
+        /^(maru|mara|veru|vera|veri|veruppu|uravu|karuppu|karai|porumai|poru|peru|paravai|parandhu|thirandhu|thiramai|thiran|marandhu|thirakka|aran|arivu)/.test(t);
 }
 
 /**

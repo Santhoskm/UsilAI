@@ -1,5 +1,6 @@
 import Sanscript from '@indic-transliteration/sanscript';
 import { disambiguateLa, generateLaCandidates, isLaAmbiguous, disambiguateRa, isRaAmbiguous } from './tamilLaDisambiguator.js';
+import { commonWords } from './tamilMapping.js';
 
 // ================================================================
 // PERFECT TAMIL CONVERSION ENGINE v2.0  (Backend-powered)
@@ -96,7 +97,12 @@ export function preloadCommonChunks() {
 const fullWordMapping = new Map();
 
 function buildFullWordMapping() {
-    // Add all exact dictionary entries
+    // Seed with commonWords from tamilMapping.js (works even when backend is offline)
+    for (const [tanglish, tamil] of Object.entries(commonWords)) {
+        fullWordMapping.set(tanglish.toLowerCase(), tamil);
+    }
+
+    // Add all exact dictionary entries (backend words override commonWords if different)
     for (const [tanglish, tamil] of exactDictionary.entries()) {
         fullWordMapping.set(tanglish.toLowerCase(), tamil);
     }
@@ -641,20 +647,9 @@ function normalizeInput(input) {
     };
     if (yeWords[normalized]) normalized = yeWords[normalized];
 
-    // Normalize double-aa at end → single a for lookup (nallaa → nalla)
-    // but preserve internal double vowels like kaadu, maadu
-    // EXCEPTION: skip stripping when a consonant immediately precedes the
-    // trailing long vowel — e.g. subaash ends in sh+aa, rakesh in sh+ee —
-    // stripping would corrupt the spelling before dictionary lookup.
-    if (!/[bcdfghjklmnpqrstvwxyz]aa$/.test(normalized)) {
-        normalized = normalized.replace(/aa$/, 'a');
-    }
-    if (!/[bcdfghjklmnpqrstvwxyz]ee$/.test(normalized)) {
-        normalized = normalized.replace(/ee$/, 'e');
-    }
-    if (!/[bcdfghjklmnpqrstvwxyz]oo$/.test(normalized)) {
-        normalized = normalized.replace(/oo$/, 'o');
-    }
+    // NOTE: Do NOT strip trailing aa/ee/oo — these are valid long vowels that the
+    // token engine must see intact (nee=நீ, veedu=வீடு, koodam=கூடம் etc.).
+    // The old stripping lines were removed because they broke hundreds of words.
 
     // Common informal shortenings → canonical form for lookup
     const shortcuts = {
@@ -1527,21 +1522,33 @@ const postProcessRules = [
     { pattern: /ஞ்ஜே/g, replace: 'ஞ்சே' },
     // Fix: நஜ → ஞ்ச (vaninja type words)
     { pattern: /னஜ/g, replace: 'ஞ்ச' },
-    // Fix: word-internal ல்ல after vowel sign in common positions → ள்ள
-    // palli → பல்லி should be பள்ளி — tokenizer gives ல்ல, needs ள்ள
-    // BUT: nalla → நல்ல is CORRECT (ல்ல stays)
-    // Rule: ல்ல after certain vowels (அ/இ/உ/எ short vowel signs) in middle of word
-    // where the base is a retroflex context → ள்ள
-    // We handle this via dictionary for known words; tokenizer now has ll→ல்ல
-    // Post-process: if word has no dictionary hit and contains ல்ல,
-    // check if it's a known ள்ள pattern word
-    // Specific known wrong outputs:
-    { pattern: /பல்லி/g, replace: 'பள்ளி' },      // palli
+    // Fix: ll → ள்ள after short-vowel signs (ி ு ெ) in medial/final positions.
+    // RULE: vowel-sign + ல்ல → vowel-sign + ள்ள
+    //   Covers unseen words:  kulla→குள்ள, pulla→புள்ள, palli→பள்ளி,
+    //                         malli→மள்ளி, valli→வள்ளி, pulli→புள்ளி etc.
+    // EXCEPTIONS kept as-is (ல்ல correct):
+    //   நல்ல (nalla — after ந, a common word-initial consonant cluster, NOT short-vowel sign)
+    //   கல்லூரி (kalluri — ல்லூ context stays)
+    //   The pattern only fires after a vowel SIGN (ி ு ெ), not after a bare consonant.
+    //   So "nalla" → நல்ல (ல preceded by ந, not a vowel sign) stays correct.
+    {
+        pattern: /([\u0BBF\u0BC1\u0BC6])\u0BB2\u0BCD\u0BB2/g,
+        replace: '$1\u0BB3\u0BCD\u0BB3'   // ி/ு/ெ + ல்ல  →  ி/ு/ெ + ள்ள
+    },
+    // Also fix ல்லி at word end after short-vowel sign  (palli type)
+    {
+        pattern: /([\u0BBF\u0BC1\u0BC6])\u0BB2\u0BCD\u0BB2\u0BBF/g,
+        replace: '$1\u0BB3\u0BCD\u0BB3\u0BBF'
+    },
+    // Specific known correct overrides that survived the pattern but must stay ல்ல:
+    // கல்லூரி must NOT be changed — ூ (long-u sign) is not in the pattern above, safe.
+    // nalla/வல்ல/கல்ல etc. won't match because they have no short-vowel sign before ல்ல.
+    // Hardcoded safety net for the most commonly needed forms (extra guard):
+    { pattern: /பல்லி/g, replace: 'பள்ளி' },      // palli   (belt-and-suspenders)
     { pattern: /குல்ல/g, replace: 'குள்ள' },      // kulla
     { pattern: /குல்லே/g, replace: 'குள்ளே' },    // kulle
-    { pattern: /புல்ல/g, replace: 'புள்ள' },      // pulla
+    { pattern: /புல்ல(?!ூ)/g, replace: 'புள்ள' }, // pulla (but not pullur)
     { pattern: /புல்லை/g, replace: 'புள்ளை' },    // pullai
-    { pattern: /கல்லூரி/g, replace: 'கல்லூரி' },  // kalluri - already correct
     // Fix: standalone ஓரு → ஊரு (oor/ooru — oo sounds like ஊ here not ஓ)
     // The tokenizer reads 'oo' as ஓ (long-o), but in 'ooru/oor' Tanglish 
     // convention, oo = ஊ (long-u). Dictionary has 'ooru'→ஊரு but 
@@ -1550,8 +1557,22 @@ const postProcessRules = [
     { pattern: /^ஓர்/, replace: 'ஊர்' },
     // Fix: word-medial dental-na: ன before vowels in common positions should be ந
     // e.g. neram → நேரம் (n at start fixed elsewhere, but also after space)
-    // Fix triple consonant stacks
-    { pattern: /க்க்/, replace: 'க்க' },
+    // Fix: ன்ன → ண்ண after retroflex vowel signs (ி ு ெ) in medial position.
+    // RULE: short-vowel-sign + ன்ன → short-vowel-sign + ண்ண
+    //   annan→அண்ணன், kannan→கண்ணன், sinnam→சிண்ணம் etc.
+    // EXCEPTIONS that must stay ன்ன:
+    //   enna→என்ன (ன்ன after எ, not a vowel sign — stays)
+    //   inna, anna at word start (no vowel sign before ன்ன — stays)
+    // The pattern only fires when a vowel SIGN (ி ு ெ) directly precedes ன்ன.
+    {
+        pattern: /([\u0BBF\u0BC1\u0BC6])\u0BA9\u0BCD\u0BA9/g,
+        replace: '$1\u0BA3\u0BCD\u0BA3'   // ி/ு/ெ + ன்ன  →  ி/ு/ெ + ண்ண
+    },
+    // Also handle ா (long-aa sign) + ன்ன → ண்ண  (kaannan, aannan)
+    {
+        pattern: /\u0BBE\u0BA9\u0BCD\u0BA9/g,
+        replace: '\u0BBE\u0BA3\u0BCD\u0BA3'   // ா + ன்ன  →  ா + ண்ண
+    },
     { pattern: /ட்ட்/, replace: 'ட்ட' },
     { pattern: /த்த்/, replace: 'த்த' },
     { pattern: /ப்ப்/, replace: 'ப்ப' },
@@ -1574,13 +1595,40 @@ const postProcessRules = [
     { pattern: /புரிஞ்ஜ/g, replace: 'புரிஞ்ச' },
     { pattern: /முடிஞ்ஜ/g, replace: 'முடிஞ்ச' },
     { pattern: /பிடிஞ்ஜ/g, replace: 'பிடிஞ்ச' },
+    // Fix: ர்க/ல்க before SHORT vowel signs (ி ெ only) → ர்க்க/ல்க்க
+    // Guard: only doubles before ி (i-sign) and ெ (e-sign) where the cluster
+    // is phonologically required.  ு (u-sign) is intentionally excluded to
+    // avoid over-firing on valid ல்கு / ர்கு compounds.
+    // e.g. solkirein→சொல்கிறேன் needs ல்க்கி; but solkudhu stays as-is.
+    { pattern: /ர்க([\u0BBF\u0BC6])/g, replace: 'ர்க்க$1' },
+    { pattern: /ல்க([\u0BBF\u0BC6])/g, replace: 'ல்க்க$1' },
+    // Fix: word-final bare ம/ந/ல without pulli → add pulli (vanakkam, neram, kal etc.)
+    // Pattern: consonant letter (not already followed by pulli or vowel sign) at word END
+    // NOTE: _finalPulli:true → applyPostProcess() skips these for words < 4 Tamil chars
+    { pattern: /ம$/, replace: 'ம்', _finalPulli: true },
+    { pattern: /ன$/, replace: 'ன்', _finalPulli: true },
+    { pattern: /ல$/, replace: 'ல்', _finalPulli: true },
+    { pattern: /ர$/, replace: 'ர்', _finalPulli: true },
+    { pattern: /ண$/, replace: 'ண்', _finalPulli: true },
 ];
 
 function applyPostProcess(word) {
     let result = word;
-    for (const rule of postProcessRules) {
-        result = result.replace(rule.pattern, rule.replace);
 
+    // ── WORD-FINAL PULLI GUARD ───────────────────────────────────────────
+    // The rules that add ்  at word end (ம→ம், ன→ன் etc.) are only safe
+    // when the word is long enough to be a real Tamil word (≥4 Tamil chars).
+    // Short words like "சல" (sala), "வல" (vala) are valid open syllables
+    // (e.g. verb stems, foreign words) and must NOT get a spurious pulli.
+    // Count Tamil Unicode codepoints: range U+0B80–U+0BFF.
+    const tamilCharCount = [...result].filter(c => c >= '\u0B80' && c <= '\u0BFF').length;
+    const applyFinalPulli = tamilCharCount >= 4;
+
+    for (const rule of postProcessRules) {
+        // Skip word-final pulli rules for short words
+        const isFinalPulliRule = rule._finalPulli === true;
+        if (isFinalPulliRule && !applyFinalPulli) continue;
+        result = result.replace(rule.pattern, rule.replace);
     }
     return result;
 }
@@ -1687,10 +1735,19 @@ function _buildTokenTable() {
         t.push([roman + 'aa', tamil + '\u0bbe']); // ா
         t.push([roman + 'ii', tamil + '\u0bc0']); // ீ
         t.push([roman + 'uu', tamil + '\u0bc2']); // ூ
-        t.push([roman + 'ee', tamil + '\u0bc7']); // ே
-        t.push([roman + 'oo', tamil + '\u0bcb']); // ோ
+        t.push([roman + 'ee', tamil + '\u0bc0']); // ீ  (long-i sign — nee=நீ, veedu=வீடு)
+        t.push([roman + 'oo', tamil + '\u0bc2']); // ூ  (long-u sign — koodam=கூடம், poo=பூ)
+        t.push([roman + 'ae', tamil + '\u0bc7']); // ே  (long-e matra — kae=கே, mae=மே)
+        t.push([roman + 'oa', tamil + '\u0bcb']); // ோ  (long-o matra — koa=கோ, toa=தோ)
+        t.push([roman + 'ow', tamil + '\u0bcc']); // ௌ  (kow=கௌ)
         t.push([roman + 'ai', tamil + '\u0bc8']); // ை
         t.push([roman + 'au', tamil + '\u0bcc']); // ௌ
+        // Uppercase vowel shortcuts (A=ஆ, I=ஈ, U=ஊ, E=ஏ, O=ஓ inside consonant)
+        t.push([roman + 'A', tamil + '\u0bbe']); // kA=கா
+        t.push([roman + 'I', tamil + '\u0bc0']); // kI=கீ
+        t.push([roman + 'U', tamil + '\u0bc2']); // kU=கூ
+        t.push([roman + 'E', tamil + '\u0bc7']); // kE=கே
+        t.push([roman + 'O', tamil + '\u0bcb']); // kO=கோ
         // Short vowels
         t.push([roman + 'a', tamil]);
         t.push([roman + 'i', tamil + '\u0bbf']); // ி
@@ -1734,21 +1791,30 @@ function _buildTokenTable() {
     t.push(['nDr', '\u0ba9\u0bcd\u0b9f\u0bcd\u0bb0']); // nDr for ன்ட்ர் (aanDraaid)
     t.push(['nTh', '\u0ba9\u0bcd\u0ba4\u0bbe\u0ba9\u0bcd']); // nTh for ன்தான் (avanThaan)
     t.push(['Tr', '\u0b9f\u0bcd\u0bb0']);  // Tr for ட்ர் (venkaTraaman)
-    t.push(['Sh', '\u0bb6\u0bcd']);         // Sh for ஶ் (Shivan)
+    // ── Full ஶ (sha U+0BB6) family — Sha, Shi, Shu etc. ──────────────────
+    // Previously only ஶ் (pulli) was pushed; now the full vowel-family is registered
+    // so that Sha→ஶ, Shi→ஶி, Shu→ஶு etc. work for Sanskrit/Grantha names.
+    addFamily('Sh', '\u0BB6'); // Sh → ஶ family (Shankara, Shiva etc.)
     t.push(['Sr', '\u0bb8\u0bcd\u0bb0\u0bcd']);   // Sr for ஸ்ர் (naSreen)
     t.push(['srii', '\u0bb8\u0bcd\u0bb0\u0bc0']); // srii for ஸ்ரீ
     t.push(['Srii', '\u0bb8\u0bcd\u0bb0\u0bc0']); // Srii for ஸ்ரீ
     t.push(['Mr', '\u0bb8\u0bcd\u0bb0\u0bc0']);   // Mr for ஸ்ரீ
+    // shr → ஶ்ர (Grantha cluster using ஶ not ஸ)
+    t.push(['Shr', '\u0BB6\u0BCD\u0BB0']);        // Shr → ஶ்ர
+    t.push(['shr', '\u0BB6\u0BCD\u0BB0']);        // shr → ஶ்ர (lowercase alias)
     t.push(['F', '\u0b83\u0baa']);          // F for ஃப்
     t.push(['ph', '\u0b83\u0baa']);         // ph for ஃப்
     t.push(['Z', '\u0b83\u0b9c\u0bcd']);    // Z for ஃஜ்
     t.push(['X', '\u0b83\u0bb8\u0bcd']);    // X for ஃஸ்
-    t.push(['ow', '\u0b94']);               // ow for ஔ
+    t.push(['ow', '\u0b94']);               // ow for ஔ (standalone vowel)
     t.push(['ou', '\u0b94']);               // ou for ஔ
+    // Aytham ஃ — standalone q or akh
+    t.push(['akh', '\u0b83']);             // akh → ஃ
+    t.push(['q', '\u0b83']);              // q → ஃ
     // NOTE: Removed broken diphthong tokens (aai, ooi, ei, oi, etc.)
     // They produced wrong output. Vowel-hiatus is now handled in applyVowelHiatusFix().
-    t.push(['ae', '\u0b8f']);               // ae for ஏ (aetram)
-    t.push(['oa', '\u0b93']);               // oa for ஓ (koavil)
+    t.push(['ae', '\u0b8f']);               // ae for ஏ (standalone vowel, e.g. aetram)
+    t.push(['oa', '\u0b93']);               // oa for ஓ (standalone vowel, e.g. oar)
     t.push(['nh', '\u0ba8\u0bcd']);         // nh for ந் (nhagar)
     t.push(['aum', '\u0b90']);              // aum for ௐ
     t.push(['Aum', '\u0b90']);              // Aum for ௐ
@@ -1818,8 +1884,8 @@ function _buildTokenTable() {
     addFamily('s', '\u0b9a');
     addFamily('t', '\u0b9f'); addFamily('d', '\u0b9f');
     addFamily('j', '\u0b9c');
-    addFamily('n', '\u0ba9');
-    addFamily('w', '\u0ba8'); // w → ந (dental na — distinct from n=ன)
+    addFamily('n', '\u0ba8'); // n → ந (dental-na; nn=ன்ன handles alveolar doubled case)
+    addFamily('w', '\u0bb5'); // w → வ (same as v; wa=வா, wi=வி)
     addFamily('N', '\u0ba3');
     addFamily('L', '\u0bb3');
     addFamily('R', '\u0bb1');
@@ -1828,7 +1894,7 @@ function _buildTokenTable() {
 
     // ── 4. VOWELS (long before short) ──
     t.push(['aa', '\u0b86'], ['ii', '\u0b88'], ['uu', '\u0b8a'],
-        ['ee', '\u0b8f'], ['oo', '\u0b93'], ['ai', '\u0b90'], ['au', '\u0b94']);
+        ['ee', '\u0b88'], ['oo', '\u0b8a'], ['ai', '\u0b90'], ['au', '\u0b94']); // ee=ஈ oo=ஊ
     t.push(['A', '\u0b86'], ['I', '\u0b88'], ['E', '\u0b8f'],
         ['U', '\u0b8a'], ['O', '\u0b93']);
     t.push(['a', '\u0b85'], ['i', '\u0b87'], ['u', '\u0b89'],
@@ -1841,11 +1907,34 @@ function _buildTokenTable() {
 
 const _tokenTable = _buildTokenTable();
 
+// Build a first-char bucketed Map for O(1) lookup per character position.
+// Instead of scanning all ~400 entries per position, we only scan entries
+// whose first character matches the current input character.
+const _tokenMap = new Map();
+for (const [key, val] of _tokenTable) {
+    const c = key[0];
+    if (!_tokenMap.has(c)) _tokenMap.set(c, []);
+    _tokenMap.get(c).push([key, val]);
+}
+
+// Known verb-suffix endings — conjugateVerb only fires for these
+const _verbSuffixRe = /(?:ren|ran|ral|rom|ringa|ven|van|val|vom|vinga|pen|pan|pal|pom|pinga|ten|tan|tal|tom|tinga|then|than|thal|thom|tthen|tthan|tten|ttan|kiren|kiran|kiral|kirom|uren|uran|ural|urom|uringa|inja|ichu)$/i;
+
 export function convertWithRules(tanglishWord) {
     if (!tanglishWord || !tanglishWord.trim()) return '';
 
     // STEP 1: Normalize
     const normalized = normalizeInput(tanglishWord);
+
+    // ── STEP 1b: Word-initial t/d → த (dental) vs ட (retroflex) disambiguation ──
+    // The tokenizer maps bare t/d → ட (retroflex, Azhagi standard).
+    // But colloquial Tanglish users write "tambi" meaning தம்பி (dental த), not டம்பி.
+    // Heuristic: if a word STARTS with t/d (lowercase) and the dictionary has no hit,
+    // AND the remainder matches common dental patterns, rewrite to th/dh before tokenizing.
+    // This is a limited rule; the dictionary/fallback map covers known words already.
+    // We only fire for unseen words (dict check below will catch known ones).
+    const _dentalStartRe = /^[td](?:a(?:mb|ng|m|n|l|r|v|k|pp|tt)|e(?:v|n|rin|ru|ra|l)|i(?:n|r|tt|ru|l)|u(?:r|n|mb|tt)|h)/i;
+    let normalizedForTokenizer = normalized;
 
     // STEP 2: Check full word first
     if (fullWordMapping.has(normalized)) {
@@ -1861,24 +1950,34 @@ export function convertWithRules(tanglishWord) {
     const compoundResult = checkCompoundWord(normalized);
     if (compoundResult) return compoundResult;
 
-    // Check verb forms
-    const verbForms = conjugateVerb(normalized);
-    if (verbForms && verbForms.length > 0 && verbForms[0]) {
-        return verbForms[0];
+    // Check verb forms — only for words with known verb suffixes (avoids false positives on nouns)
+    if (_verbSuffixRe.test(normalized)) {
+        const verbForms = conjugateVerb(normalized);
+        if (verbForms && verbForms.length > 0 && verbForms[0]) {
+            return verbForms[0];
+        }
     }
 
-    // STEP 3: Letter mapping (greedy tokenizer)
+    // STEP 3: Letter mapping (greedy tokenizer with O(1) bucket lookup)
+    // Apply dental-start rewrite for unseen t/d-initial words before tokenizing
+    if (_dentalStartRe.test(normalized) &&
+        !fullWordMapping.has(normalized) &&
+        !_fallbackTamilMap.has(normalized)) {
+        // Rewrite leading t/d → th/dh so tokenizer picks dental-ta (த) not retroflex (ட)
+        normalizedForTokenizer = normalized.replace(/^t/, 'th').replace(/^d/, 'dh');
+    }
     let result = '';
     let pos = 0;
-    const input = normalized;
+    const input = normalizedForTokenizer;
 
     while (pos < input.length) {
         let matched = false;
         const maxLen = Math.min(6, input.length - pos);
+        const bucket = _tokenMap.get(input[pos]) || [];
 
         for (let len = maxLen; len >= 1; len--) {
             const chunk = input.slice(pos, pos + len);
-            for (const [key, val] of _tokenTable) {
+            for (const [key, val] of bucket) {
                 if (key === chunk) {
                     result += val;
                     pos += len;
@@ -2170,10 +2269,22 @@ export function transliterateWord(word) {
 export function transliterateSentence(sentence) {
     if (!sentence) return '';
 
-    const parts = sentence.split(/(\s+|[.,!?;:।\-])/);
+    // Tamil numeral map: ASCII digit → Tamil numeral (U+0BE6–U+0BEF)
+    const _tamilNumerals = { '0': '௦', '1': '௧', '2': '௨', '3': '௩', '4': '௪', '5': '௫', '6': '௬', '7': '௭', '8': '௮', '9': '௯' };
+
+    // Pre-process: convert Tamil punctuation markers
+    let input = sentence
+        .replace(/\|\|/g, '\u0964\u0964') // || → ॥ (double purnam)
+        .replace(/\|/g, '\u0964');          // | → । (purnam)
+
+    const parts = input.split(/(\s+|[.,!?;:।॥\-])/);
     let transliterated = parts.map(part => {
         if (/[a-zA-Z]/.test(part)) {
             return transliterateWord(part);
+        }
+        // Convert digits to Tamil numerals
+        if (/[0-9]/.test(part)) {
+            return part.replace(/[0-9]/g, d => _tamilNumerals[d]);
         }
         return part;
     }).join('');

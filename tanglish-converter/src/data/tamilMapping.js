@@ -211,31 +211,21 @@ export const tamilMapping = {
     'tthi': 'த்தி',
     'tthu': 'த்து',
 
-    // ============= NHA FAMILY (ந) =============
+    // ============= NHA FAMILY (ந) — use nha- prefix to avoid clash with NA SOFT =============
+    // Note: bare 'na','ni' etc. are intentionally in NA SOFT section (→ன colloquial default).
+    // Use 'nha' prefix for explicit dental-na (ந) input.
     'nha': 'ந',
-    'na': 'ந',
     'nhaa': 'நா',
-    'naa': 'நா',
     'nhi': 'நி',
-    'ni': 'நி',
     'nhii': 'நீ',
-    'nii': 'நீ',
     'nhu': 'நு',
-    'nu': 'நு',
     'nhuu': 'நூ',
-    'nuu': 'நூ',
     'nhe': 'நெ',
-    'ne': 'நெ',
     'nhae': 'நே',
-    'nae': 'நே',
     'nhai': 'நை',
-    'nai': 'நை',
     'nho': 'நொ',
-    'no': 'நொ',
     'nhoa': 'நோ',
-    'noa': 'நோ',
     'nhow': 'நௌ',
-    'now': 'நௌ',
     'nh': 'ந்',
     'nth': 'ந்த்',
     'ntha': 'ந்த',
@@ -504,6 +494,22 @@ export const tamilMapping = {
     'sri': 'ஸ்ரீ',
     'shri': 'ஸ்ரீ',
     'sr': 'ஸ்ரீ',
+
+    // ============= TAMIL FRACTION SYMBOLS =============
+    // Traditional Tamil fractions (U+0BE6–U+0BF2 area)
+    '1/2': '½',      // ½  (U+00BD) — also mapped via key sequence below
+    '1/4': '¼',      // ¼  (U+00BC)
+    '3/4': '¾',      // ¾  (U+00BE)
+    // Native Tamil fraction glyphs (kesavan.info style key sequences)
+    'onehalf': '௳',   // U+0BF3 — day sign / one-half in some fonts
+    'onequarter': '௴', // U+0BF4 — one-quarter
+    'threequarter': '௵', // U+0BF5 — three-quarters
+    'onesixteenth': '௶', // U+0BF6 — one-sixteenth
+    'onethirtysecond': '௷', // U+0BF7 — one-thirty-second
+    'eightavartam': '௸', // U+0BF8 — as above
+    'rupee': '₹',    // Indian Rupee sign (convenient shortcut)
+    'Rs': '₹',
+    'rs': '₹',
 
     // NTH combinations
     'nth': 'ந்த்',
