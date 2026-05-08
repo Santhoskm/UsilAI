@@ -781,8 +781,8 @@ class Trie {
         const _badStart = /^[னறளா-ௌ]/;
         const _valid = results.filter(r => r.tamil && !_badStart.test(r.tamil));
         _valid.sort((a, b) => {
-            if (a.frequency !== b.frequency) return b.frequency - a.frequency;
-            return a.word.length - b.word.length;
+            if (a.word.length !== b.word.length) return a.word.length - b.word.length;
+            return b.frequency - a.frequency;
         });
 
         return _valid.slice(0, limit);
@@ -1158,8 +1158,10 @@ export function getTypingSuggestions(typedText, limit = 8) {
         if (a.priority !== b.priority) return a.priority - b.priority;
         if (a.exact && !b.exact) return -1;
         if (!a.exact && b.exact) return 1;
-        if ((a.frequency || 0) !== (b.frequency || 0)) return (b.frequency || 0) - (a.frequency || 0);
-        return a.tanglish.length - b.tanglish.length;
+        // ✅ Shorter tanglish = closer match to what user typed → show first
+        if (a.tanglish.length !== b.tanglish.length) return a.tanglish.length - b.tanglish.length;
+        // ✅ Within same length, higher frequency wins
+        return (b.frequency || 0) - (a.frequency || 0);
     });
 
     return filtered.slice(0, limit);
@@ -1608,7 +1610,7 @@ const postProcessRules = [
     { pattern: /ம$/, replace: 'ம்', _finalPulli: true },
     { pattern: /ன$/, replace: 'ன்', _finalPulli: true },
     { pattern: /ல$/, replace: 'ல்', _finalPulli: true },
-    { pattern: /ர$/, replace: 'ர்', _finalPulli: true },
+    { pattern: /ர$/, replace: 'ர்', _finalPulli: true, _minChars: 5 },
     { pattern: /ண$/, replace: 'ண்', _finalPulli: true },
 ];
 
@@ -1628,6 +1630,7 @@ function applyPostProcess(word) {
         // Skip word-final pulli rules for short words
         const isFinalPulliRule = rule._finalPulli === true;
         if (isFinalPulliRule && !applyFinalPulli) continue;
+        if (rule._minChars && tamilCharCount < rule._minChars) continue;
         result = result.replace(rule.pattern, rule.replace);
     }
     return result;
