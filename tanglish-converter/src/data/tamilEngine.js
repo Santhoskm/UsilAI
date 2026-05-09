@@ -1110,12 +1110,12 @@ export function getTypingSuggestions(typedText, limit = 8) {
     // ── PASS 5: Rule engine fallback (only if no dictionary matches) ──
     // Also pushes generateWordForms variants so user sees 3-4 forming options.
     if (results.length === 0 && typedText.length >= 2) {
-        const formed = convertWithRules(typedText);
+        const formed = convertWithRules(lower);
         if (formed && /[஀-௿]/.test(formed) && !seen.has(formed)) {
-            results.push({ tanglish: typedText, tamil: formed, type: '🔧 Rule', priority: 5, exact: false });
+            results.push({ tanglish: lower, tamil: formed, type: '🔧 Rule', priority: 5, exact: false });
             seen.add(formed);
         }
-        const forms5 = generateWordForms(typedText);
+        const forms5 = generateWordForms(lower);
         for (const f of forms5) {
             if (results.length >= limit) break;
             if (!seen.has(f) && /[஀-௿]/.test(f)) {
@@ -1127,12 +1127,12 @@ export function getTypingSuggestions(typedText, limit = 8) {
 
     // ── PASS 6: Rule preview + word form variants (always show forming options) ──
     if (typedText.length >= 2 && results.length < limit) {
-        const formed = convertWithRules(typedText);
+        const formed = convertWithRules(lower);
         if (formed && /[஀-௿]/.test(formed) && !seen.has(formed)) {
-            results.push({ tanglish: typedText, tamil: formed, type: '🔧 Rule', priority: 6, exact: false });
+            results.push({ tanglish: lower, tamil: formed, type: '🔧 Rule', priority: 6, exact: false });
             seen.add(formed);
         }
-        const forms6 = generateWordForms(typedText);
+        const forms6 = generateWordForms(lower);
         for (const f of forms6) {
             if (results.length >= limit) break;
             if (!seen.has(f) && /[஀-௿]/.test(f)) {
@@ -2391,6 +2391,26 @@ export function getLiveWordFormingOptions(typedText, maxOptions = 4) {
     // 3. Rule engine direct output
     push(convertWithRules(lower), 'rule');
 
+    // 3b. Long-vowel alternates — try aa for every a in the word
+    // Catches: bhagavan→பகவன் but bhagavaan→பகவான் is also valid
+    if (options.length < maxOptions) {
+        const vowelAlternates = [];
+        // Replace each 'a' with 'aa' one at a time
+        const aPositions = [...lower.matchAll(/(?<![aeiou])a(?![aeiou])/g)].map(m => m.index);
+        for (const pos of aPositions) {
+            const alt = lower.slice(0, pos) + 'aa' + lower.slice(pos + 1);
+            if (alt !== lower) vowelAlternates.push(alt);
+        }
+        // Also try full double-vowel version
+        vowelAlternates.push(lower.replace(/(?<![aeiou])a(?![aeiou])/g, 'aa'));
+        for (const alt of [...new Set(vowelAlternates)]) {
+            if (options.length >= maxOptions) break;
+            push(transliterateWord(alt), 'rule');
+        }
+    }
+
+
+
     // 4. generateWordForms variants (l/L/zh, r/R alternates etc.)
     if (options.length < maxOptions) {
         const forms = generateWordForms(lower);
@@ -2522,10 +2542,11 @@ function rankWords(words) {
 export function generateWordForms(tanglish) {
     if (!tanglish) return [];
 
+    const lower = tanglish.toLowerCase().trim();
     const forms = new Set();
 
     // Base form
-    const base = convertWithRules(tanglish);
+    const base = convertWithRules(lower);
     if (base && isLikelyValid(base)) {
         forms.add(enforceTamilPatterns(base));
     } else if (base) {
@@ -2538,6 +2559,15 @@ export function generateWordForms(tanglish) {
         safeVariations.forEach(v => {
             if (isLikelyValid(v)) forms.add(v);
         });
+
+        // ந் at word end → ன் (very common: bhagavan, raman, krishnan etc.)
+        if (base.endsWith('ந்')) {
+            forms.add(base.slice(0, -2) + 'ன்');
+        }
+        // ந் at word end → ண் (for retroflex names: arjunan etc.)
+        if (base.endsWith('ந்')) {
+            forms.add(base.slice(0, -2) + 'ண்');
+        }
     }
 
     // Double consonant strengthening (limited)
@@ -2556,8 +2586,9 @@ export function generateWordForms(tanglish) {
     });
 
     // Ending vowel corrections (only for words that make sense)
+    // Ending vowel corrections (only for words that make sense)
     if (base && base.length >= 2) {
-        const endings = ['ு', 'ம்', 'ன்'];
+        const endings = ['ு', 'ம்', 'ன்', 'ான்', 'ான'];
         endings.forEach(ending => {
             const withEnding = base + ending;
             if (isLikelyValid(withEnding) && !forms.has(withEnding)) {

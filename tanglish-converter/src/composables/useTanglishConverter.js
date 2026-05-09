@@ -50,22 +50,25 @@ export function useTanglishConverter() {
     const getSuggestions = (partialWord, surroundingText = '') => {
         if (!partialWord || partialWord.length < 1) return []
 
+        // Always normalize to lowercase before any lookup
+        const normalizedWord = partialWord.toLowerCase().trim()
+
         // 1. Instant local engine results (synchronous)
         let localSuggestions
         if (surroundingText) {
-            localSuggestions = getContextAwareSuggestions(partialWord, surroundingText)
+            localSuggestions = getContextAwareSuggestions(normalizedWord, surroundingText)
         } else {
-            localSuggestions = getTypingSuggestions(partialWord, 5)
+            localSuggestions = getTypingSuggestions(normalizedWord, 5)
         }
 
         // 2. Fire background fetch to backend (async, non-blocking)
         //    Cancel any previous in-flight request
         if (_abortCtrl) {
-            try { _abortCtrl.abort() } catch {}
+            try { _abortCtrl.abort() } catch { }
         }
         _abortCtrl = new AbortController()
 
-        fetchSuggestions(partialWord, 5)
+        fetchSuggestions(normalizedWord, 5)
             .then(backendResults => {
                 if (backendResults && backendResults.length > 0) {
                     // Merge: local first, then backend extras
