@@ -1534,7 +1534,7 @@ const postProcessRules = [
     //   The pattern only fires after a vowel SIGN (ி ு ெ), not after a bare consonant.
     //   So "nalla" → நல்ல (ல preceded by ந, not a vowel sign) stays correct.
     {
-        pattern: /([\u0BBF\u0BC1\u0BC6])\u0BB2\u0BCD\u0BB2/g,
+        pattern: /([\u0BBF\u0BC1])\u0BB2\u0BCD\u0BB2/g,
         replace: '$1\u0BB3\u0BCD\u0BB3'   // ி/ு/ெ + ல்ல  →  ி/ு/ெ + ள்ள
     },
     { pattern: /^எள்ள/, replace: 'எல்ல' },
@@ -1542,7 +1542,7 @@ const postProcessRules = [
 
     // Also fix ல்லி at word end after short-vowel sign  (palli type)
     {
-        pattern: /([\u0BBF\u0BC1\u0BC6])\u0BB2\u0BCD\u0BB2\u0BBF/g,
+        pattern: /([\u0BBF\u0BC1])\u0BB2\u0BCD\u0BB2\u0BBF/g,
         replace: '$1\u0BB3\u0BCD\u0BB3\u0BBF'
     },
     // Specific known correct overrides that survived the pattern but must stay ல்ல:
