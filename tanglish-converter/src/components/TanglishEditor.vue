@@ -566,22 +566,36 @@ const handleTyping = (view, from, to, text) => {
         ' ', ' '
     )
     
-    // Update suggestions based on current word with context
-    if (currentWordObj.word && currentWordObj.word.length >= 1) {
-        const suggestions = getSuggestions(currentWordObj.word, surroundingContext).slice(0, 6)
-        suggestionsList.value = suggestions
-        
-        if (suggestions.length > 0) {
-            showSuggestions.value = true
-            selectedSuggestionIndex.value = 0
-            updatePopupPosition(view)
+    // Update suggestions AFTER TipTap commits the new character
+    setTimeout(() => {
+        if (!editor.value) return
+        const { state: newState } = editor.value
+        const { $from: new$from } = newState.selection
+        const newCursorPos = new$from.pos
+        const newTextBefore = newState.doc.textBetween(0, newCursorPos, ' ', ' ')
+        const newWordObj = getCurrentWord(newTextBefore, newCursorPos)
+        const newContext = newState.doc.textBetween(
+            Math.max(0, newCursorPos - 100),
+            Math.min(newState.doc.content.size, newCursorPos + 50),
+            ' ', ' '
+        )
+        if (newWordObj.word && newWordObj.word.length >= 1) {
+            const suggestions = getSuggestions(newWordObj.word, newContext).slice(0, 6)
+            suggestionsList.value = suggestions
+            if (suggestions.length > 0) {
+                showSuggestions.value = true
+                selectedSuggestionIndex.value = 0
+                updatePopupPosition(editor.value.view)
+            } else {
+                showSuggestions.value = false
+            }
         } else {
             showSuggestions.value = false
+            suggestionsList.value = []
         }
-    } else {
-        showSuggestions.value = false
-        suggestionsList.value = []
-    }
+    }, 0)
+    
+    // Auto-convert logic with context ...
     
     // Auto-convert logic with context
     const shouldConvert = autoConvert.value && (

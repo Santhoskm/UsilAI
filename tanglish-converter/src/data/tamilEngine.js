@@ -1537,6 +1537,9 @@ const postProcessRules = [
         pattern: /([\u0BBF\u0BC1\u0BC6])\u0BB2\u0BCD\u0BB2/g,
         replace: '$1\u0BB3\u0BCD\u0BB3'   // ி/ு/ெ + ல்ல  →  ி/ு/ெ + ள்ள
     },
+    { pattern: /^எள்ள/, replace: 'எல்ல' },
+    { pattern: /^யெள்ள/, replace: 'யெல்ல' },
+
     // Also fix ல்லி at word end after short-vowel sign  (palli type)
     {
         pattern: /([\u0BBF\u0BC1\u0BC6])\u0BB2\u0BCD\u0BB2\u0BBF/g,
@@ -1869,6 +1872,7 @@ function _buildTokenTable() {
     // ── 2. TWO-CHAR CONSONANT COMBOS ──
     addFamily('sh', '\u0bb7');
     addFamily('ddh', '\u0ba4\u0bcd\u0ba4');
+    addFamily('tth', '\u0ba4\u0bcd\u0ba4');
     addFamily('dh', '\u0ba4');
     addFamily('th', '\u0ba4');
     addFamily('ch', '\u0b9a');
