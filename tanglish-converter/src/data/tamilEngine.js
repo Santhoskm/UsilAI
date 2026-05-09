@@ -621,7 +621,7 @@ const _fallbackTamilMap = new Map([
     ['oruthar', 'ஒருத்தர்'], ['orutharr', 'ஒருத்தர்'],
     ['oruththar', 'ஒருத்தர்'], ['oruththarr', 'ஒருத்தர்'],
     // ── NAMES ────────────────────────────────────────────────────────────
-    ['thilothama', 'திலோத்தம்மா'],
+    // ['thilothama', 'திலோத்தம்மா'],
 ]);
 
 function normalizeInput(input) {
@@ -1870,14 +1870,20 @@ function _buildTokenTable() {
     addFamily('LL', '\u0bb3\u0bcd\u0bb3'); // LL → ள்ள
 
     // ── 2. TWO-CHAR CONSONANT COMBOS ──
+    // ── 2. TWO-CHAR CONSONANT COMBOS ──
     addFamily('sh', '\u0bb7');
     addFamily('ddh', '\u0ba4\u0bcd\u0ba4');
     addFamily('tth', '\u0ba4\u0bcd\u0ba4');
     addFamily('dh', '\u0ba4');
     addFamily('th', '\u0ba4');
+    addFamily('bh', '\u0baa'); // bh → ப (bhagavan, bharat etc.)
     addFamily('ch', '\u0b9a');
     addFamily('zh', '\u0bb4');
     addFamily('nj', '\u0b9e');
+    addFamily('kk', '\u0b95\u0bcd\u0b95'); // kk → க்க (nallozhukkam etc.)
+    addFamily('pp', '\u0baa\u0bcd\u0baa'); // pp → ப்ப
+    addFamily('tt', '\u0b9f\u0bcd\u0b9f'); // tt → ட்ட (retroflex double)
+    addFamily('mm', '\u0bae\u0bcd\u0bae'); // mm → ம்ம
 
     // ── 3. SINGLE CONSONANTS ──
     addFamily('k', '\u0b95'); addFamily('g', '\u0b95');

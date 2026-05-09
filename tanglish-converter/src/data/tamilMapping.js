@@ -211,14 +211,14 @@ export const tamilMapping = {
     'tthi': 'த்தி',
     'tthu': 'த்து',
 
-    // ============= NHA FAMILY (ந) — use nha- prefix to avoid clash with NA SOFT =============
-    // Note: bare 'na','ni' etc. are intentionally in NA SOFT section (→ன colloquial default).
+    // ============= NHA FAMILY (ந) — use nha- prefix for dental-na =============
+    // 'na','ni','nu','ne','no','naa' etc. are in NA SOFT section below (→ன default).
     // Use 'nha' prefix for explicit dental-na (ந) input.
-    'na': 'ந',
-    'naa': 'நா',
-    'ni': 'நி',
-    'nii': 'நீ',
-    'nu': 'நு',
+    'nha': 'ந',
+    'nhaa': 'நா',
+    'nhi': 'நி',
+    'nhii': 'நீ',
+    'nhu': 'நு',
     'nhuu': 'நூ',
     'nhe': 'நெ',
     'nhae': 'நே',
