@@ -72,17 +72,24 @@ export function useTanglishConverter() {
             .then(backendResults => {
                 if (backendResults && backendResults.length > 0) {
                     // Merge: local first, then backend extras
+                    // Dedup by BOTH tamil value AND tanglish key.
+                    // Without tanglish dedup: vijaya→விஜய (backend) slips in even
+                    // when vijay→விஜய் (local) is already shown, because the Tamil
+                    // strings differ by just a pulli (விஜய் ≠ விஜய).
                     const seenTamil = new Set()
+                    const seenTanglish = new Set()
                     const merged = []
 
                     for (const item of localSuggestions) {
                         seenTamil.add(item.tamil)
+                        seenTanglish.add(item.tanglish)
                         merged.push(item)
                     }
 
                     for (const item of backendResults) {
-                        if (!seenTamil.has(item.tamil)) {
+                        if (!seenTamil.has(item.tamil) && !seenTanglish.has(item.tanglish)) {
                             seenTamil.add(item.tamil)
+                            seenTanglish.add(item.tanglish)
                             merged.push({
                                 tanglish: item.tanglish,
                                 tamil: item.tamil,

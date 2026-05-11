@@ -1013,6 +1013,10 @@ export function getTypingSuggestions(typedText, limit = 8) {
             // Recover the original (un-normalised) tanglish key from our side-map
             const originalKey = phoneticToOriginal.get(match.tanglish) || match.tanglish;
             if (seenKeys.has(originalKey)) continue;
+            // ✅ ADD THIS: skip phonetic match if we already have an exact match
+            // and the phonetic result's tanglish is longer than what was typed
+            if (results.some(r => r.priority === 0) && originalKey.length > lower.length) continue;
+
             results.push({
                 tanglish: originalKey,
                 tamil: match.tamil,
@@ -1865,6 +1869,12 @@ function _buildTokenTable() {
     // nn → ன்ன
     addFamily('nn', '\u0ba9\u0bcd\u0ba9');
 
+    // sc → ஸ்க (school, scooter — prevents 'ch' from consuming the 'c')
+    addFamily('sch', '\u0BB8\u0BCD\u0B95'); // sch → ஸ்க (school→ஸ்கூல்)
+    t.push(['sch', '\u0BB8\u0BCD\u0B95\u0BCD']); // sch bare → ஸ்க்
+
+
+
     // ── ll → ல்ல (MUST be before single l) ──
     // In Tamil, double-l in Tanglish = ல்ல (e.g. palli=பள்ளி, nalla=நல்ல, kulla=குள்ள)
     // NOTE: palli, nalla etc. are in dictionary; this handles unseen ll words
@@ -1881,6 +1891,10 @@ function _buildTokenTable() {
     addFamily('dh', '\u0ba4');
     addFamily('th', '\u0ba4');
     addFamily('bh', '\u0baa'); // bh → ப (bhagavan, bharat etc.)
+    // bhi/bhe/bha — explicit forms so 'hi' doesn't fire after bh
+    // thambhi → தம்பி, not தம்பஹி
+    t.push(['bhi', '\u0baa\u0bbf']); // bhi → பி
+    t.push(['bhe', '\u0baa\u0bc6']); // bhe → பெ
     addFamily('ch', '\u0b9a');
     addFamily('zh', '\u0bb4');
     addFamily('nj', '\u0b9e');
@@ -2021,6 +2035,23 @@ export function convertWithRules(tanglishWord) {
     // Fix word start issues: ன→ந, ற→ர, ள→ல at word start (invalid in Tamil)
     // Must check first Tamil char (may be followed by vowel signs)
     if (result.length > 0) {
+        // Fix: word-initial vowel SIGN (ா ி ீ ு ூ ெ ே ை) has no base consonant.
+        // The tokenizer produced a bare matra — prepend the correct standalone vowel.
+        const vowelSignToLetter = {
+            '\u0BBE': '\u0B86', // ா → ஆ  (aa)
+            '\u0BBF': '\u0B87', // ி → இ  (i)
+            '\u0BC0': '\u0B88', // ீ → ஈ  (ii/ee)
+            '\u0BC1': '\u0B89', // ு → உ  (u)
+            '\u0BC2': '\u0B8A', // ூ → ஊ  (uu/oo)
+            '\u0BC6': '\u0B8E', // ெ → எ  (e)
+            '\u0BC7': '\u0B8F', // ே → ஏ  (ae/E)
+            '\u0BC8': '\u0B90', // ை → ஐ  (ai)
+            '\u0BCA': '\u0B92', // ொ → ஒ  (o)
+            '\u0BCB': '\u0B93', // ோ → ஓ  (oa/O)
+            '\u0BCC': '\u0B94', // ௌ → ஔ  (au/ow)
+        };
+        const replacement = vowelSignToLetter[result[0]];
+        if (replacement) result = replacement + result.slice(1);
         const firstChar = result[0];
         if (firstChar === '\u0ba9') result = '\u0ba8' + result.slice(1); // ன → ந
         else if (firstChar === '\u0bb1') result = '\u0bb0' + result.slice(1); // ற → ர

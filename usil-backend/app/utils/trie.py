@@ -48,9 +48,13 @@ class Trie:
         self._collect_words(node, prefix, results)
         
         if len(prefix) >= 3:
-            # Increasing order: shortest word first, then A→Z, so the
-            # most "letter-complete" match rises to the top
-            results.sort(key=lambda x: (len(x['tanglish']), x['tanglish']))
+            # Exact match (typed word itself) always first, then shortest → A→Z.
+            # Without this, vijaya(6) could appear before vijay(5) when typing 'vijay'.
+            results.sort(key=lambda x: (
+                0 if x['tanglish'] == prefix else 1,
+                len(x['tanglish']),
+                x['tanglish']
+            ))
         else:
             # For short prefixes, frequency-first is more useful
             results.sort(key=lambda x: (-x['frequency'], len(x['tanglish'])))

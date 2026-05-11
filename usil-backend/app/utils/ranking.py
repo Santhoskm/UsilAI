@@ -2,11 +2,11 @@ from typing import List, Dict
 
 def rank_suggestions(suggestions: List[Dict], query: str) -> List[Dict]:
     """
-    Re-rank suggestions based on query length:
+    Re-rank suggestions based on query length.
 
-    - 1–2 letters → exact match first, then prefix, then by frequency (most used first)
-    - 3+ letters  → exact match first, then shortest word first (increasing order),
-                    then alphabetical — so the closest completion shows at the top
+    Rule for ALL lengths: exact tanglish match always first.
+    Then for 3+ letters: shortest word → alphabetical.
+    For 1-2 letters: prefix matches by frequency.
     """
     if len(query) >= 3:
         def score(item):
