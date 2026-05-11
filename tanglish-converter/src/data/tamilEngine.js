@@ -1477,6 +1477,9 @@ export function applyVallinamDoubling(tamilWord) {
         const pattern = new RegExp(`([${shortVowelSigns}])(${pulli})`, 'g');
         result = result.replace(pattern, (_, vowel, cons) => vowel + doubled);
     }
+    // Never double a consonant that follows visarga ஃ (foreign loan words: ஃப், ஃக் etc.)
+    result = result.replace(/\u0b83(\u0baa\u0bcd)\u0baa/g, '\u0b83$1');  // ஃப்ப → ஃப்
+    result = result.replace(/\u0b83(\u0b95\u0bcd)\u0b95/g, '\u0b83$1');  // ஃக்க → ஃக்
 
     // Rule 2: suffix-based doubling for common case markers after short vowel letters
     // அ(0B85) இ(0B87) உ(0B89) எ(0B8E) ஒ(0B92)
@@ -1809,7 +1812,7 @@ function _buildTokenTable() {
     t.push(['Shr', '\u0BB6\u0BCD\u0BB0']);        // Shr → ஶ்ர
     t.push(['shr', '\u0BB6\u0BCD\u0BB0']);        // shr → ஶ்ர (lowercase alias)
     t.push(['F', '\u0b83\u0baa']);          // F for ஃப்
-    t.push(['ph', '\u0b83\u0baa']);         // ph for ஃப்
+    t.push(['ph', '\u0b83\u0baa\u0bcd']);   // ph → ஃப் (with pulli — stops vallinam doubling)         // ph for ஃப்
     t.push(['Z', '\u0b83\u0b9c\u0bcd']);    // Z for ஃஜ்
     t.push(['X', '\u0b83\u0bb8\u0bcd']);    // X for ஃஸ்
     t.push(['ow', '\u0b94']);               // ow for ஔ (standalone vowel)
@@ -1855,6 +1858,7 @@ function _buildTokenTable() {
     addFamily('ng', '\u0b99\u0bcd\u0b95');
     // mb → ம்ப
     addFamily('mb', '\u0bae\u0bcd\u0baa');
+    addFamily('nb', '\u0ba3\u0bcd\u0baa');  // nb → ண்ப  (nanbargal → நண்பர்கள்)
     // nch → ஞ்ச AND nc → ஞ்ச
     addFamily('nch', '\u0b9e\u0bcd\u0b9a');
     addFamily('nc', '\u0b9e\u0bcd\u0b9a');
@@ -1887,6 +1891,9 @@ function _buildTokenTable() {
 
     // ── 3. SINGLE CONSONANTS ──
     addFamily('k', '\u0b95'); addFamily('g', '\u0b95');
+    // Tamil plural suffix -gal / -kal → கள்
+    t.push(['gal', '\u0b95\u0bb3\u0bcd']);   // nanbargal, aandugal etc.
+    t.push(['kal', '\u0b95\u0bb3\u0bcd']);   // manithargal, padangal etc.
     addFamily('p', '\u0baa'); addFamily('b', '\u0baa');
     addFamily('m', '\u0bae');
     addFamily('y', '\u0baf');

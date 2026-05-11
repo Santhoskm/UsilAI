@@ -78,7 +78,7 @@ async def load_dictionary():
             if tanglish and tamil  # skip empty entries
         ]
 
-        batch_size = 5000
+        batch_size = 500
         total = len(rows)
 
         for i in range(0, total, batch_size):
