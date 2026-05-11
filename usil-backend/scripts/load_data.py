@@ -3,6 +3,23 @@ import json
 import sys
 import os
 
+
+def get_seed_frequency(tanglish: str, tamil: str) -> int:
+    """Assign realistic starting frequencies so ranking works from day 1."""
+    common = {
+        "vanakkam","nandri","enna","eppo","enge","naan","nee","avan","aval",
+        "avanga","inniku","nethu","naalai","romba","nalla","poren","varen",
+        "irukken","saapdu","paaru","sol","kel","po","vaa","sei","pann",
+        "veedu","ooru","kadai","school","office","amma","appa","anna","akka",
+        "thambhi","thangachi","en","um","la","ku","kku","da","di","ra","ri"
+    }
+    medium = {"theriyum","puriyum","mudiyum","vendam","vendum","paathom","sonnен"}
+    if tanglish in common: return 500
+    if len(tanglish) <= 4: return 200   # short common words
+    if tanglish in medium: return 150
+    if len(tanglish) <= 7: return 50
+    return 10  # rare / long words
+
 # Fix Windows console encoding for Tamil characters
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
@@ -66,9 +83,17 @@ async def load_dictionary():
 
         for i in range(0, total, batch_size):
             batch = rows[i : i + batch_size]
-            stmt = pg_insert(Word).values(batch).on_conflict_do_nothing(
-                index_elements=["tanglish"]
-            )
+            stmt = pg_insert(Word).values(batch).on_conflict_do_update(
+    index_elements=["tanglish"],
+    set_={
+        "tamil": pg_insert(Word).excluded.tamil,
+        "prefix": pg_insert(Word).excluded.prefix,
+        # only update frequency if new value is higher
+        "frequency": text(
+            "GREATEST(words.frequency, EXCLUDED.frequency)"
+        )
+    }
+)
             await session.execute(stmt)
             print(f"  [OK] Loaded {min(i + batch_size, total):,} / {total:,} words...")
 

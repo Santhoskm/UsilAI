@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from typing import Optional
 from app.database import get_db, engine
 from app.services.suggestion_service import SuggestionService
+from app.state import trie_cache
 
 router = APIRouter(prefix="/suggestions", tags=["suggestions"])
 
@@ -100,6 +101,7 @@ async def record_usage(
         {"tanglish": req.tanglish.lower()}
     )
     await db.commit()
+    
     row = result.fetchone()
 
     if row:
@@ -128,6 +130,7 @@ async def record_usage_batch(
         updated += result.rowcount
 
     await db.commit()
+    
     return {"status": "ok", "updated": updated, "total": len(req.words)}
 
 
@@ -165,9 +168,8 @@ async def add_word(
         {"tanglish": tanglish, "tamil": tamil, "prefix": prefix, "frequency": req.frequency}
     )
     await db.commit()
-
+    
     return {"status": "added", "tanglish": tanglish, "tamil": tamil, "frequency": req.frequency}
-
 
 @router.post("/words/batch")
 async def add_words_batch(
