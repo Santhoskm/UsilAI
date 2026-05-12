@@ -87,6 +87,7 @@ export function useTanglishConverter() {
                     }
 
                     for (const item of backendResults) {
+                        if (!item.tanglish.startsWith(normalizedWord)) continue;
                         if (!seenTamil.has(item.tamil) && !seenTanglish.has(item.tanglish)) {
                             seenTamil.add(item.tamil)
                             seenTanglish.add(item.tanglish)

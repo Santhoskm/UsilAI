@@ -962,18 +962,41 @@ export function getTypingSuggestions(typedText, limit = 8) {
     const seen = new Set();   // dedup by tamil value
     const seenKeys = new Set(); // dedup by tanglish key
 
+    // ── PASS 0: Rule engine FIRST — always option 1 ──────────────────────
+    // Rule engine gives the phonetically correct output for exactly what was
+    // typed (ramesh→ரமெஷ், kara→கர). Dictionary entries can have wrong values
+    // (kara→கற in backend), so rule result is shown first; dict becomes option 2+.
+    if (typedText.length >= 2) {
+        const ruleFormed = convertWithRules(lower);
+        if (ruleFormed && /[\u0B80-\u0BFF]/.test(ruleFormed)) {
+            results.push({
+                tanglish: lower,
+                tamil: ruleFormed,
+                type: '\u{1F527} Rule',
+                priority: 0,
+                exact: false,
+                frequency: 0
+            });
+            seen.add(ruleFormed);
+            seenKeys.add(lower);
+        }
+    }
+
     // ── PASS 1: Trie exact match (fastest - O(L)) ──
     const trieExact = suggestionTrie.search(lower);
     if (trieExact) {
-        results.push({
-            tanglish: lower,
-            tamil: trieExact.tamil,
-            type: '⭐ Match',
-            priority: 0,
-            exact: true,
-            frequency: trieExact.frequency
-        });
-        seen.add(trieExact.tamil);
+        // Only add if different from rule engine output (avoid duplicate)
+        if (!seen.has(trieExact.tamil)) {
+            results.push({
+                tanglish: lower,
+                tamil: trieExact.tamil,
+                type: '\u2B50 Match',
+                priority: 1,
+                exact: true,
+                frequency: trieExact.frequency
+            });
+            seen.add(trieExact.tamil);
+        }
         seenKeys.add(lower);
         if (limit === 1) return results;
     }
