@@ -438,6 +438,8 @@ const _tanglishSpellingMap = new Map([
 const _fallbackTamilMap = new Map([
     // ── TIME ─────────────────────────────────────────────────────────────
     ['naalaikku', 'நாளைக்கு'], ['naaliku', 'நாளைக்கு'],
+    ['ennaku', 'எனக்கு'], ['unnaku', 'உனக்கு'],
+    ['avangaku', 'அவங்களுக்கு'], ['nadu', 'நாடு'],
     ['naliku', 'நாளைக்கு'], ['nalikku', 'நாளைக்கு'],
     ['naleku', 'நாளைக்கு'], ['nalekku', 'நாளைக்கு'],
     ['naaleku', 'நாளைக்கு'], ['naleiku', 'நாளைக்கு'],
@@ -457,8 +459,8 @@ const _fallbackTamilMap = new Map([
     // ── QUESTION WORDS ───────────────────────────────────────────────────
     ['enna', 'என்ன'], ['yenna', 'என்ன'],
     ['ena', 'என்ன'], ['ene', 'என்ன'],
-    ['enakku', 'எனக்கு'], ['enaku', 'எனக்கு'],
-    ['unakku', 'உனக்கு'], ['unaku', 'உனக்கு'],
+    ['enakku', 'எனக்கு'], ['enaku', 'எனக்கு'], ['ennaku', 'எனக்கு'],
+    ['unakku', 'உனக்கு'], ['unaku', 'உனக்கு'], ['unnaku', 'உனக்கு'],
     ['eppadi', 'எப்படி'], ['epaddi', 'எப்படி'],
     ['epdi', 'எப்படி'], ['yepdi', 'எப்படி'],
     ['epidi', 'எப்படி'], ['yeppadi', 'எப்படி'],
@@ -470,6 +472,8 @@ const _fallbackTamilMap = new Map([
     ['evlo', 'எவ்வளோ'], ['evalu', 'எவ்வளோ'],
     ['ethanai', 'எத்தனை'], ['ethna', 'எத்தனை'],
     ['ethane', 'எத்தனை'], ['ethu', 'எது'],
+    ['keezhe', 'கீழே'], ['keezha', 'கீழே'], ['keezhil', 'கீழில்'],
+    ['meele', 'மேலே'], ['meela', 'மேலே'], ['melae', 'மேலே'],
     // ── PRONOUNS ─────────────────────────────────────────────────────────
     ['naan', 'நான்'], ['nan', 'நான்'],
     ['nii', 'நீ'], ['ni', 'நீ'],
@@ -1642,7 +1646,7 @@ const postProcessRules = [
     // NOTE: _finalPulli:true → applyPostProcess() skips these for words < 4 Tamil chars
     { pattern: /ம$/, replace: 'ம்', _finalPulli: true },
     { pattern: /ன$/, replace: 'ன்', _finalPulli: true },
-    { pattern: /ல$/, replace: 'ல்', _finalPulli: true },
+    { pattern: /(?<!\u0BB2\u0BCD)\u0BB2$/, replace: 'ல்', _finalPulli: true },
     { pattern: /ர$/, replace: 'ர்', _finalPulli: true, _minChars: 5 },
     { pattern: /ண$/, replace: 'ண்', _finalPulli: true },
 ];
@@ -1920,7 +1924,26 @@ function _buildTokenTable() {
     t.push(['bhe', '\u0baa\u0bc6']); // bhe → பெ
     addFamily('ch', '\u0b9a');
     addFamily('zh', '\u0bb4');
+    // Tamil ஞ never takes a direct vowel — it always needs ஞ்ச cluster.
+    // These explicit tokens come BEFORE addFamily fires, so they win in the bucket.
+    t.push(['njaa', '\u0b9e\u0bcd\u0b9a\u0bbe']); // njaa → ஞ்சா
+    t.push(['njii', '\u0b9e\u0bcd\u0b9a\u0bc0']); // njii → ஞ்சீ
+    t.push(['njuu', '\u0b9e\u0bcd\u0b9a\u0bc2']); // njuu → ஞ்சூ
+    t.push(['njae', '\u0b9e\u0bcd\u0b9a\u0bc7']); // njae → ஞ்சே
+    t.push(['njoa', '\u0b9e\u0bcd\u0b9a\u0bcb']); // njoa → ஞ்சோ
+    t.push(['njai', '\u0b9e\u0bcd\u0b9a\u0bc8']); // njai → ஞ்சை
+    t.push(['njA', '\u0b9e\u0bcd\u0b9a\u0bbe']); // njA  → ஞ்சா
+    t.push(['njI', '\u0b9e\u0bcd\u0b9a\u0bc0']); // njI  → ஞ்சீ
+    t.push(['njU', '\u0b9e\u0bcd\u0b9a\u0bc2']); // njU  → ஞ்சூ
+    t.push(['njE', '\u0b9e\u0bcd\u0b9a\u0bc7']); // njE  → ஞ்சே
+    t.push(['njO', '\u0b9e\u0bcd\u0b9a\u0bcb']); // njO  → ஞ்சோ
+    t.push(['nja', '\u0b9e\u0bcd\u0b9a']);        // nja  → ஞ்ச
+    t.push(['nji', '\u0b9e\u0bcd\u0b9a\u0bbf']); // nji  → ஞ்சி
+    t.push(['nju', '\u0b9e\u0bcd\u0b9a\u0bc1']); // nju  → ஞ்சு  ← fixes anju→அஞ்சு
+    t.push(['nje', '\u0b9e\u0bcd\u0b9a\u0bc6']); // nje  → ஞ்செ
+    t.push(['njo', '\u0b9e\u0bcd\u0b9a\u0bca']); // njo  → ஞ்சொ
     addFamily('nj', '\u0b9e');
+    addFamily('nju', '\u0b9e\u0bcd\u0b9a');
     addFamily('kk', '\u0b95\u0bcd\u0b95'); // kk → க்க (nallozhukkam etc.)
     addFamily('pp', '\u0baa\u0bcd\u0baa'); // pp → ப்ப
     addFamily('tt', '\u0b9f\u0bcd\u0b9f'); // tt → ட்ட (retroflex double)
@@ -1929,8 +1952,8 @@ function _buildTokenTable() {
     // ── 3. SINGLE CONSONANTS ──
     addFamily('k', '\u0b95'); addFamily('g', '\u0b95');
     // Tamil plural suffix -gal / -kal → கள்
-    t.push(['gal', '\u0b95\u0bb3\u0bcd']);   // nanbargal, aandugal etc.
-    t.push(['kal', '\u0b95\u0bb3\u0bcd']);   // manithargal, padangal etc.
+    // t.push(['gal', '\u0b95\u0bb3\u0bcd']);   // nanbargal, aandugal etc.
+    // t.push(['kal', '\u0b95\u0bb3\u0bcd']);   // manithargal, padangal etc.
     addFamily('p', '\u0baa'); addFamily('b', '\u0baa');
     addFamily('m', '\u0bae');
     addFamily('y', '\u0baf');
