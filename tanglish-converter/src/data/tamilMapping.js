@@ -522,6 +522,9 @@ export const tamilMapping = {
     'os': 'ோஸ்',
     'esh': 'ேஷ்',
     'ish': 'ிஷ்',
+    'iel': 'யேல்',      // ← ADD THIS
+    'niel': 'னியேல்',   // ← ADD THIS
+    'daniel': 'டானியேல்', // ← ADD THIS (optional but handles the full pattern)
 
     // VOWEL SIGNS (for internal use)
     'aa_sign': 'ா',
