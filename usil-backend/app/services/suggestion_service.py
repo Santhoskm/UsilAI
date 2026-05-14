@@ -75,7 +75,7 @@ class SuggestionService:
         """Direct DB prefix query — fallback only."""
         result = await self.db.execute(
             text("""
-                SELECT tanglish, tamil, 0
+                SELECT tanglish, tamil, frequency
                 FROM words
                 WHERE tanglish LIKE :prefix
                 ORDER BY frequency DESC, tanglish
