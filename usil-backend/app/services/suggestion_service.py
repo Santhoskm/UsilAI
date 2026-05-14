@@ -14,10 +14,62 @@ class SuggestionService:
         """Trie first (fast), DB fallback if trie is empty."""
         if not query:
             return []
+        
+        query = query.strip().lower()
+
+        exact = await self.db.execute(
+            text("""
+                 SELECT tanglish, tamil, frequency
+                 FROM words
+                 WHERE tanglish = :query
+                 LIMIT 1
+            """),
+            {"query": query}
+        )
+
+        exact_row = exact.fetchone()
+        
+
+
         if self.trie and self.trie.size > 0:
             results = self.trie.search_prefix(query.lower(), limit)
-            return rank_suggestions(results, query.lower())
-        return await self._db_suggestions(query, limit)
+            suggestions = rank_suggestions(results, query.lower())
+
+    #  put exact match first
+            if exact_row:
+                exact_word = {
+                    "tanglish": exact_row.tanglish,
+                    "tamil": exact_row.tamil,
+                    "frequency": exact_row.frequency
+                }
+
+                suggestions = [
+                    s for s in suggestions
+                    if s["tanglish"] != exact_row.tanglish
+                ]
+
+                suggestions.insert(0, exact_word)
+
+            return suggestions
+
+        suggestions = await self._db_suggestions(query, limit)
+
+#  exact match first for DB fallback also
+        if exact_row:
+            exact_word = {
+                 "tanglish": exact_row.tanglish,
+                 "tamil": exact_row.tamil,
+                  "frequency": exact_row.frequency
+            }
+
+            suggestions = [
+                s for s in suggestions
+                if s["tanglish"] != exact_row.tanglish
+            ]
+
+            suggestions.insert(0, exact_word)
+
+        return suggestions
 
     async def _db_suggestions(self, query: str, limit: int) -> List[Dict]:
         """Direct DB prefix query — fallback only."""

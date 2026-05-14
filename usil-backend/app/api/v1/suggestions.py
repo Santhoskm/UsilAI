@@ -35,7 +35,7 @@ async def get_suggestions(
     db: AsyncSession = Depends(get_db)
 ):
     """Get typing suggestions from usil_db"""
-    service = SuggestionService(db)
+    service = SuggestionService(db, trie_cache)
 
     if fuzzy:
         suggestions = await service.get_fuzzy_suggestions(q, limit)

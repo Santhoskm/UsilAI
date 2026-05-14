@@ -82,7 +82,7 @@ async def load_dictionary():
                 "tanglish": tanglish.lower().strip(),
                 "tamil": tamil,
                 "prefix": (tanglish[0].lower() if tanglish else "other"),
-                "frequency": 1,
+                "frequency": get_seed_frequency(tanglish.lower().strip(), tamil),
             }
             for tanglish, tamil in data.items()
             if tanglish and tamil  # skip empty entries
