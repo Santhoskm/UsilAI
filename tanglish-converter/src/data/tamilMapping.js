@@ -576,7 +576,13 @@ export const commonWords = {
     'sinna': 'சின்ன',
     'pudhu': 'புது',
     'pudu': 'புது',
-    'puthu': 'புது'
+    'puthu': 'புது',
+    // Biblical / Christian names
+    'peniel': 'பெனியேல்',   // ← ADD THIS
+    'daniel': 'டானியேல்',   // ← ADD THIS
+    'samuel': 'சாமுவேல்',   // ← ADD THIS
+    'michael': 'மிக்கேல்',  // ← ADD THIS
+
 }
 
 export const fullMapping = {
