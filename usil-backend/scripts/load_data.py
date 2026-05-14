@@ -65,7 +65,17 @@ async def load_dictionary():
         with open(dict_path, "r", encoding="utf-8") as f:
             data = json.load(f)
 
-        print(f"[INFO] Total words in dictionary: {len(data)}")
+        print(f"[INFO] Total words in dictionary before cleanup: {len(data)}")
+
+        cleaned_data = {}
+
+        for tanglish, tamil in data.items():
+            key = tanglish.strip().lower()
+            cleaned_data[key] = tamil
+
+        data = cleaned_data
+
+        print(f"[INFO] Total words after duplicate cleanup: {len(data)}")
 
         rows = [
             {

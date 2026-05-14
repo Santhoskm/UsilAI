@@ -489,8 +489,10 @@ const _fallbackTamilMap = new Map([
     // ── COMMON VERBS (present) ────────────────────────────────────────────
     ['poren', 'போறேன்'], ['porn', 'போறேன்'],
     ['porin', 'போறேன்'], ['porein', 'போறேன்'],
+    ['poran', 'போறான்'], ['poraanga', 'போறாங்க'],
     ['varen', 'வாறேன்'], ['varn', 'வாறேன்'],
     ['varain', 'வாறேன்'], ['varien', 'வாறேன்'],
+    ['varaanga', 'வாறாங்க'], ['varaan', 'வாறான்'],
     ['pannren', 'பண்றேன்'], ['panren', 'பண்றேன்'],
     ['panniren', 'பண்றேன்'], ['paniren', 'பண்றேன்'],
     ['saapren', 'சாப்றேன்'], ['sapren', 'சாப்றேன்'],
@@ -1041,6 +1043,8 @@ export function getTypingSuggestions(typedText, limit = 8) {
             const originalKey = phoneticToOriginal.get(match.tanglish) || match.tanglish;
             if (seenKeys.has(originalKey)) continue;
             // ✅ ADD THIS: skip phonetic match if we already have an exact match
+            // Skip phonetic match if first letter doesn't match what user typed
+            if (originalKey[0] !== lower[0]) continue;
             // and the phonetic result's tanglish is longer than what was typed
             if (results.some(r => r.priority === 0) && originalKey.length > lower.length) continue;
 

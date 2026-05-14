@@ -730,7 +730,7 @@ const selectSuggestion = (suggestion) => {
   const currentWordObj = getCurrentWord(textBefore, cursorPos)
   
   if (currentWordObj.word) {
-    replaceWord(view, currentWordObj.start, currentWordObj.end, suggestion.tamil, true)
+    replaceWord(view, currentWordObj.start, currentWordObj.end, suggestion.tamil, false)
     learnCorrection(currentWordObj.word, suggestion.tamil)
     showSuggestions.value = false
     suggestionsList.value = []
