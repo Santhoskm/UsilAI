@@ -3330,9 +3330,10 @@ export function enforceTamilPatterns(word) {
     // Prevent invalid double vowels
     word = word.replace(/([அஆஇஈஉஊஎஏஒஓ])\1+/g, '$1ய்$1');
 
-    // NOTE: Removed incorrect rule that appended ு to all pulli-ending words.
-    // Many valid Tamil words naturally end in pulli: வணக்கம், துரந்தர், நன்றி, etc.
-    // The old rule corrupted these (e.g. துரந்தர் → துரந்தர்ு).
+    // Fix ending pulli → add vowel
+    if (endsWithPulli(word)) {
+        word += 'ு';
+    }
 
     // Prevent invalid start
     word = autoCorrectWordStart(word);
