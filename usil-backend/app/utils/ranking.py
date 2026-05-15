@@ -11,9 +11,10 @@ def rank_suggestions(suggestions: List[Dict], query: str) -> List[Dict]:
     if len(query) >= 3:
         def score(item):
             t = item['tanglish']
+            f = item.get('frequency', 0)
             if t == query:
-                return (0, 0, t)          # exact match always first
-            return (1, len(t), t)         # then shortest → alphabetical
+                return (0, 0, -f, t)      # exact match first, then by frequency
+            return (1, len(t), -f, t)     # Bug 6 fix: blend length + frequency
 
     else:
         def score(item):

@@ -118,9 +118,17 @@ function buildFullWordMapping() {
 //
 // Organised by category for maintainability.
 
-const _tanglishSpellingMap = new Map([
+// Dedup builder — silently drops duplicate keys so the first entry always wins
+function _buildSpellingMap(entries) {
+    const seen = new Set();
+    return new Map(entries.filter(([k]) => {
+        if (seen.has(k)) return false;
+        seen.add(k); return true;
+    }));
+}
+
+const _tanglishSpellingMap = _buildSpellingMap([
     // ── TIME WORDS ───────────────────────────────────────────────────────
-    ['naaliku', 'naalaikku'],
     ['naaliku', 'naalaikku'],
     ['naliku', 'naalaikku'],
     ['nalikku', 'naalaikku'],
@@ -153,7 +161,6 @@ const _tanglishSpellingMap = new Map([
     ['ena', 'enna'],
     ['yena', 'enna'],
     ['ene', 'enna'],
-    ['enaku', 'enakku'],
     ['enaku', 'enakku'],       // already in dict
     ['unaku', 'unakku'],
     ['epaddi', 'eppadi'],
@@ -208,9 +215,18 @@ const _tanglishSpellingMap = new Map([
     ['sapadu', 'saapadu'],
     ['irukein', 'irukken'],
     ['irukin', 'irukken'],
+    ['irukeen', 'irukken'],
+    ['iruken', 'irukken'],
     ['irukan', 'irukkaan'],
+    ['irukaan', 'irukkaan'],
     ['irukal', 'irukkaal'],
+    ['irukaal', 'irukkaal'],
     ['irukum', 'irukku'],
+    ['irukom', 'irukkom'],
+    ['irukoom', 'irukkom'],
+    ['irukeenga', 'irukkeenga'],
+    ['irukinga', 'irukkeenga'],
+    ['irukanga', 'irukkaanga'],
     ['podren', 'poren'],
     ['padikren', 'padikiren'],
     ['padikran', 'padikiran'],
@@ -304,7 +320,6 @@ const _tanglishSpellingMap = new Map([
     ['vanakam', 'vanakkam'],     // already in dict
     ['vnkm', 'vanakkam'],
     ['vanakm', 'vanakkam'],
-    ['vanakam', 'vanakkam'],
     ['nanri', 'nanri'],        // already in dict
     ['nandri', 'nandri'],       // already in dict
     ['thanks', 'nanri'],
@@ -501,10 +516,18 @@ const _fallbackTamilMap = new Map([
     ['saapitu', 'சாப்பிட்டு'], ['saptu', 'சாப்பிட்டு'],
     ['saapadu', 'சாப்பாடு'], ['sapadu', 'சாப்பாடு'],
     ['irukken', 'இருக்கேன்'], ['irukein', 'இருக்கேன்'],
-    ['irukin', 'இருக்கேன்'],
+    ['irukin', 'இருக்கேன்'], ['irukeen', 'இருக்கேன்'],
+    ['iruken', 'இருக்கேன்'],
     ['irukkaan', 'இருக்கான்'], ['irukan', 'இருக்கான்'],
+    ['irukaan', 'இருக்கான்'],
     ['irukkaal', 'இருக்காள்'], ['irukal', 'இருக்காள்'],
+    ['irukaal', 'இருக்காள்'],
     ['irukku', 'இருக்கு'], ['irukum', 'இருக்கு'],
+    ['irukkom', 'இருக்கோம்'], ['irukom', 'இருக்கோம்'],
+    ['irukoom', 'இருக்கோம்'],
+    ['irukkeenga', 'இருக்கீங்க'], ['irukeenga', 'இருக்கீங்க'],
+    ['irukinga', 'இருக்கீங்க'],
+    ['irukkaanga', 'இருக்காங்க'], ['irukanga', 'இருக்காங்க'],
     ['paakiren', 'பாக்கிறேன்'], ['paren', 'பாக்கிறேன்'],
     ['pakren', 'பாக்கிறேன்'], ['parkren', 'பாக்கிறேன்'],
     ['pakiren', 'பாக்கிறேன்'],
@@ -690,22 +713,160 @@ function normalizeInput(input) {
     return normalized;
 }
 
-function checkCompoundWord(normalized) {
-    const compoundPatterns = [
-        /^(.+?)(?:aana|aanaa|aanaal)$/i,
-        /^(.+?)(?:kku|kku)$/i,
-        /^(.+?)(?:la|le|il)$/i,
-        /^(.+?)(?:ukku|ukku)$/i,
-        /^(.+?)(?:ulla|ule)$/i,
-    ];
+// ── SUFFIX-TO-TAMIL CONVERSION TABLE ───────────────────────────────────────
+// Maps Tanglish suffix patterns to their Tamil equivalents.
+// Used by checkCompoundWord() to produce  stem_tamil + suffix_tamil  output
+// instead of returning only the stem.
+const _suffixTamilMap = {
+    // ── Case markers (vibhakti) ──────────────────────────────────────────
+    'kku':     'க்கு',       // dative: veedukku → வீட்டுக்கு
+    'ukku':    'உக்கு',      // dative (vowel stem): oorukku → ஊருக்கு
+    'ku':      'கு',          // short dative
+    'il':      'இல்',         // locative: veetil → வீட்டில்
+    'la':      'ல',           // colloquial locative: veetila → வீட்டில
+    'le':      'ல',           // colloquial locative: inge → இங்கே
+    'ulla':    'உள்ள',        // inside: veetuulla → வீட்டுள்ள
+    'ule':     'உள்ள',        // colloquial inside
+    'odu':     'ஓடு',         // comitative/instrumental: avanodu → அவனோடு
+    'oadu':    'ஓடு',         // comitative alt spelling
+    'oda':     'ஓட',          // colloquial comitative: ennoda → என்னோட
+    'aaga':    'ஆக',          // purposive: enakkaga → எனக்காக
+    'aana':    'ஆன',          // adjectival: nallana → நல்லான
+    'aanaa':   'ஆனா',         // conditional: vandhaanaa → வந்தானா
+    'aanaal':  'ஆனால்',       // adversative: aanaaal → ஆனால்
+    'kaaga':   'க்காக',       // purposive (geminated): enakkaga → எனக்காக
+    'inaal':   'இனால்',       // causal
+    'pola':    'போல',         // similative: avanpola → அவன் போல
+    'maathiri': 'மாதிரி',    // similative (colloquial): ithmaathiri → இது மாதிரி
+    'madhiri': 'மாதிரி',     // similative alt spelling
+    'kita':    'கிட்ட',       // dative person: avankita → அவன்கிட்ட
+    'kitta':   'கிட்ட',       // dative person: avankitta → அவன்கிட்ட
+    'kittae':  'கிட்டே',      // emphatic dative
+    'varai':   'வரை',         // terminative: ingavarai → இங்க வரை
+    'vara':    'வர',          // terminative short
+    'aal':     'ஆல்',         // instrumental: avanaal → அவனால்
+    'ai':      'ஐ',           // accusative: avanaai → அவனை
+    // ── Additional case markers / postpositions ──────────────────────────
+    'irkku':   'இருக்கு',     // "there is for": avanurkku
+    'irku':    'இர்கு',       // short form
+    'ilirundhu': 'இலிருந்து', // ablative: veetilirundhu → வீட்டிலிருந்து
+    'lerndhu': 'லிருந்து',    // colloquial ablative: veetlerndhu
+    'lirundhu': 'லிருந்து',   // colloquial ablative
+    'lendhu':  'லிருந்து',    // colloquial ablative
+    'vitu':    'விடு',         // completive: pannivitu → பண்ணிவிடு
+    'vittu':   'விட்டு',       // completive past: pannivittu → பண்ணிவிட்டு
+    'uttu':    'உட்டு',        // colloquial completive: vandhuuttu → வந்துட்டு
+    'udhu':    'உது',          // 3rd person neuter: varudhu → வருது
+    'dhu':     'து',           // short 3rd neuter
+    'thaan':   'தான்',         // emphatic: avanthaan → அவன்தான்
+    'thaana':  'தானா',         // question emphatic
+    'thane':   'தானே',         // tag question: illathane → இல்லதானே
+    'um':      'உம்',          // inclusive: avalum → அவளும்
+    'yum':     'யும்',         // inclusive (after vowel): naanum → நானும்
+    'kum':     'கும்',         // inclusive dative
+    'lam':     'லாம்',         // permissive: pokalaam → போகலாம்
+    'laam':    'லாம்',         // permissive alt
+    'num':     'னும்',         // conditional inclusive: avanumm
+    'aadhu':   'ஆது',          // negative 3rd: varaadhu → வராது
+    'aama':    'ஆம',           // question/agreement
+    'aadha':   'ஆத',           // negative adjectival: varaadha → வராத
+    'amal':    'ாமல்',         // negative conditional: varamal → வராமல்
+    'aame':    'ாமே',          // despite: varaame → வராமே
+    'ndhu':    'ந்து',         // perfect participial: vandhu → வந்து
+    'ndhuttu': 'ந்துட்டு',    // colloquial perfect: vandhuttu → வந்துட்டு
+    'ttuttu':  'ட்டுட்டு',    // colloquial double perfect
+    'nga':     'ங்க',          // respectful plural: vaanga → வாங்க
+    'ngala':   'ங்களா',        // respectful question: vandheengala
+    'ngale':   'ங்களே',        // respectful vocative
+    'kal':     'கள்',          // plural: manithargal → மனிதர்கள்
+    'gal':     'கள்',          // plural alt: aandugal → ஆண்டுகள்
+    'athu':    'அது',          // demonstrative
+    'idhu':    'இது',          // demonstrative
+};
 
-    for (const pattern of compoundPatterns) {
-        const match = normalized.match(pattern);
-        if (match && match[1] && fullWordMapping.has(match[1])) {
-            return fullWordMapping.get(match[1]);
+// Ordered from longest to shortest so greedy match picks the best suffix first
+const _compoundSuffixes = Object.keys(_suffixTamilMap)
+    .sort((a, b) => b.length - a.length);
+
+function checkCompoundWord(normalized) {
+    if (!normalized || normalized.length < 4) return null;
+
+    // ── PASS 1: Try each suffix (longest first) ─────────────────────────
+    for (const suffix of _compoundSuffixes) {
+        if (!normalized.endsWith(suffix)) continue;
+        const stem = normalized.slice(0, -suffix.length);
+        if (stem.length < 2) continue;  // stem too short — likely false positive
+
+        // Check if stem exists in dictionary
+        if (fullWordMapping.has(stem)) {
+            const stemTamil = fullWordMapping.get(stem);
+            const suffixTamil = _suffixTamilMap[suffix];
+            return stemTamil + suffixTamil;
+        }
+
+        // Also try common stem alternates:
+        //   veetila → stem "veeti" doesn't exist, but "veedu" does
+        //   Try removing last vowel-harmonized char and adding back base
+        const stemAlts = _generateStemAlternates(stem);
+        for (const altStem of stemAlts) {
+            if (fullWordMapping.has(altStem)) {
+                const stemTamil = fullWordMapping.get(altStem);
+                const suffixTamil = _suffixTamilMap[suffix];
+                return stemTamil + suffixTamil;
+            }
         }
     }
+
+    // ── PASS 2: Try splitting into two known words (true compound) ──────
+    // e.g. "rombakonjam" → "romba" + "konjam"
+    for (let i = 3; i < normalized.length - 2; i++) {
+        const left = normalized.slice(0, i);
+        const right = normalized.slice(i);
+        if (fullWordMapping.has(left) && fullWordMapping.has(right)) {
+            return fullWordMapping.get(left) + fullWordMapping.get(right);
+        }
+    }
+
     return null;
+}
+
+// Generate plausible stem alternates for sandhi-modified stems.
+// When users type "veetila", the stem is "veeti" but the dict has "veedu".
+// Tamil sandhi often changes final -u to -i/-a before certain suffixes.
+function _generateStemAlternates(stem) {
+    const alts = new Set();
+    if (!stem || stem.length < 2) return alts;
+
+    // -i ending → try -u (veetila → veeti → veetu → veedu)
+    if (stem.endsWith('i')) {
+        alts.add(stem.slice(0, -1) + 'u');
+        alts.add(stem.slice(0, -1) + 'u' ); // vidu → veedu
+    }
+    // -a ending → try -u, -am
+    if (stem.endsWith('a')) {
+        alts.add(stem.slice(0, -1) + 'u');
+        alts.add(stem + 'm'); // pana → panam
+    }
+    // -tt ending → try -du, -tu (vettu → veedu? unlikely but try)
+    if (stem.endsWith('tt')) {
+        alts.add(stem.slice(0, -2) + 'du');
+        alts.add(stem.slice(0, -2) + 'tu');
+    }
+    // doubled consonant → single (veettu → veetu → veedu)
+    const doubleMatch = stem.match(/(.+?)(.)\2$/);  // ends in cc
+    if (doubleMatch) {
+        alts.add(doubleMatch[1] + doubleMatch[2] + 'u');
+        alts.add(doubleMatch[1] + doubleMatch[2]);
+    }
+    // Try adding 'u' or 'am' to the stem directly
+    alts.add(stem + 'u');
+    alts.add(stem + 'am');
+    // Try removing trailing consonant cluster and adding -u
+    if (/[bcdfghjklmnpqrstvwxyz]$/.test(stem)) {
+        alts.add(stem + 'u');
+    }
+
+    return alts;
 }
 
 // ============ TRIE DATA STRUCTURE FOR FAST SUGGESTIONS ============
@@ -794,18 +955,23 @@ class Trie {
         return _valid.slice(0, limit);
     }
 
-    _collectWords(node, currentWord, results) {
-        if (node.isEnd) {
-            results.push({
-                tanglish: currentWord,
-                tamil: node.tamilValue,
-                frequency: node.frequency,
-                word: node.word
-            });
-        }
-
-        for (const [char, childNode] of node.children) {
-            this._collectWords(childNode, currentWord + char, results);
+    _collectWords(node, prefix, results) {
+        // BFS with hard cap — prevents UI jank on large tries (Bug 2 fix)
+        const queue = [{ node, word: prefix }];
+        while (queue.length > 0 && results.length < 50) {
+            const { node: cur, word } = queue.shift();
+            if (cur.isEnd) {
+                results.push({
+                    tanglish: word,
+                    tamil: cur.tamilValue,
+                    frequency: cur.frequency,
+                    word: cur.word
+                });
+            }
+            for (const [char, child] of cur.children) {
+                if (results.length >= 50) break;
+                queue.push({ node: child, word: word + char });
+            }
         }
     }
 
@@ -2002,7 +2168,7 @@ for (const [key, val] of _tokenTable) {
 }
 
 // Known verb-suffix endings — conjugateVerb only fires for these
-const _verbSuffixRe = /(?:ren|ran|ral|rom|ringa|ven|van|val|vom|vinga|pen|pan|pal|pom|pinga|ten|tan|tal|tom|tinga|then|than|thal|thom|tthen|tthan|tten|ttan|kiren|kiran|kiral|kirom|uren|uran|ural|urom|uringa|inja|ichu)$/i;
+const _verbSuffixRe = /(?:ren|ran|ral|rom|ringa|ven|van|val|vom|vinga|pen|pan|pal|pom|pinga|ten|tan|tal|tom|tinga|then|than|thal|thom|tthen|tthan|tten|ttan|kiren|kiran|kiral|kirom|uren|uran|ural|urom|uringa|inja|ichu|keen|ken|kaan|kan|kaal|kal|koom|kom|keenga|kinga|kaanga|kanga)$/i;
 
 export function convertWithRules(tanglishWord) {
     if (!tanglishWord || !tanglishWord.trim()) return '';
@@ -2044,7 +2210,11 @@ export function convertWithRules(tanglishWord) {
 
     // STEP 3: Letter mapping (greedy tokenizer with O(1) bucket lookup)
     // Apply dental-start rewrite for unseen t/d-initial words before tokenizing
-    if (_dentalStartRe.test(normalized) &&
+    // GUARD: Skip if word already starts with 'th'/'dh' — those already map to dental த.
+    //   Without this guard, dhurandhar → dhhurandhar → த்ஹுரந்தர் (wrong!)
+    const alreadyDental = /^(th|dh)/i.test(normalized);
+    if (!alreadyDental &&
+        _dentalStartRe.test(normalized) &&
         !fullWordMapping.has(normalized) &&
         !_fallbackTamilMap.has(normalized)) {
         // Rewrite leading t/d → th/dh so tokenizer picks dental-ta (த) not retroflex (ட)
@@ -2203,6 +2373,7 @@ export function loadLearnedCorrections() {
         if (saved) {
             for (const [k, v] of Object.entries(JSON.parse(saved))) {
                 learnedCorrections.set(k, v);
+                suggestionTrie.insert(k, v, 999); // Bug 4 fix: sync into trie on load
             }
         }
     } catch (_) { }
@@ -2624,6 +2795,9 @@ function rankWords(words) {
                 s += 3;
             }
 
+            // Bug 5 fix: blend in real word frequency so popular words rank higher
+            s += Math.min(getWordFrequency(word) / 20, 30);
+
             return s;
         };
 
@@ -2680,19 +2854,28 @@ export function generateWordForms(tanglish) {
     });
 
     // Ending vowel corrections (only for words that make sense)
-    // Ending vowel corrections (only for words that make sense)
+    // Bug 8 fix: skip if word already ends in a vowel — appending ம்/ன் would be wrong
+    // Bug fix: also skip if word already ends in pulli (்) — e.g. துரந்தர் + ம் = துரந்தர்ம் is invalid
+    const TAMIL_STANDALONE_VOWELS = ['அ', 'ஆ', 'இ', 'ஈ', 'உ', 'ஊ', 'எ', 'ஏ', 'ஐ', 'ஒ', 'ஓ', 'ஔ'];
+    const TAMIL_VOWEL_SIGNS = ['ா', 'ி', 'ீ', 'ு', 'ூ', 'ெ', 'ே', 'ை', 'ொ', 'ோ', 'ௌ'];
+    const PULLI = '்';
     if (base && base.length >= 2) {
-        const endings = ['ு', 'ம்', 'ன்', 'ான்', 'ான'];
-        endings.forEach(ending => {
-            const withEnding = base + ending;
-            if (isLikelyValid(withEnding) && !forms.has(withEnding)) {
-                forms.add(withEnding);
-            }
-        });
+        const lastChar = base.slice(-1);
+        const endsInVowel = TAMIL_STANDALONE_VOWELS.includes(lastChar) || TAMIL_VOWEL_SIGNS.includes(lastChar);
+        const endsInPulli = lastChar === PULLI;
+        if (!endsInVowel && !endsInPulli) {
+            const endings = ['ு', 'ம்', 'ன்', 'ான்', 'ான'];
+            endings.forEach(ending => {
+                const withEnding = base + ending;
+                if (isLikelyValid(withEnding) && !forms.has(withEnding)) {
+                    forms.add(withEnding);
+                }
+            });
+        }
     }
 
-    // Verb endings (only for appropriate length)
-    if (base && base.length >= 2 && base.length <= 6) {
+    // Verb endings (only for appropriate length, skip pulli-ending words)
+    if (base && base.length >= 2 && base.length <= 6 && base.slice(-1) !== PULLI) {
         const verbEndings = ['ும்', 'து'];
         verbEndings.forEach(ending => {
             const withEnding = base + ending;
@@ -2749,7 +2932,6 @@ const verbRoots = {
     'vaangu': { past: 'வாங்கின', present: 'வாங்குறி', future: 'வாங்குவ' },
     'vaang': { past: 'வாங்கின', present: 'வாங்குறி', future: 'வாங்குவ' },
     'ukkaaru': { past: 'உட்கார்ந்த', present: 'உட்கார்றி', future: 'உட்கார்வ' },
-    'ukkaaru': { past: 'உட்கார்ந்த', present: 'உட்கார்றி', future: 'உட்கார்வ' },
     'ukka': { past: 'உட்கார்ந்த', present: 'உட்கார்றி', future: 'உட்கார்வ' },
     'nill': { past: 'நின்ற', present: 'நிக்கிற', future: 'நிப்ப' },
     'nil': { past: 'நின்ற', present: 'நிக்கிற', future: 'நிப்ப' },
@@ -2763,8 +2945,9 @@ const verbRoots = {
     'aadu': { past: 'ஆடின', present: 'ஆடுறி', future: 'ஆடுவ' },
     'pesu': { past: 'பேசின', present: 'பேசுறி', future: 'பேசுவ' },
     'pechu': { past: 'பேசின', present: 'பேசுறி', future: 'பேசுவ' },
-    'iruku': { past: 'இருந்த', present: 'இருக்கிற', future: 'இருப்ப' },
-    'iru': { past: 'இருந்த', present: 'இருக்கிற', future: 'இருப்ப' },
+    'iruku': { past: 'இருந்த', present: 'இருக்க', future: 'இருப்ப' },
+    'iru': { past: 'இருந்த', present: 'இருக்க', future: 'இருப்ப' },
+    'iruk': { past: 'இருந்த', present: 'இருக்க', future: 'இருப்ப' },
     'muudi': { past: 'மூடின', present: 'மூடுறி', future: 'மூடுவ' },
     'tiruppu': { past: 'திருப்பின', present: 'திருப்புறி', future: 'திருப்புவ' },
     'vidu': { past: 'விட்ட', present: 'விடுறி', future: 'விடுவ' },
@@ -2775,6 +2958,74 @@ const verbRoots = {
     'azhu': { past: 'அழுத', present: 'அழுறி', future: 'அழுவ' },
     'siri': { past: 'சிரித்த', present: 'சிரிக்கிற', future: 'சிரிப்ப' },
     'odi': { past: 'ஓடின', present: 'ஓடுறி', future: 'ஓடுவ' },
+    // ── NEW: 30+ additional common Tamil verbs ──────────────────────────
+    'thaakku': { past: 'தாக்கின', present: 'தாக்குற', future: 'தாக்குவ' },
+    'thaak': { past: 'தாக்கின', present: 'தாக்குற', future: 'தாக்குவ' },
+    'thirumbu': { past: 'திரும்பின', present: 'திரும்புற', future: 'திரும்புவ' },
+    'thirumb': { past: 'திரும்பின', present: 'திரும்புற', future: 'திரும்புவ' },
+    'utkaar': { past: 'உட்கார்ந்த', present: 'உட்காருற', future: 'உட்காருவ' },
+    'thedu': { past: 'தேடின', present: 'தேடுற', future: 'தேடுவ' },
+    'thed': { past: 'தேடின', present: 'தேடுற', future: 'தேடுவ' },
+    'pidi': { past: 'பிடித்த', present: 'பிடிக்கிற', future: 'பிடிப்ப' },
+    'piddi': { past: 'பிடித்த', present: 'பிடிக்கிற', future: 'பிடிப்ப' },
+    'vai': { past: 'வச்ச', present: 'வைக்கிற', future: 'வைப்ப' },
+    'vechi': { past: 'வச்ச', present: 'வைக்கிற', future: 'வைப்ப' },
+    'vaiku': { past: 'வச்ச', present: 'வைக்கிற', future: 'வைப்ப' },
+    'poodu': { past: 'போட்ட', present: 'போடுற', future: 'போடுவ' },
+    'podu': { past: 'போட்ட', present: 'போடுற', future: 'போடுவ' },
+    'thodu': { past: 'தொட்ட', present: 'தொடுற', future: 'தொடுவ' },
+    'nada': { past: 'நடந்த', present: 'நடக்கிற', future: 'நடப்ப' },
+    'nadha': { past: 'நடந்த', present: 'நடக்கிற', future: 'நடப்ப' },
+    'kaattu': { past: 'காட்டின', present: 'காட்டுற', future: 'காட்டுவ' },
+    'kaatu': { past: 'காட்டின', present: 'காட்டுற', future: 'காட்டுவ' },
+    'thinnu': { past: 'தின்ன', present: 'தின்னுற', future: 'தின்னுவ' },
+    'thin': { past: 'தின்ன', present: 'தின்னுற', future: 'தின்னுவ' },
+    'kudi': { past: 'குடித்த', present: 'குடிக்கிற', future: 'குடிப்ப' },
+    'kuddi': { past: 'குடித்த', present: 'குடிக்கிற', future: 'குடிப்ப' },
+    'vizhu': { past: 'விழுந்த', present: 'விழுற', future: 'விழுவ' },
+    'thalli': { past: 'தள்ளின', present: 'தள்ளுற', future: 'தள்ளுவ' },
+    'thallu': { past: 'தள்ளின', present: 'தள்ளுற', future: 'தள்ளுவ' },
+    'izhuthu': { past: 'இழுத்த', present: 'இழுக்கிற', future: 'இழுப்ப' },
+    'izhu': { past: 'இழுத்த', present: 'இழுக்கிற', future: 'இழுப்ப' },
+    'ottu': { past: 'ஓட்டின', present: 'ஓட்டுற', future: 'ஓட்டுவ' },
+    'otu': { past: 'ஓட்டின', present: 'ஓட்டுற', future: 'ஓட்டுவ' },
+    'sutru': { past: 'சுற்றின', present: 'சுற்றுற', future: 'சுற்றுவ' },
+    'suthu': { past: 'சுற்றின', present: 'சுற்றுற', future: 'சுற்றுவ' },
+    'thudhi': { past: 'துடித்த', present: 'துடிக்கிற', future: 'துடிப்ப' },
+    'thudi': { past: 'துடித்த', present: 'துடிக்கிற', future: 'துடிப்ப' },
+    'kuupdu': { past: 'கூப்பிட்ட', present: 'கூப்பிடுற', future: 'கூப்பிடுவ' },
+    'kuupidu': { past: 'கூப்பிட்ட', present: 'கூப்பிடுற', future: 'கூப்பிடுவ' },
+    'mudhi': { past: 'முடிஞ்ச', present: 'முடியுற', future: 'முடியும்' },
+    'mudi': { past: 'முடிஞ்ச', present: 'முடியுற', future: 'முடியும்' },
+    'kallu': { past: 'கற்ற', present: 'கற்கிற', future: 'கற்ப' },
+    'katru': { past: 'கற்ற', present: 'கற்கிற', future: 'கற்ப' },
+    'aluvu': { past: 'அழுத', present: 'அழுற', future: 'அழுவ' },
+    'malai': { past: 'மலர்ந்த', present: 'மலருற', future: 'மலருவ' },
+    'thiru': { past: 'திரும்பின', present: 'திரும்புற', future: 'திரும்புவ' },
+    'vizhungu': { past: 'விழுங்கின', present: 'விழுங்குற', future: 'விழுங்குவ' },
+    'nillu': { past: 'நின்ற', present: 'நிக்கிற', future: 'நிப்ப' },
+    'thullu': { past: 'துள்ளின', present: 'துள்ளுற', future: 'துள்ளுவ' },
+    'pooru': { past: 'போர்த்தின', present: 'போர்த்துற', future: 'போர்த்துவ' },
+    'vali': { past: 'வலித்த', present: 'வலிக்கிற', future: 'வலிப்ப' },
+    'adi': { past: 'அடித்த', present: 'அடிக்கிற', future: 'அடிப்ப' },
+    'addi': { past: 'அடித்த', present: 'அடிக்கிற', future: 'அடிப்ப' },
+    'eriy': { past: 'எறிந்த', present: 'எறியுற', future: 'எறிவ' },
+    'thukku': { past: 'தூக்கின', present: 'தூக்குற', future: 'தூக்குவ' },
+    'thook': { past: 'தூக்கின', present: 'தூக்குற', future: 'தூக்குவ' },
+    'kattu': { past: 'கட்டின', present: 'கட்டுற', future: 'கட்டுவ' },
+    'kat': { past: 'கட்டின', present: 'கட்டுற', future: 'கட்டுவ' },
+    'koluthu': { past: 'கொளுத்தின', present: 'கொளுத்துற', future: 'கொளுத்துவ' },
+    'maatru': { past: 'மாற்றின', present: 'மாற்றுற', future: 'மாற்றுவ' },
+    'maaru': { past: 'மாறின', present: 'மாறுற', future: 'மாறுவ' },
+    'neenai': { past: 'நினைத்த', present: 'நினைக்கிற', future: 'நினைப்ப' },
+    'ninai': { past: 'நினைத்த', present: 'நினைக்கிற', future: 'நினைப்ப' },
+    'kollu': { past: 'கொன்ன', present: 'கொல்லுற', future: 'கொல்லுவ' },
+    'kol': { past: 'கொன்ன', present: 'கொல்லுற', future: 'கொல்லுவ' },
+    'thudaikku': { past: 'துடைத்த', present: 'துடைக்கிற', future: 'துடைப்ப' },
+    'vesu': { past: 'வீசின', present: 'வீசுற', future: 'வீசுவ' },
+    'veesu': { past: 'வீசின', present: 'வீசுற', future: 'வீசுவ' },
+    'nedhu': { past: 'நீந்தின', present: 'நீந்துற', future: 'நீந்துவ' },
+    'neendhu': { past: 'நீந்தின', present: 'நீந்துற', future: 'நீந்துவ' },
 };
 
 // Person suffixes — colloquial Tamil
@@ -2785,12 +3036,12 @@ const conjSuffixes = {
 };
 
 function detectPerson(t) {
-    if (t.endsWith('inga') || t.endsWith('enga')) return 'inga';
-    if (t.endsWith('anga')) return 'anga';
-    if (t.endsWith('aal') || t.endsWith('al')) return 'aal';
-    if (t.endsWith('aan') || t.endsWith('an')) return 'an';
-    if (t.endsWith('om') || t.endsWith('oam')) return 'om';
-    if (t.endsWith('en') || t.endsWith('aen')) return 'en';
+    if (t.endsWith('inga') || t.endsWith('enga') || t.endsWith('keenga') || t.endsWith('kinga')) return 'inga';
+    if (t.endsWith('anga') || t.endsWith('kaanga') || t.endsWith('kanga')) return 'anga';
+    if (t.endsWith('aal') || t.endsWith('al') || t.endsWith('kaal') || t.endsWith('kal')) return 'aal';
+    if (t.endsWith('aan') || t.endsWith('an') || t.endsWith('kaan') || t.endsWith('kan')) return 'an';
+    if (t.endsWith('oom') || t.endsWith('om') || t.endsWith('koom') || t.endsWith('kom')) return 'om';
+    if (t.endsWith('een') || t.endsWith('en') || t.endsWith('keen') || t.endsWith('ken') || t.endsWith('aen')) return 'en';
     if (t.endsWith('a')) return 'a';
     return null;
 }
@@ -2805,14 +3056,18 @@ function detectVerbTense(t) {
     if (/ichu$|ichen$|ichan$/.test(t)) return 'past';
     if (/ven$|van$|val$|vom$|vinga$|pen$|pan$|pal$|pom$|pinga$/.test(t)) return 'future';
     if (/ren$|ran$|ral$|rom$|ringa$|kiren$|kiran$|kiral$|kirom$/.test(t)) return 'present';
-    // colloquial present: -uren, -uran
+    // colloquial present: -uren, -uran, -keen, -kaan, -kaal, -koom, -keenga, -kaanga
     if (/uren$|uran$|ural$|urom$|uringa$/.test(t)) return 'present';
+    if (/keen$|ken$|kaan$|kan$|kaal$|kal$|koom$|kom$|keenga$|kinga$|kaanga$|kanga$/.test(t)) return 'present';
     return null;
 }
 
 function findVerbRoot(tanglish) {
     const t = tanglish.toLowerCase();
-    for (const root of Object.keys(verbRoots)) {
+    // Sort roots longest-first so longer roots match before shorter ones
+    // (e.g. 'saapidu' before 'saa', 'thirumbu' before 'thiru')
+    const sortedRoots = Object.keys(verbRoots).sort((a, b) => b.length - a.length);
+    for (const root of sortedRoots) {
         if (t.startsWith(root)) return root;
     }
     // strip suffix patterns and try again
@@ -2821,13 +3076,96 @@ function findVerbRoot(tanglish) {
         /tten$/, /ttan$/, /ttal$/, /ttom$/, /ttinga$/, /nden$/, /ndan$/, /ndal$/, /ndom$/,
         /ven$/, /van$/, /val$/, /vom$/, /vinga$/, /pen$/, /pan$/, /pal$/, /pom$/, /pinga$/,
         /ren$/, /ran$/, /ral$/, /rom$/, /ringa$/, /kiren$/, /kiran$/, /kiral$/, /kirom$/,
+        /uren$/, /uran$/, /ural$/, /urom$/, /uringa$/,
+        // colloquial -keen/-kaan/-kaal/-koom/-keenga/-kaanga (irukeen, irukaan etc.)
+        /keenga$/, /kinga$/, /kaanga$/, /kanga$/,
+        /keen$/, /ken$/, /kaan$/, /kan$/, /kaal$/, /kal$/, /koom$/, /kom$/,
+        /een$/, /aan$/, /aal$/,
         /en$/, /an$/, /al$/, /om$/, /la$/, /a$/,
     ];
     for (const pat of strips) {
         const stripped = t.replace(pat, '');
         if (stripped.length >= 2 && verbRoots[stripped]) return stripped;
     }
+
+    // ── MORPHOLOGICAL FALLBACK: Dynamic verb stem detection ──────────────
+    // For unseen verbs not in verbRoots table, try to extract the stem and
+    // generate conjugation patterns dynamically using Tamil verb class rules.
+    // This lets words like "thaakkuren" work even without a verbRoots entry.
+    for (const pat of strips) {
+        const stripped = t.replace(pat, '');
+        if (stripped.length >= 2 && stripped !== t) {
+            // Convert stem to Tamil using rule engine
+            const stemTamil = convertWithRules(stripped);
+            if (stemTamil && /[\u0B80-\u0BFF]/.test(stemTamil) && stemTamil.length >= 2) {
+                // Dynamically register this verb root based on stem ending pattern
+                const dynData = _inferVerbClass(stripped, stemTamil);
+                if (dynData) {
+                    verbRoots[stripped] = dynData;
+                    return stripped;
+                }
+            }
+        }
+    }
     return null;
+}
+
+// ── DYNAMIC VERB CLASS INFERENCE ─────────────────────────────────────────
+// Tamil verbs fall into several classes based on their stem ending.
+// This function infers the conjugation pattern from the Tanglish stem.
+// It's intentionally conservative — produces colloquial forms only.
+function _inferVerbClass(tanglishStem, tamilStem) {
+    if (!tamilStem || tamilStem.length < 2) return null;
+
+    // Class detection based on Tanglish stem ending:
+    //   -kku/-ttu/-ppu (geminated)  → strong verb: past=stem+in, pres=stem+ற, fut=stem+வ
+    //   -du/-tu/-gu/-bu (stop+u)    → weak verb:   past=stem_t+த, pres=stem+கிற, fut=stem+ப
+    //   -u (other)                  → class 3:     past=stem+ன, pres=stem+ற, fut=stem+வ
+    //   -i                         → class 6:     past=stem_t+த, pres=stem+க்கிற, fut=stem+ப
+    //   consonant end              → use as-is
+
+    const stem = tanglishStem.toLowerCase();
+
+    if (/kku$|ttu$|ppu$|llu$/.test(stem)) {
+        // Strong/geminated verb (e.g. thaakku→தாக்கு)
+        return {
+            past: tamilStem + 'ன',
+            present: tamilStem + 'ற',
+            future: tamilStem + 'வ'
+        };
+    }
+    if (/du$|tu$|dhu$|thu$/.test(stem)) {
+        // Weak verb ending in dental/retroflex stop (e.g. thedu→தேடு)
+        // Past: stem minus last vowel + த்த
+        const stemBase = tamilStem.replace(/[\u0BC1\u0BC2]$/, '');
+        return {
+            past: stemBase + 'ன',
+            present: tamilStem + 'ற',
+            future: tamilStem + 'வ'
+        };
+    }
+    if (/[^aeiou]u$|gu$|bu$/.test(stem)) {
+        // Class 3 verb (e.g. sutru→சுற்று, vizhungu→விழுங்கு)
+        return {
+            past: tamilStem + 'ன',
+            present: tamilStem + 'ற',
+            future: tamilStem + 'வ'
+        };
+    }
+    if (/i$/.test(stem)) {
+        // Class 6 verb (e.g. pidi→பிடி, adi→அடி)
+        return {
+            past: tamilStem + 'த்த',
+            present: tamilStem + 'க்கிற',
+            future: tamilStem + 'ப்ப'
+        };
+    }
+    // Default: treat as class 3
+    return {
+        past: tamilStem + 'ன',
+        present: tamilStem + 'ற',
+        future: tamilStem + 'வ'
+    };
 }
 
 export function conjugateVerb(tanglish) {
@@ -2992,10 +3330,9 @@ export function enforceTamilPatterns(word) {
     // Prevent invalid double vowels
     word = word.replace(/([அஆஇஈஉஊஎஏஒஓ])\1+/g, '$1ய்$1');
 
-    // Fix ending pulli → add vowel
-    if (endsWithPulli(word)) {
-        word += 'ு';
-    }
+    // NOTE: Removed incorrect rule that appended ு to all pulli-ending words.
+    // Many valid Tamil words naturally end in pulli: வணக்கம், துரந்தர், நன்றி, etc.
+    // The old rule corrupted these (e.g. துரந்தர் → துரந்தர்ு).
 
     // Prevent invalid start
     word = autoCorrectWordStart(word);

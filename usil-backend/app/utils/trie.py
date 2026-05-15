@@ -45,7 +45,7 @@ class Trie:
             node = node.children[char]
         
         results = []
-        self._collect_words(node, prefix, results)
+        self._collect_words(node, prefix, results, limit * 3)
         
         if len(prefix) >= 3:
             # Exact match (typed word itself) always first, then shortest → A→Z.
@@ -61,13 +61,17 @@ class Trie:
         
         return results[:limit]
     
-    def _collect_words(self, node: TrieNode, current: str, results: list):
+    def _collect_words(self, node: TrieNode, current: str, results: list, limit: int = 100):
+        # Bug 3 fix: stop early when limit reached — prevents unbounded recursion
+        if len(results) >= limit:
+            return
         if node.is_end:
             results.append({
                 'tanglish': current,
                 'tamil': node.tamil_word,
                 'frequency': node.frequency
             })
-        
         for char, child in node.children.items():
-            self._collect_words(child, current + char, results)
+            if len(results) >= limit:
+                break
+            self._collect_words(child, current + char, results, limit)
