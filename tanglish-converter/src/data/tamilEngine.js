@@ -1800,6 +1800,9 @@ const postProcessRules = [
         pattern: /\u0BBE\u0BA9\u0BCD\u0BA9/g,
         replace: '\u0BBE\u0BA3\u0BCD\u0BA3'   // ா + ன்ன  →  ா + ண்ண
     },
+
+
+
     { pattern: /ட்ட்/, replace: 'ட்ட' },
     { pattern: /த்த்/, replace: 'த்த' },
     { pattern: /ப்ப்/, replace: 'ப்ப' },
@@ -2722,7 +2725,7 @@ export function getLiveWordFormingOptions(typedText, maxOptions = 4) {
 
 
     // 4. generateWordForms variants (l/L/zh, r/R alternates etc.)
-    if (options.length < maxOptions && lower.length > 7) {
+    if (options.length < maxOptions) {
         const forms = generateWordForms(lower);
         for (const f of forms) {
             if (options.length >= maxOptions) break;
