@@ -511,9 +511,24 @@ const _fallbackTamilMap = new Map([
     ['aval', 'அவள்'], ['avl', 'அவள்'],
     ['avanga', 'அவங்க'],
     ['ivan', 'இவன்'], ['ivn', 'இவன்'],
+    ['ivana', 'இவனா'], ['ivane', 'இவனே'], ['ivanda', 'இவனிடம்'],
+    ['ivanu', 'இவனு'], ['ivanuku', 'இவனுக்கு'], ['ivanukku', 'இவனுக்கு'],
+    ['ivanil', 'இவனில்'], ['ivanla', 'இவனில்'],
+    ['ivankita', 'இவன்கிட்ட'], ['ivankitta', 'இவன்கிட்ட'],
     ['ival', 'இவள்'], ['ivl', 'இவள்'],
+    ['ivala', 'இவளா'], ['ivale', 'இவளே'],
     ['namma', 'நம்ம'], ['namba', 'நம்ம'],
     ['nammakku', 'நம்மக்கு'], ['nambaku', 'நம்மக்கு'],
+    // ── COMMON NOUNS (manam/mandham type — medial-n words) ───────────────
+    ['manam', 'மனம்'], ['manasu', 'மனசு'], ['manase', 'மனசே'],
+    ['manamu', 'மனமு'], ['maname', 'மனமே'], ['manamee', 'மனமே'],
+    ['mandham', 'மண்டம்'], ['mandha', 'மண்ட'], ['mandhama', 'மண்டமா'],
+    ['mandhi', 'மண்டி'], ['mandi', 'மண்டி'],
+    ['sandai', 'சண்டை'], ['sandai', 'சண்டை'], ['sandaiku', 'சண்டைக்கு'],
+    ['sandaipoda', 'சண்டை போட'],
+    ['thandu', 'தண்டு'], ['thandai', 'தண்டை'],
+    ['pandu', 'பண்டு'], ['pandi', 'பண்டி'],
+    ['kandu', 'கண்டு'], ['kandhu', 'கண்டு'],
     // ── COMMON VERBS (present) ────────────────────────────────────────────
     ['poren', 'போறேன்'], ['porn', 'போறேன்'],
     ['porin', 'போறேன்'], ['porein', 'போறேன்'],
@@ -585,6 +600,16 @@ const _fallbackTamilMap = new Map([
     ['veeduku', 'வீட்டுக்கு'], ['veduku', 'வீட்டுக்கு'],
     ['veetukku', 'வீட்டுக்கு'], ['veedukku', 'வீட்டுக்கு'],
     ['vidukku', 'வீட்டுக்கு'],
+    ['veetula', 'வீட்டுல'], ['veedula', 'வீட்டுல'], ['vedula', 'வீட்டுல'],
+    ['veetule', 'வீட்டுலே'], ['veetulle', 'வீட்டுலே'],
+    ['veetil', 'வீட்டில்'], ['veedil', 'வீட்டில்'],
+    ['avankita', 'அவன்கிட்ட'], ['avankitta', 'அவன்கிட்ட'],
+    ['avalakita', 'அவளிடம்'], ['avanakita', 'அவனிடம்'],
+    ['avalkita', 'அவள்கிட்ட'], ['avalkitta', 'அவள்கிட்ட'],
+    ['ivankita', 'இவன்கிட்ட'], ['ivankitta', 'இவன்கிட்ட'],
+    ['ivalkita', 'இவள்கிட்ட'], ['ivalkitta', 'இவள்கிட்ட'],
+    ['neengakku', 'நீங்களுக்கு'], ['ningakku', 'நீங்களுக்கு'],
+    ['neengaku', 'நீங்களுக்கு'], ['ningaku', 'நீங்களுக்கு'],
     ['ooru', 'ஊரு'], ['oru', 'ஊரு'],
     ['oorukku', 'ஊருக்கு'], ['oruku', 'ஊருக்கு'],
     ['uruku', 'ஊருக்கு'],
@@ -806,6 +831,51 @@ const _suffixTamilMap = {
 const _compoundSuffixes = Object.keys(_suffixTamilMap)
     .sort((a, b) => b.length - a.length);
 
+// ── STEM + SUFFIX JOINER WITH SANDHI ─────────────────────────────────────
+function _joinStemSuffix(stemTamil, suffixTamil) {
+    if (!stemTamil || !suffixTamil) return stemTamil + suffixTamil;
+
+    const PULLI = '\u0BCD'; // ்
+    const last = stemTamil.slice(-1);
+    const lastTwo = stemTamil.slice(-2);
+
+    // Pattern A: stem ends in ு → double the consonant before it
+    if (last === '\u0BC1') {
+        const base = stemTamil.slice(0, -1);
+        const baseLastChar = base.slice(-1);
+        const vallinam = ['\u0B95', '\u0B9A', '\u0B9F', '\u0BA4', '\u0BAA', '\u0BB1'];
+        if (vallinam.includes(baseLastChar)) {
+            const doubled = base + PULLI + baseLastChar + '\u0BC1';
+            return doubled + suffixTamil;
+        }
+        return stemTamil + suffixTamil;
+    }
+
+    // Pattern B: stem ends in sonorant pulli → insert linking உ before vallinam suffix
+    const sonorantPullis = ['ல்', 'ன்', 'ர்', 'ள்', 'ண்', 'ம்', 'ழ்', 'ய்'];
+    if (sonorantPullis.includes(lastTwo)) {
+        const suffixFirst = suffixTamil[0];
+        const vallinamStarts = ['\u0B95', '\u0B9A', '\u0B9F', '\u0BA4', '\u0BAA', '\u0BB1'];
+        if (vallinamStarts.includes(suffixFirst)) {
+            return stemTamil + '\u0BC1' + suffixTamil;
+        }
+        return stemTamil + suffixTamil;
+    }
+
+    // Pattern C: stem ends in ம் → locative/dative special form
+    if (lastTwo === 'ம்') {
+        if (suffixTamil === 'ல' || suffixTamil === 'இல்') {
+            return stemTamil.slice(0, -2) + 'த்தில்';
+        }
+        if (suffixTamil === 'க்கு' || suffixTamil === 'கு') {
+            return stemTamil.slice(0, -2) + 'த்திற்கு';
+        }
+        return stemTamil + suffixTamil;
+    }
+
+    return stemTamil + suffixTamil;
+}
+
 function checkCompoundWord(normalized) {
     if (!normalized || normalized.length < 4) return null;
 
@@ -819,7 +889,7 @@ function checkCompoundWord(normalized) {
         if (fullWordMapping.has(stem)) {
             const stemTamil = fullWordMapping.get(stem);
             const suffixTamil = _suffixTamilMap[suffix];
-            return stemTamil + suffixTamil;
+            return _joinStemSuffix(stemTamil, suffixTamil);
         }
 
         // Also try common stem alternates:
@@ -830,7 +900,7 @@ function checkCompoundWord(normalized) {
             if (fullWordMapping.has(altStem)) {
                 const stemTamil = fullWordMapping.get(altStem);
                 const suffixTamil = _suffixTamilMap[suffix];
-                return stemTamil + suffixTamil;
+                return _joinStemSuffix(stemTamil, suffixTamil);
             }
         }
     }
@@ -1718,6 +1788,18 @@ export function applyVallinamDoubling(tamilWord) {
         result = result.replace(pat, (_, v, s) => v + doubled);
     }
 
+    // Rule 2b: long-vowel sign + bare vallinam suffix → double
+    // ா/ீ/ூ/ே/ோ + கு → க்கு  (e.g. neengakku, paakku)
+    const longVowelSigns = '\u0BBE\u0BC0\u0BC2\u0BC7\u0BCB';
+    const longVowelDoublingSuffixes = [
+        { suffix: 'கு', doubled: 'க்கு' },
+        { suffix: 'கே', doubled: 'க்கே' },
+    ];
+    for (const { suffix, doubled } of longVowelDoublingSuffixes) {
+        const pat = new RegExp(`([${longVowelSigns}])(${suffix})`, 'g');
+        result = result.replace(pat, (_, v, s) => v + doubled);
+    }
+
     // Rule 3: fix triple stacking that can result from above rules
     result = result
         .replace(/க்க்க/g, 'க்க')
@@ -1732,6 +1814,29 @@ export function applyVallinamDoubling(tamilWord) {
 
 // ============ POST-PROCESS CORRECTIONS ============
 const postProcessRules = [
+
+    // ── STEM SANDHI PATCHES (run first — most specific wins) ─────────────
+    { pattern: /வீட்குள்/g, replace: 'வீட்டுக்குள்' },
+    { pattern: /காதல்கு/g, replace: 'காதலுக்கு' },
+    { pattern: /அவன்கு/g, replace: 'அவனுக்கு' },
+    { pattern: /அவள்கு/g, replace: 'அவளுக்கு' },
+    { pattern: /நம்மகு/g, replace: 'நமக்கு' },
+    { pattern: /ஊர்கு/g, replace: 'ஊருக்கு' },
+    { pattern: /படம்கு/g, replace: 'படத்திற்கு' },
+    { pattern: /நேரம்கு/g, replace: 'நேரத்திற்கு' },
+
+    // ── ந before ட cluster patches (sandai/mandham/thandu type words) ────
+    { pattern: /சந்டை/g, replace: 'சண்டை' },
+    { pattern: /சந்டல்/g, replace: 'சண்டல்' },
+    { pattern: /மந்டம்/g, replace: 'மண்டம்' },
+    { pattern: /பந்டம்/g, replace: 'பண்டம்' },
+    { pattern: /கந்டன்/g, replace: 'கண்டன்' },
+    { pattern: /மந்டி/g, replace: 'மண்டி' },
+    { pattern: /கந்டு/g, replace: 'கண்டு' },
+    { pattern: /தந்டு/g, replace: 'தண்டு' },
+    { pattern: /தந்டா/g, replace: 'தண்டா' },
+    { pattern: /பந்டி/g, replace: 'பண்டி' },
+
     { pattern: /வீடில்/, replace: 'வீட்டில்' },
     { pattern: /வீடுல்/, replace: 'வீட்டுல' },
     { pattern: /வீடுக்கு/, replace: 'வீட்டுக்கு' },
@@ -1801,7 +1906,24 @@ const postProcessRules = [
         replace: '\u0BBE\u0BA3\u0BCD\u0BA3'   // ா + ன்ன  →  ா + ண்ண
     },
 
+    // FIX: ந before retroflex ட cluster → ண (sandai/mandham/thandu type)
+    { pattern: /ந்ட/g, replace: 'ண்ட' },
+    { pattern: /ந்டி/g, replace: 'ண்டி' },
+    { pattern: /ந்டு/g, replace: 'ண்டு' },
+    { pattern: /ந்டா/g, replace: 'ண்டா' },
+    { pattern: /ந்டே/g, replace: 'ண்டே' },
+    { pattern: /ந்டை/g, replace: 'ண்டை' },
+    { pattern: /ந்டோ/g, replace: 'ண்டோ' },
 
+    // FIX: vowel-sign + ந் at word-end → ன்  (ivan/avan type)
+    {
+        pattern: /([\u0BBE\u0BBF\u0BC0\u0BC1\u0BC2\u0BC6\u0BC7\u0BC8\u0BCA\u0BCB\u0BCC])\u0BA8\u0BCD$/g,
+        replace: '$1\u0BA9\u0BCD'
+    },
+    {
+        pattern: /([\u0BBE\u0BBF\u0BC1\u0BC6\u0BC8\u0BCA])\u0BA8$/g,
+        replace: '$1\u0BA9'
+    },
 
     { pattern: /ட்ட்/, replace: 'ட்ட' },
     { pattern: /த்த்/, replace: 'த்த' },
@@ -1960,6 +2082,16 @@ export function applySandhi(word1, word2) {
 // Build token table programmatically
 function _buildTokenTable() {
     const t = [];
+
+    // sandai / mandham / thandu type
+    t.push(['ndai', 'ண்டை']);
+    t.push(['ndu', 'ண்டு']);
+    t.push(['nda', 'ண்ட']);
+    t.push(['ndam', 'ண்டம்']);
+    t.push(['ndha', 'ண்ட']);
+    t.push(['ndham', 'ண்டம்']);
+
+
 
     t.push(['vey', '\u0BB5\u0BC7']);
     t.push(['key', '\u0B95\u0BC7']);
