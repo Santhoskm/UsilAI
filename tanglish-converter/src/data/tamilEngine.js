@@ -1,6 +1,7 @@
 import Sanscript from '@indic-transliteration/sanscript';
 import { disambiguateLa, generateLaCandidates, isLaAmbiguous, disambiguateRa, isRaAmbiguous } from './tamilLaDisambiguator.js';
 import { commonWords } from './tamilMapping.js';
+import { tamilFrequencyList, FREQUENCY_LIST_SIZE } from './tamilFrequencyList.js';
 
 // ================================================================
 // PERFECT TAMIL CONVERSION ENGINE v2.0  (Backend-powered)
@@ -694,6 +695,24 @@ const _fallbackTamilMap = new Map([
     ['oruththar', 'ஒருத்தர்'], ['oruththarr', 'ஒருத்தர்'],
     // ── NAMES ────────────────────────────────────────────────────────────
     // ['thilothama', 'திலோத்தம்மா'],
+    // ── GEMINATION WORDS (Critical #2 — common doubled-consonant words) ──
+    ['pakkam', 'பக்கம்'], ['pakkathula', 'பக்கத்துல'],
+    ['vittai', 'வித்தை'], ['vittu', 'விட்டு'],
+    ['kattai', 'கட்டை'], ['kattu', 'கட்டு'], ['kattam', 'கட்டம்'],
+    ['pattam', 'பட்டம்'], ['pattu', 'பட்டு'], ['patti', 'பட்டி'],
+    ['kottai', 'கொட்டை'], ['kottu', 'கொட்டு'],
+    ['mattai', 'மட்டை'], ['mattam', 'மட்டம்'],
+    ['settai', 'செட்டை'], ['sottu', 'சொட்டு'],
+    ['thattai', 'தட்டை'], ['thattu', 'தட்டு'],
+    ['vattam', 'வட்டம்'], ['vattu', 'வட்டு'],
+    ['muttai', 'முட்டை'], ['muttu', 'முட்டு'],
+    ['kottam', 'கொட்டம்'], ['kattam', 'கட்டம்'],
+    ['pottai', 'பொட்டை'], ['pottu', 'பொட்டு'],
+    ['sottai', 'சொட்டை'],
+    ['rettai', 'ரெட்டை'],
+    ['vettai', 'வேட்டை'], ['vettu', 'வெட்டு'],
+    ['ottam', 'ஓட்டம்'], ['ottu', 'ஓட்டு'],
+    ['ittam', 'இட்டம்'], ['ittu', 'இட்டு'],
 ]);
 
 function normalizeInput(input) {
@@ -892,6 +911,16 @@ function checkCompoundWord(normalized) {
             return _joinStemSuffix(stemTamil, suffixTamil);
         }
 
+        // ── RULE: also check _fallbackTamilMap for stem ──────────────────
+        // Handles avankita (avan+kita), avalkita, ivankita etc. where the
+        // stem is a known pronoun/word in the fallback map but not in the
+        // backend dictionary (which only has 39 entries at startup).
+        const _fallbackStem = _fallbackTamilMap.get(stem);
+        if (_fallbackStem) {
+            const suffixTamil = _suffixTamilMap[suffix];
+            if (suffixTamil) return _joinStemSuffix(_fallbackStem, suffixTamil);
+        }
+
         // Also try common stem alternates:
         //   veetila → stem "veeti" doesn't exist, but "veedu" does
         //   Try removing last vowel-harmonized char and adding back base
@@ -901,6 +930,12 @@ function checkCompoundWord(normalized) {
                 const stemTamil = fullWordMapping.get(altStem);
                 const suffixTamil = _suffixTamilMap[suffix];
                 return _joinStemSuffix(stemTamil, suffixTamil);
+            }
+            // Also check fallback for alternates
+            const _fallbackAlt = _fallbackTamilMap.get(altStem);
+            if (_fallbackAlt) {
+                const suffixTamil = _suffixTamilMap[suffix];
+                if (suffixTamil) return _joinStemSuffix(_fallbackAlt, suffixTamil);
             }
         }
     }
@@ -1964,6 +1999,92 @@ const postProcessRules = [
     { pattern: /ண$/, replace: 'ண்', _finalPulli: true },
 ];
 
+// ============ GEMINATION FIX (Critical #2) ============
+// When a consonant doubles (pakkam, vittai, kattai), the first gets pulli
+// and the second joins the vowel. The tokenizer already handles kk→க்க etc.
+// but this pass catches cases the token table misses — specifically when
+// the user types a single consonant that should be doubled before a short vowel.
+//
+// Tamil rule: after a short vowel (அ இ உ எ ஒ or their signs ி ு ெ ொ),
+// a vallinam consonant (க ச ட த ப ற) should be doubled.
+// e.g. pakam → பக்கம், vitai → விட்டை, katai → கட்டை
+function applyGeminationFix(tamilWord) {
+    if (!tamilWord || tamilWord.length < 3) return tamilWord;
+
+    const PULLI = '\u0BCD'; // ்
+    // Short vowel signs: ி(0BBF) ு(0BC1) ெ(0BC6) ொ(0BCA)
+    const shortVowelSigns = '\u0BBF\u0BC1\u0BC6\u0BCA';
+    // Short standalone vowels: அ(0B85) இ(0B87) உ(0B89) எ(0B8E) ஒ(0B92)
+    const shortVowels = '\u0B85\u0B87\u0B89\u0B8E\u0B92';
+    // Vallinam consonants: க(0B95) ச(0B9A) ட(0B9F) த(0BA4) ப(0BAA) ற(0BB1)
+    const vallinam = ['\u0B95', '\u0B9A', '\u0B9F', '\u0BA4', '\u0BAA', '\u0BB1'];
+
+    let result = tamilWord;
+
+    // Pattern: short-vowel-sign + vallinam + vowel-sign → insert pulli+consonant
+    // e.g. ிக → ிக்க (only if not already doubled)
+    for (const v of vallinam) {
+        // After short vowel sign: sign + consonant + vowel → sign + consonant + pulli + consonant + vowel
+        const re1 = new RegExp(`([${shortVowelSigns}])(${v})([\u0BBE-\u0BCC])`, 'g');
+        result = result.replace(re1, (match, sign, cons, vowel) => {
+            // Don't double if already preceded by pulli (already geminated)
+            return sign + cons + PULLI + cons + vowel;
+        });
+
+        // After short standalone vowel: vowel + consonant + vowel-sign → vowel + consonant + pulli + consonant + vowel-sign
+        const re2 = new RegExp(`([${shortVowels}])(${v})([\u0BBE-\u0BCC])`, 'g');
+        result = result.replace(re2, (match, vow, cons, sign) => {
+            return vow + cons + PULLI + cons + sign;
+        });
+    }
+
+    // Fix triple-stacking from overzealous doubling
+    result = result
+        .replace(/க்க்க/g, 'க்க')
+        .replace(/ட்ட்ட/g, 'ட்ட')
+        .replace(/த்த்த/g, 'த்த')
+        .replace(/ப்ப்ப/g, 'ப்ப')
+        .replace(/ச்ச்ச/g, 'ச்ச')
+        .replace(/ற்ற்ற/g, 'ற்ற');
+
+    return result;
+}
+
+// ============ POSITIONAL NA FIX (Critical #3) ============
+// "ன" (alveolar na) vs "ந" (dental na) positional rule:
+//  - "n" at END of word after a vowel → ன் (alveolar) — e.g. avan→அவன்
+//  - "n" at START of word → ந (dental) — e.g. naan→நான்
+//  - "n" before a vowel in MIDDLE of word → ந (dental) — e.g. neram→நேரம்
+//  - "nn" (doubled) → ன்ன (alveolar doubled) — e.g. enna→என்ன
+//
+// The tokenizer maps n→ந everywhere. This pass corrects word-final ந→ன.
+// Also handles the reverse: ensures ன at word start becomes ந.
+function applyPositionalNaFix(tamilWord) {
+    if (!tamilWord || tamilWord.length < 2) return tamilWord;
+
+    let result = tamilWord;
+
+    // Rule 1: Word-final ந் → ன் (after any vowel sign)
+    // Already handled in postProcessRules, but reinforce here
+    result = result.replace(
+        /([\u0BBE-\u0BCC])\u0BA8\u0BCD$/g,
+        '$1\u0BA9\u0BCD'
+    );
+
+    // Rule 2: Word-final bare ந (no pulli) after vowel sign → ன
+    result = result.replace(
+        /([\u0BBE-\u0BCC])\u0BA8$/g,
+        '$1\u0BA9'
+    );
+
+    // Rule 3: Ensure word-initial ன → ந (ன cannot start a word)
+    if (result[0] === '\u0BA9') {
+        result = '\u0BA8' + result.slice(1);
+    }
+
+    return result;
+}
+
 function applyPostProcess(word) {
     let result = word;
 
@@ -2339,6 +2460,15 @@ export function convertWithRules(tanglishWord) {
     // STEP 1: Normalize
     const normalized = normalizeInput(tanglishWord);
 
+    // ── STEP 1a: Check _fallbackTamilMap first (known-correct words) ──────
+    // convertWithRules is called by getTypingSuggestions (Pass 0 / Pass 6),
+    // so it must honour the same fallback map that transliterateWord uses.
+    // Without this, words like sandai/mandham/ivan produce wrong bases that
+    // then get mutated into garbage variants by generateWordForms.
+    const _cwrLower = tanglishWord.toLowerCase().trim();
+    const _cwrFallback = _fallbackTamilMap.get(_cwrLower) || _fallbackTamilMap.get(normalized);
+    if (_cwrFallback) return _cwrFallback;
+
     if (/^ooru(?:la|le)$/i.test(normalized)) {
         return 'ஊருல';
     }
@@ -2420,9 +2550,11 @@ export function convertWithRules(tanglishWord) {
         }
     }
 
+    result = applyGeminationFix(result);
     result = applyVowelHiatusFix(result);
     result = applyPostProcess(result);
     result = applyVallinamDoubling(result);
+    result = applyPositionalNaFix(result);
 
     // Fix word start issues: ன→ந, ற→ர, ள→ல at word start (invalid in Tamil)
     // Must check first Tamil char (may be followed by vowel signs)
@@ -2488,6 +2620,109 @@ export function convertWithRules(tanglishWord) {
 
 
     return result;
+}
+
+// ============ BEAM SEARCH TOKENIZER (Improvement #4) ============
+// Explores multiple transliteration paths to generate 3-5 diverse Tamil candidates.
+// Uses beam search (beam_width=4, topk=5) over the token table.
+// Each beam tracks: { result: string, pos: number, score: number }
+// Score penalizes shorter token matches (prefer longer = more accurate).
+
+export function beamSearchTransliterate(tanglishWord, beamWidth = 4, topK = 5) {
+    if (!tanglishWord || !tanglishWord.trim()) return [];
+
+    const lower = tanglishWord.toLowerCase().trim();
+    const normalized = normalizeInput(lower);
+    const input = normalized;
+    const seen = new Set();
+    const candidates = [];
+
+    // Seed: check dictionary/fallback first
+    const dictResult = fullWordMapping.get(normalized) || _fallbackTamilMap.get(lower);
+    if (dictResult) {
+        candidates.push(dictResult);
+        seen.add(dictResult);
+    }
+
+    // Also add the standard rule engine output
+    const ruleResult = convertWithRules(lower);
+    if (ruleResult && /[\u0B80-\u0BFF]/.test(ruleResult) && !seen.has(ruleResult)) {
+        candidates.push(ruleResult);
+        seen.add(ruleResult);
+    }
+
+    // Beam search over token table
+    let beams = [{ result: '', pos: 0, score: 0 }];
+
+    while (beams.length > 0) {
+        const nextBeams = [];
+
+        for (const beam of beams) {
+            if (beam.pos >= input.length) {
+                // Beam completed — post-process and add to candidates
+                let final = beam.result;
+                final = applyGeminationFix(final);
+                final = applyVowelHiatusFix(final);
+                final = applyPostProcess(final);
+                final = applyVallinamDoubling(final);
+                final = applyPositionalNaFix(final);
+                // Fix word start
+                if (final.length > 0 && final[0] === '\u0BA9') final = '\u0BA8' + final.slice(1);
+                if (final.length > 0 && final[0] === '\u0BB1') final = '\u0BB0' + final.slice(1);
+                if (final.length > 0 && final[0] === '\u0BB3') final = '\u0BB2' + final.slice(1);
+
+                if (/[\u0B80-\u0BFF]/.test(final) && !seen.has(final)) {
+                    candidates.push(final);
+                    seen.add(final);
+                }
+                continue;
+            }
+
+            const bucket = _tokenMap.get(input[beam.pos]) || [];
+            const maxLen = Math.min(6, input.length - beam.pos);
+            const matches = [];
+
+            // Collect all possible matches at this position
+            for (let len = maxLen; len >= 1; len--) {
+                const chunk = input.slice(beam.pos, beam.pos + len);
+                for (const [key, val] of bucket) {
+                    if (key === chunk) {
+                        // Score: longer matches get higher score (more confident)
+                        matches.push({ val, len, score: len * 2 });
+                    }
+                }
+            }
+
+            if (matches.length === 0) {
+                // No match — skip character
+                nextBeams.push({
+                    result: beam.result + input[beam.pos],
+                    pos: beam.pos + 1,
+                    score: beam.score - 1
+                });
+            } else {
+                // Take top beamWidth matches to explore
+                matches.sort((a, b) => b.score - a.score);
+                const topMatches = matches.slice(0, beamWidth);
+                for (const m of topMatches) {
+                    nextBeams.push({
+                        result: beam.result + m.val,
+                        pos: beam.pos + m.len,
+                        score: beam.score + m.score
+                    });
+                }
+            }
+        }
+
+        // Prune beams: keep only top beamWidth * 2
+        nextBeams.sort((a, b) => b.score - a.score);
+        beams = nextBeams.slice(0, beamWidth * 2);
+
+        // Early exit if we have enough candidates
+        if (candidates.length >= topK) break;
+    }
+
+    return candidates.slice(0, topK);
 }
 
 // ============ FUZZY MATCHING ============
@@ -3001,6 +3236,29 @@ export function generateWordForms(tanglish) {
         forms.add(base);
     }
 
+    // ── RULE: If base is a known-complete word, skip all speculative variants ──
+    // A word is "complete" if:
+    //   (a) it ends in a case-suffix vowel sign (ை ா ீ ூ ே ோ ி) — already inflected
+    //   (b) it ends in க்கு / லுக்கு / னுக்கு — dative suffix, nothing to add
+    //   (c) it ends in ண்டை / ண்டம் / ண்டு — retroflex cluster words
+    //   (d) the base came directly from _fallbackTamilMap (already correct)
+    const _isCompleteSuffix = base && (
+        /[ைாீூேோி]$/.test(base) ||          // ends in vowel sign — already inflected
+        /க்கு$/.test(base) ||                 // dative suffix
+        /லுக்கு$/.test(base) ||               // sonorant + dative
+        /னுக்கு$/.test(base) ||
+        /ண்ட[ைம்ுாேோ]/.test(base) ||        // retroflex cluster words
+        /கிட்ட$/.test(base) ||                // கிட்ட suffix
+        /ில்$/.test(base) ||                  // locative -ில்
+        /[ம்ன்ள்ல்ர்ண்]$/.test(base) ||      // pulli-ending nouns (மனம், இவன், etc.)
+        _fallbackTamilMap.get(lower) === base  // exact fallback hit
+    );
+
+    if (_isCompleteSuffix) {
+        // Word is already complete — return only the base form, no variants
+        return [base].filter(w => isLikelyValid(w));
+    }
+
     // Apply controlled letter variations
     if (base) {
         const safeVariations = generateSafeVariations(base);
@@ -3018,27 +3276,30 @@ export function generateWordForms(tanglish) {
         }
     }
 
-    // Double consonant strengthening (limited)
-    const doubleConsonants = [
-        { from: /க/g, to: 'க்க' },
-        { from: /த/g, to: 'த்த' },
-        { from: /ப/g, to: 'ப்ப' },
-        { from: /ட/g, to: 'ட்ட' }
-    ];
+    // Double consonant strengthening
+    // ── RULE: only double if base ends in a SHORT consonant (pulli ்) ──
+    // Words ending in vowel signs are already complete — doubling is wrong.
+    const PULLI = '்';
+    const _baseEndsInPulli = base && base.slice(-1) === PULLI;
+    if (_baseEndsInPulli) {
+        const doubleConsonants = [
+            { from: /க/g, to: 'க்க' },
+            { from: /த/g, to: 'த்த' },
+            { from: /ப/g, to: 'ப்ப' },
+            { from: /ட/g, to: 'ட்ட' }
+        ];
+        doubleConsonants.forEach(({ from, to }) => {
+            if (base && base.match(from)) {
+                const doubled = base.replace(from, to);
+                if (isLikelyValid(doubled)) forms.add(doubled);
+            }
+        });
+    }
 
-    doubleConsonants.forEach(({ from, to }) => {
-        if (base && base.match(from)) {
-            const doubled = base.replace(from, to);
-            if (isLikelyValid(doubled)) forms.add(doubled);
-        }
-    });
-
-    // Ending vowel corrections (only for words that make sense)
-    // Bug 8 fix: skip if word already ends in a vowel — appending ம்/ன் would be wrong
-    // Bug fix: also skip if word already ends in pulli (்) — e.g. துரந்தர் + ம் = துரந்தர்ம் is invalid
+    // Ending vowel corrections
+    // ── RULE: skip if base already ends in a vowel sign or pulli ──
     const TAMIL_STANDALONE_VOWELS = ['அ', 'ஆ', 'இ', 'ஈ', 'உ', 'ஊ', 'எ', 'ஏ', 'ஐ', 'ஒ', 'ஓ', 'ஔ'];
     const TAMIL_VOWEL_SIGNS = ['ா', 'ி', 'ீ', 'ு', 'ூ', 'ெ', 'ே', 'ை', 'ொ', 'ோ', 'ௌ'];
-    const PULLI = '்';
     if (base && base.length >= 2) {
         const lastChar = base.slice(-1);
         const endsInVowel = TAMIL_STANDALONE_VOWELS.includes(lastChar) || TAMIL_VOWEL_SIGNS.includes(lastChar);
@@ -3054,13 +3315,18 @@ export function generateWordForms(tanglish) {
         }
     }
 
-    // Verb endings (only for appropriate length, skip pulli-ending words)
+    // Verb endings
+    // ── RULE: skip if base already ends in a vowel sign (already complete) ──
     if (base && base.length >= 2 && base.length <= 6 && base.slice(-1) !== PULLI) {
-        const verbEndings = ['ும்', 'து'];
-        verbEndings.forEach(ending => {
-            const withEnding = base + ending;
-            if (isLikelyValid(withEnding)) forms.add(withEnding);
-        });
+        const lastChar = base.slice(-1);
+        const endsInVowelSign = TAMIL_VOWEL_SIGNS.includes(lastChar);
+        if (!endsInVowelSign) {
+            const verbEndings = ['ும்', 'து'];
+            verbEndings.forEach(ending => {
+                const withEnding = base + ending;
+                if (isLikelyValid(withEnding)) forms.add(withEnding);
+            });
+        }
     }
 
     // LIMIT FORMATION EXPLOSION - VERY IMPORTANT
@@ -3648,13 +3914,15 @@ function initFrequencyData() {
         const saved = localStorage.getItem('tamilFrequency');
         if (saved) {
             const parsed = JSON.parse(saved);
-            frequencyData = { ...defaultFrequencyData, ...parsed };
+            // Merge: imported list → default → user saved (user overrides all)
+            frequencyData = { ...tamilFrequencyList, ...defaultFrequencyData, ...parsed };
         } else {
-            frequencyData = { ...defaultFrequencyData };
+            frequencyData = { ...tamilFrequencyList, ...defaultFrequencyData };
         }
     } catch (_) {
-        frequencyData = { ...defaultFrequencyData };
+        frequencyData = { ...tamilFrequencyList, ...defaultFrequencyData };
     }
+    console.log(`[Engine] Frequency data initialized: ${Object.keys(frequencyData).length} words (${FREQUENCY_LIST_SIZE} from expanded list)`);
 }
 
 // Get frequency score for a Tamil word
