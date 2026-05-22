@@ -850,6 +850,24 @@ const _suffixTamilMap = {
 const _compoundSuffixes = Object.keys(_suffixTamilMap)
     .sort((a, b) => b.length - a.length);
 
+// ── STANDALONE VOWEL → VOWEL SIGN MAP ────────────────────────────────────
+// Used by _joinStemSuffix to merge consonant+pulli stems with vowel-starting
+// suffixes:  அவன் + உக்கு → அவனுக்கு  (not அவன்உக்கு)
+const _standaloneVowelToSign = {
+    '\u0B85': '',         // அ → inherent (just remove pulli, no sign needed)
+    '\u0B86': '\u0BBE',  // ஆ → ா
+    '\u0B87': '\u0BBF',  // இ → ி
+    '\u0B88': '\u0BC0',  // ஈ → ீ
+    '\u0B89': '\u0BC1',  // உ → ு
+    '\u0B8A': '\u0BC2',  // ஊ → ூ
+    '\u0B8E': '\u0BC6',  // எ → ெ
+    '\u0B8F': '\u0BC7',  // ஏ → ே
+    '\u0B90': '\u0BC8',  // ஐ → ை
+    '\u0B92': '\u0BCA',  // ஒ → ொ
+    '\u0B93': '\u0BCB',  // ஓ → ோ
+    '\u0B94': '\u0BCC',  // ஔ → ௌ
+};
+
 // ── STEM + SUFFIX JOINER WITH SANDHI ─────────────────────────────────────
 function _joinStemSuffix(stemTamil, suffixTamil) {
     if (!stemTamil || !suffixTamil) return stemTamil + suffixTamil;
@@ -878,6 +896,13 @@ function _joinStemSuffix(stemTamil, suffixTamil) {
         if (vallinamStarts.includes(suffixFirst)) {
             return stemTamil + '\u0BC1' + suffixTamil;
         }
+        // Pattern B2: suffix starts with standalone Tamil vowel → merge
+        // e.g. அவன் + உக்கு → அவனுக்கு, அவன் + ஓட → அவனோட
+        // Remove pulli from stem, convert standalone vowel to vowel sign (matra)
+        const vowelSignB = _standaloneVowelToSign[suffixFirst];
+        if (vowelSignB !== undefined) {
+            return stemTamil.slice(0, -1) + vowelSignB + suffixTamil.slice(1);
+        }
         return stemTamil + suffixTamil;
     }
 
@@ -890,6 +915,16 @@ function _joinStemSuffix(stemTamil, suffixTamil) {
             return stemTamil.slice(0, -2) + 'த்திற்கு';
         }
         return stemTamil + suffixTamil;
+    }
+
+    // Pattern D: any consonant+pulli + vowel-starting suffix → merge
+    // Catch-all for non-sonorant pullis (க், ச், ட், த், ப், ற் etc.)
+    if (last === PULLI) {
+        const suffixFirstD = suffixTamil[0];
+        const vowelSignD = _standaloneVowelToSign[suffixFirstD];
+        if (vowelSignD !== undefined) {
+            return stemTamil.slice(0, -1) + vowelSignD + suffixTamil.slice(1);
+        }
     }
 
     return stemTamil + suffixTamil;
@@ -2064,17 +2099,17 @@ function applyPositionalNaFix(tamilWord) {
 
     let result = tamilWord;
 
-    // Rule 1: Word-final ந் → ன் (after any vowel sign)
-    // Already handled in postProcessRules, but reinforce here
+    // Rule 1: Word-final ந் → ன் (global — ந் at word-end is always wrong in Tamil)
+    // Previously only matched after a vowel sign, missing: avan→அவன், ivan→இவன்
     result = result.replace(
-        /([\u0BBE-\u0BCC])\u0BA8\u0BCD$/g,
-        '$1\u0BA9\u0BCD'
+        /\u0BA8\u0BCD$/g,
+        '\u0BA9\u0BCD'
     );
 
-    // Rule 2: Word-final bare ந (no pulli) after vowel sign → ன
+    // Rule 2: Word-final bare ந → ன (global)
     result = result.replace(
-        /([\u0BBE-\u0BCC])\u0BA8$/g,
-        '$1\u0BA9'
+        /\u0BA8$/g,
+        '\u0BA9'
     );
 
     // Rule 3: Ensure word-initial ன → ந (ன cannot start a word)
@@ -2587,14 +2622,19 @@ export function convertWithRules(tanglishWord) {
     // Pattern: consonant + ன + vowel sign (not word boundary)
     // e.g. neram: ன + ே → should be ந + ே
     // We apply a targeted fix for the most common cases:
+    // Medial ந before any vowel sign → ன
+    // (.)\u0BA8 ensures word-initial ந is safe (nothing precedes it at pos 0)
+    // Fixes: ninaippu→நினைப்பு, ninaipaal→நினைப்பால் etc.
+    result = result.replace(
+        /(.)\u0BA8([\u0BBE\u0BBF\u0BC0\u0BC1\u0BC2\u0BC6\u0BC7\u0BC8\u0BCA\u0BCB\u0BCC])/g,
+        '$1\u0BA9$2'
+    );
+    // Reverse the fix for word-start na words where ன was already set correctly to ந
+    // These are cases where ன followed long vowels producing wrong நே/நா/நோ at start
     result = result
-        // ன before long vowel signs in medial position → ந
-        .replace(/([\u0BBE\u0BBF\u0BC0\u0BC1\u0BC2\u0BC6\u0BC7\u0BC8\u0BCA\u0BCB\u0BCC])\u0BA9([\u0BBE\u0BC7\u0BC0\u0BCB])/g, '$1\u0BA8$2')
-        // standalone நே / நா patterns (neram, naal type words already fixed by start)
-        // Fix: -ன்னு (nnu) at end is correct, but lone ன in middle before vowel → ந
-        .replace(/\u0BA9(\u0BC7)/g, '\u0BA8$1')  // னே → நே in middle
-        .replace(/\u0BA9(\u0BBE)/g, '\u0BA8$1')  // னா → நா in middle (naan = நான்)
-        .replace(/\u0BA9(\u0BCB)/g, '\u0BA8$1'); // னோ → நோ in middle
+        .replace(/\u0BA9(\u0BC7)/g, '\u0BA8$1')  // னே → நே (neram type — medial long-e stays ந)
+        .replace(/\u0BA9(\u0BBE)/g, '\u0BA8$1')  // னா → நா
+        .replace(/\u0BA9(\u0BCB)/g, '\u0BA8$1'); // னோ → நோ
 
     // ── ல/ள/ழ DISAMBIGUATION ──────────────────────────────────────────────
     // Only runs for words NOT found in dictionary (those are already correct).
