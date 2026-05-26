@@ -453,6 +453,9 @@ function heuristicLateral(tanglish) {
     // 7. Suffix -lai in common place/body nouns → often ளை
     if (/llai$/.test(t)) return 'La';
 
+    // 8. Plural / pronominal suffix -gal / -kal (length >= 4)
+    if ((t.endsWith('gal') || t.endsWith('kal')) && t.length >= 4) return 'La';
+
     // ── Default: keep as dental ல ─────────────────────────────────────────
     return 'la';
 }
@@ -550,8 +553,9 @@ export function disambiguateLa(tanglishWord, naiveTamil) {
         result = result
             .replace(/\u0BB2\u0BCD\u0BB2/g, '\u0BB3\u0BCD\u0BB3')   // ல்ல → ள்ள
             .replace(new RegExp('\u0BB2([' + VOWEL_SIGNS + '])', 'g'),
-                '\u0BB3$1')                                            // லா/லி/லு etc → ளா/ளி/ளு
-            .replace(/\u0BB2$/g, '\u0BB3');
+                '\u0BB3$1')                                            // லா/லி/ளு etc → ளா/ளி/ளு
+            .replace(/\u0BB2\u0BCD$/g, '\u0BB3\u0BCD')            // ல் → ள் at word end
+            .replace(/\u0BB2$/g, '\u0BB3');                         // bare ல → ள at word end
     } else if (lateralType === 'zh') {
         result = replaceDentalWithApproximant(result);
     }

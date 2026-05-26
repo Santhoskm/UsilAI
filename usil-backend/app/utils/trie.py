@@ -45,23 +45,24 @@ class Trie:
             node = node.children[char]
         
         results = []
-        self._collect_words(node, prefix, results, limit * 3)
+        MAX_EXTRA_CHARS = 4  # only suggest words up to 4 chars longer than what's typed
+        self._collect_words(node, prefix, results, limit * 3, len(prefix) + MAX_EXTRA_CHARS)
         
         if len(prefix) >= 3:
-            # Exact match (typed word itself) always first, then shortest → A→Z.
-            # Without this, vijaya(6) could appear before vijay(5) when typing 'vijay'.
             results.sort(key=lambda x: (
-                0 if x['tanglish'] == prefix else 1,
-                len(x['tanglish']),
-                x['tanglish']
+              0 if x['tanglish'] == prefix else 1,          # exact match always first
+              len(x['tanglish']) - len(prefix),              # how many extra chars beyond typed
+              x['tanglish']                                  # alphabetical tiebreak
             ))
         else:
-            # For short prefixes, frequency-first is more useful
             results.sort(key=lambda x: (-x['frequency'], len(x['tanglish'])))
         
         return results[:limit]
+
     
-    def _collect_words(self, node: TrieNode, current: str, results: list, limit: int = 100):
+    def _collect_words(self, node: TrieNode, current: str, results: list, limit: int = 100, max_len: int = 999):
+        if len(current) > max_len:
+            return
         # Bug 3 fix: stop early when limit reached — prevents unbounded recursion
         if len(results) >= limit:
             return
@@ -74,4 +75,4 @@ class Trie:
         for char, child in node.children.items():
             if len(results) >= limit:
                 break
-            self._collect_words(child, current + char, results, limit)
+            self._collect_words(child, current + char, results, limit, max_len)

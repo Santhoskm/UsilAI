@@ -14,7 +14,7 @@ def rank_suggestions(suggestions: List[Dict], query: str) -> List[Dict]:
             f = item.get('frequency', 0)
             if t == query:
                 return (0, 0, -f, t)      # exact match first, then by frequency
-            return (1, len(t), -f, t)     # Bug 6 fix: blend length + frequency
+            return (1, len(t) - len(query), -f, t)     # Bug 6 fix: blend length + frequency
 
     else:
         def score(item):
