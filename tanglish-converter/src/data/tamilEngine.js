@@ -570,6 +570,8 @@ const _fallbackTamilMap = new Map([
     ['poitan', 'போய்ட்டான்'], ['ponan', 'போய்ட்டான்'],
     ['vandhen', 'வந்தேன்'], ['vanden', 'வந்தேன்'],
     ['vandhan', 'வந்தான்'], ['vandan', 'வந்தான்'],
+    ['nandri', 'நன்றி'], ['nanda', 'நந்த'], ['nandhini', 'நந்தினி'], ['nandhan', 'நந்தன்'],
+    ['vanda', 'வந்த'], ['vandhavan', 'வந்தவன்'], ['vandhavanga', 'வந்தவங்க'],
     ['paathen', 'பாத்தேன்'], ['paten', 'பாத்தேன்'],
     ['pathen', 'பாத்தேன்'],
     ['paathan', 'பாத்தான்'], ['pathan', 'பாத்தான்'],
@@ -844,6 +846,16 @@ const _suffixTamilMap = {
     'gal': 'கள்',          // plural alt: aandugal → ஆண்டுகள்
     'athu': 'அது',          // demonstrative
     'idhu': 'இது',          // demonstrative
+    // ── Colloquial verbal suffixes ────────────────────────────────────────
+    'nu': 'னு',          // colloquial: ponu→போனு, sonnnu→சொன்னு
+    'nnu': 'ன்னு',       // sonnnu → சொன்னு
+    'nnnu': 'ன்னு',      // triple-n variant some users type
+    // ── Irukku question paradigm ──────────────────────────────────────────
+    'irukkaangala': 'இருக்காங்களா',
+    'irukkingala': 'இருக்கிங்களா',
+    'irukkaala': 'இருக்காளா',
+    'irukkaanaa': 'இருக்கானா',
+
 };
 
 // Ordered from longest to shortest so greedy match picks the best suffix first
@@ -1205,11 +1217,11 @@ export function phoneticNormalize(str) {
 
     // ── 5. Nasal clusters ───────────────────────────────────────────────
     // nk/ng/nj → n  (user often drops the velar: "inga"→"ina", "enga"→"ena")
-    s = s.replace(/ng/g, 'n');
-    s = s.replace(/nk/g, 'n');
-    s = s.replace(/nj/g, 'n');
-    s = s.replace(/nd/g, 'n');
-    s = s.replace(/nt/g, 'n');
+    // s = s.replace(/ng/g, 'n');
+    // s = s.replace(/nk/g, 'n');
+    // s = s.replace(/nj/g, 'n');
+    // s = s.replace(/nd/g, 'n');
+    // s = s.replace(/nt/g, 'n');
 
     // ── 6. Doubled consonants → single ──────────────────────────────────
     s = s.replace(/(.)\1+/g, '$1');    // any doubled char → one
@@ -1843,6 +1855,14 @@ export function applyVallinamDoubling(tamilWord) {
     // Rule 2: suffix-based doubling for common case markers after short vowel letters
     // அ(0B85) இ(0B87) உ(0B89) எ(0B8E) ஒ(0B92)
     const shortVowelLetters = '\u0B85\u0B87\u0B89\u0B8E\u0B92';
+    // Rule 0: nasal consonant (ம் ன் ண்) + bare கு → க்கு
+    // namaku→நமகு, enaku→எனகு etc.
+    result = result
+        .replace(/ம்கு/g, 'ம்க்கு')   // namaku: மகு → ம்க்கு
+        .replace(/ன்கு/g, 'ன்க்கு')   // enaku, unaku
+        .replace(/ண்கு/g, 'ண்க்கு')   // after retroflex nasal
+        .replace(/ம்கே/g, 'ம்க்கே')
+        .replace(/ன்கே/g, 'ன்க்கே');
     const doublingSuffixes = [
         { suffix: 'கு', doubled: 'க்கு' },
         { suffix: 'கே', doubled: 'க்கே' },
@@ -1884,6 +1904,17 @@ export function applyVallinamDoubling(tamilWord) {
 
 // ============ POST-PROCESS CORRECTIONS ============
 const postProcessRules = [
+    // Rules for thirunthani, untana, untanar
+    { pattern: /திருந்தனி/g, replace: 'திருந்தணி' },
+    { pattern: /உண்டன$/g, replace: 'உண்டாண' },
+    { pattern: /உண்டனர்$/g, replace: 'உண்டணர்' },
+    // Fix: un+than split is disabled to keep grammatically correct 'உந்தன்' (with dental n)
+    // { pattern: /உந்த([\u0BA9\u0BA8])/g, replace: 'உன்த$1' },
+    // Fix: ந்ஹ sequence is always wrong — nh together = ந் alone
+    { pattern: /ந்ஹ/g, replace: 'ந்' },
+    { pattern: /ன்ஹ/g, replace: 'ன்' },
+
+
 
     // ── STEM SANDHI PATCHES (run first — most specific wins) ─────────────
     { pattern: /வீட்குள்/g, replace: 'வீட்டுக்குள்' },
@@ -2017,6 +2048,10 @@ const postProcessRules = [
     { pattern: /புரிஞ்ஜ/g, replace: 'புரிஞ்ச' },
     { pattern: /முடிஞ்ஜ/g, replace: 'முடிஞ்ச' },
     { pattern: /பிடிஞ்ஜ/g, replace: 'பிடிஞ்ச' },
+
+    // i.e. bare consonant (U+0B95–U+0BB9) directly followed by கு
+    { pattern: /([\u0B95-\u0BB9])கு/g, replace: '$1க்கு' },
+    { pattern: /([\u0B95-\u0BB9])கே/g, replace: '$1க்கே' },
     // Fix: ர்க/ல்க before SHORT vowel signs (ி ெ only) → ர்க்க/ல்க்க
     // Guard: only doubles before ி (i-sign) and ெ (e-sign) where the cluster
     // is phonologically required.  ு (u-sign) is intentionally excluded to
@@ -2028,10 +2063,10 @@ const postProcessRules = [
     // Pattern: consonant letter (not already followed by pulli or vowel sign) at word END
     // NOTE: _finalPulli:true → applyPostProcess() skips these for words < 4 Tamil chars
     { pattern: /ம$/, replace: 'ம்', _finalPulli: true },
-    { pattern: /ன$/, replace: 'ன்', _finalPulli: true },
+    { pattern: /(?<!\u0BBE)ன$/, replace: 'ன்', _finalPulli: true },
     { pattern: /(?<!\u0BB2\u0BCD)\u0BB2$/, replace: 'ல்', _finalPulli: true },
     { pattern: /ர$/, replace: 'ர்', _finalPulli: true, _minChars: 5 },
-    { pattern: /ண$/, replace: 'ண்', _finalPulli: true },
+    { pattern: /(?<!\u0BBE)ண$/, replace: 'ண்', _finalPulli: true },
 ];
 
 // ============ GEMINATION FIX (Critical #2) ============
@@ -2356,6 +2391,12 @@ function _buildTokenTable() {
     addFamily('tr', '\u0ba4\u0bcd\u0bb0');
 
     // NOTE: Duplicate thr/ndr/str blocks removed — already defined above in section 1.
+    // un+than split — must come before nth cluster to prevent nth from grabbing across word boundary
+    // Add to _buildTokenTable, BEFORE addFamily('nth',...):
+    t.push(['unthan', '\u0B89\u0BA8\u0BCD\u0BA4\u0BA9\u0BCD']);  // unthan → உந்தன்
+    t.push(['unthane', '\u0B89\u0BA8\u0BCD\u0BA4\u0BA9\u0BC7']);  // unthane → உந்தனே
+    t.push(['unthanai', '\u0B89\u0BA8\u0BCD\u0BA4\u0BA9\u0BC8']);  // unthanai → உந்தனை
+    t.push(['unthankaga', '\u0B89\u0BA8\u0BCD\u0BA4\u0BA9\u0BCD\u0B95\u0BBE\u0B95']);  // உந்தன்காக
 
     // nth → ந்த
     addFamily('nth', '\u0ba8\u0bcd\u0ba4');
@@ -2448,7 +2489,9 @@ function _buildTokenTable() {
     addFamily('s', '\u0b9a');
     addFamily('t', '\u0b9f'); addFamily('d', '\u0b9f');
     addFamily('j', '\u0b9c');
-    addFamily('n', '\u0ba8'); // n → ந (dental-na; nn=ன்ன handles alveolar doubled case)
+    // addFamily('n', '\u0ba8'); // n → ந (dental-na; nn=ன்ன handles alveolar doubled case)
+    addFamily('n', '\u0ba9'); // n → ன (alveolar — correct default for colloquial Tanglish)
+    // nh → ந (dental) is already above; word-initial ன→ந fixed below
     addFamily('w', '\u0bb5'); // w → வ (same as v; wa=வா, wi=வி)
     addFamily('N', '\u0ba3');
     addFamily('L', '\u0bb3');
@@ -2488,6 +2531,8 @@ const _neverConjugate = new Set([
     'naanga', 'neanga', 'unna', 'enna', 'evan', 'evalll',
     'avanga', 'neenga', 'yaarnga', 'edhukku', 'ethukku',
     'yaathukkuun', 'eppadi', 'eppovum', 'enga',
+    'unthan', 'unthane', 'unthanai', 'unthankaga',
+    'untana', 'untanar', 'thirunthani', 'cheythirunthanar',
 ]);
 export function convertWithRules(tanglishWord) {
     if (!tanglishWord || !tanglishWord.trim()) return '';
@@ -2625,16 +2670,12 @@ export function convertWithRules(tanglishWord) {
     // Medial ந before any vowel sign → ன
     // (.)\u0BA8 ensures word-initial ந is safe (nothing precedes it at pos 0)
     // Fixes: ninaippu→நினைப்பு, ninaipaal→நினைப்பால் etc.
+    // Medial ந→ன: only fires when BOTH neighbours are vowel signs (true V-N-V)
+    // Narrower scope prevents misfires on names like nandha, nandri
     result = result.replace(
-        /(.)\u0BA8([\u0BBE\u0BBF\u0BC0\u0BC1\u0BC2\u0BC6\u0BC7\u0BC8\u0BCA\u0BCB\u0BCC])/g,
+        /([\u0BBE\u0BBF\u0BC0\u0BC1\u0BC2\u0BC6\u0BC7\u0BC8\u0BCA\u0BCB\u0BCC])\u0BA8([\u0BBE\u0BBF\u0BC0\u0BC1\u0BC2\u0BC6\u0BC7\u0BC8\u0BCA\u0BCB\u0BCC])/g,
         '$1\u0BA9$2'
     );
-    // Reverse the fix for word-start na words where ன was already set correctly to ந
-    // These are cases where ன followed long vowels producing wrong நே/நா/நோ at start
-    result = result
-        .replace(/\u0BA9(\u0BC7)/g, '\u0BA8$1')  // னே → நே (neram type — medial long-e stays ந)
-        .replace(/\u0BA9(\u0BBE)/g, '\u0BA8$1')  // னா → நா
-        .replace(/\u0BA9(\u0BCB)/g, '\u0BA8$1'); // னோ → நோ
 
     // ── ல/ள/ழ DISAMBIGUATION ──────────────────────────────────────────────
     // Only runs for words NOT found in dictionary (those are already correct).
@@ -2942,7 +2983,7 @@ export function transliterateWord(word) {
     if (compoundResult) return compoundResult;
 
     // 5. Verb conjugations
-    const verbForms = conjugateVerb(normalizeInput(lower));
+    const verbForms = (!_neverConjugate.has(lower) && !_neverConjugate.has(normalizeInput(lower))) ? conjugateVerb(normalizeInput(lower)) : [];
     if (verbForms && verbForms.length > 0 && verbForms[0]) {
         return verbForms[0];
     }

@@ -448,7 +448,7 @@ function heuristicLateral(tanglish) {
 
     // 6. Common ள morpheme patterns
     if (/uLL|aLL|iLL|oLL|eLL/.test(t)) return 'La'; // uppercase already = ள but also lowercase
-    if (/palli|kull|mull|pull|vall|kall(?!uri)/.test(t)) return 'La';
+    if (/palli|kull|mull|pull|vall|kall(?!uri)|magal/.test(t)) return 'La';
 
     // 7. Suffix -lai in common place/body nouns → often ளை
     if (/llai$/.test(t)) return 'La';
