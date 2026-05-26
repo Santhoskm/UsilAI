@@ -15,6 +15,7 @@ export { generateLaCandidates };
 
 // ============ DICTIONARY (populated from backend) ============
 const exactDictionary = new Map();
+const phoneticWordMap = new Map();
 
 // Target words to bypass dictionary/database lookup to enforce rule-based forming
 const _bypassDictionary = new Set([
@@ -67,6 +68,10 @@ export async function loadDictionaryFromBackend() {
                 exactDictionary.set(lowerKey, tamilValue);
                 // Store backend frequency so trie gets real frequency data
                 _backendFrequency.set(lowerKey, freq);
+                const existingFreq = _tamilWordFrequency.get(tamilValue) || 0;
+                if (freq > existingFreq) {
+                    _tamilWordFrequency.set(tamilValue, freq);
+                }
                 if (key.includes(' ')) {
                     exactDictionary.set(key.replace(/ /g, ''), tamilValue);
                     _backendFrequency.set(key.replace(/ /g, '').toLowerCase(), freq);
@@ -93,6 +98,7 @@ export async function loadDictionaryFromBackend() {
 // Backend frequency data: tanglish → frequency from database
 // Used when building the trie so popular words rank higher
 const _backendFrequency = new Map();
+const _tamilWordFrequency = new Map();
 
 /**
  * preloadCommonChunks — now just triggers the backend dictionary load.
@@ -899,8 +905,45 @@ function _joinStemSuffix(stemTamil, suffixTamil) {
     if (!stemTamil || !suffixTamil) return stemTamil + suffixTamil;
 
     const PULLI = '\u0BCD'; // ்
-    const last = stemTamil.slice(-1);
-    const lastTwo = stemTamil.slice(-2);
+    let last = stemTamil.slice(-1);
+    let lastTwo = stemTamil.slice(-2);
+
+    // Apply open-stem sandhi patterns for vowel-starting suffixes (உடம்படுமெய் & உக்குரல்)
+    const suffixFirst = suffixTamil[0];
+    const isVowelStarting = _standaloneVowelToSign[suffixFirst] !== undefined;
+
+    if (isVowelStarting) {
+        const yEndingVowels = [
+            '\u0BBF', '\u0BC0', '\u0BC7', '\u0BC8', // vowel signs: ி, ீ, ே, ை
+            '\u0B87', '\u0B88', '\u0B8F', '\u0B90'  // standalone vowels: இ, ஈ, ஏ, ஐ
+        ];
+        const vEndingVowels = [
+            '\u0BBE', '\u0BC2', '\u0BC6', '\u0BCA', '\u0BCB', '\u0BCC', // vowel signs: ா, ூ, ெ, ொ, ோ, ௌ
+            '\u0B85', '\u0B86', '\u0B89', '\u0B8A', '\u0B8E', '\u0B92', '\u0B93', '\u0B94' // standalone vowels: அ, ஆ, உ, ஊ, எ, ஒ, ஓ, ஔ
+        ];
+
+        if (yEndingVowels.includes(last)) {
+            // Rule 1: Insert linking 'ய்'
+            stemTamil = stemTamil + '\u0BAF\u0BCD';
+        } else if (last === '\u0BC1') {
+            // Rule 2: 'u'-deletion and optional vallinam doubling
+            const base = stemTamil.slice(0, -1);
+            const baseLastChar = base.slice(-1);
+            const vallinam = ['\u0B95', '\u0B9A', '\u0B9F', '\u0BA4', '\u0BAA', '\u0BB1'];
+            if (vallinam.includes(baseLastChar)) {
+                stemTamil = base.slice(0, -1) + baseLastChar + PULLI + baseLastChar + PULLI;
+            } else {
+                stemTamil = base + PULLI;
+            }
+        } else if (vEndingVowels.includes(last)) {
+            // Rule 3: Insert linking 'வ்'
+            stemTamil = stemTamil + '\u0BB5\u0BCD';
+        }
+
+        // Re-evaluate last and lastTwo for the transformed stem
+        last = stemTamil.slice(-1);
+        lastTwo = stemTamil.slice(-2);
+    }
 
     // Pattern A: stem ends in ு → double the consonant before it
     if (last === '\u0BC1') {
@@ -1009,7 +1052,7 @@ function checkCompoundWord(normalized) {
 
         // ── Fallback suffix split for unseen/new words ──────────────────
         const allowedUnseenSuffixes = new Set([
-            'gal', 'kal', 'ukku', 'kku', 'aaga', 'kaaga', 
+            'gal', 'kal', 'ukku', 'kku', 'aaga', 'kaaga',
             'lirundhu', 'lerndhu', 'lendhu', 'kitta', 'kita',
             'la', 'il'
         ]);
@@ -1228,6 +1271,10 @@ export function phoneticNormalize(str) {
     if (!str) return '';
     let s = str.toLowerCase().trim();
 
+    // Collapse word-final -ai, -e to -a (colloquial Tamil vowel shifts)
+    s = s.replace(/ai$/, 'a');
+    s = s.replace(/e$/, 'a');
+
     // ── 1. Long vowels → short ──────────────────────────────────────────
     s = s.replace(/aa/g, 'a');
     s = s.replace(/ee/g, 'i');
@@ -1281,6 +1328,16 @@ export function phoneticNormalize(str) {
     // ── 10. Final cleanup: collapse any new doubles created above ────────
     s = s.replace(/(.)\1+/g, '$1');
 
+    // ── 11. Drop all vowels/semi-vowels after the first character ───────
+    if (s.length > 1) {
+        const first = s[0];
+        const rest = s.slice(1).replace(/[aeiouy]/g, '');
+        s = first + rest;
+    }
+
+    // Collapse any final doubles that might be adjacent now after vowel removal
+    s = s.replace(/(.)\1+/g, '$1');
+
     return s;
 }
 
@@ -1295,6 +1352,8 @@ function buildSuggestionTrie() {
     let count = 0;
     let startTime = Date.now();
 
+    phoneticWordMap.clear();
+
     for (const [tanglish, tamil] of exactDictionary.entries()) {
         // Combine backend DB frequency + local user frequency for ranking
         const backendFreq = _backendFrequency.get(tanglish) || 0;
@@ -1302,10 +1361,18 @@ function buildSuggestionTrie() {
         const freq = backendFreq + localFreq;
         suggestionTrie.insert(tanglish, tamil, freq);
 
+        // ── Populate phoneticWordMap ──
+        const pKey = phoneticNormalize(tanglish);
+        if (pKey) {
+            const existing = phoneticWordMap.get(pKey);
+            if (!existing || freq > existing.frequency) {
+                phoneticWordMap.set(pKey, { tanglish, tamil, frequency: freq });
+            }
+        }
+
         // ── Also insert under the phonetic-normalised key ──
-        const phoneticKey = phoneticNormalize(tanglish);
-        if (phoneticKey && phoneticKey !== tanglish) {
-            phoneticTrie.insert(phoneticKey, tamil, freq);
+        if (pKey && pKey !== tanglish) {
+            phoneticTrie.insert(pKey, tamil, freq);
         }
         count++;
 
@@ -1347,19 +1414,21 @@ export function getTypingSuggestions(typedText, limit = 8) {
     // typed (ramesh→ரமெஷ், kara→கர). Dictionary entries can have wrong values
     // (kara→கற in backend), so rule result is shown first; dict becomes option 2+.
     if (typedText.length >= 2) {
-        const ruleFormed = convertWithRules(lower);
-        if (ruleFormed && /[\u0B80-\u0BFF]/.test(ruleFormed)) {
-            results.push({
-                tanglish: lower,
-                tamil: ruleFormed,
-                type: '\u{1F527} Rule',
-                priority: 0,
-                exact: false,
-                frequency: 0
-            });
-            seen.add(ruleFormed);
-            seenKeys.add(lower);
-        }
+        const ruleCandidates = beamSearchTransliterate(lower, 4, 3);
+        ruleCandidates.forEach((cand) => {
+            if (cand && /[\u0B80-\u0BFF]/.test(cand) && !seen.has(cand)) {
+                results.push({
+                    tanglish: lower,
+                    tamil: cand,
+                    type: '\u{1F527} Rule',
+                    priority: 0,
+                    exact: false,
+                    frequency: getWordFrequency(cand)
+                });
+                seen.add(cand);
+                seenKeys.add(lower);
+            }
+        });
     }
 
     // ── PASS 1: Trie exact match (fastest - O(L)) ──
@@ -1519,16 +1588,32 @@ export function getTypingSuggestions(typedText, limit = 8) {
     // ── PASS 5: Rule engine fallback (only if no dictionary matches) ──
     // Also pushes generateWordForms variants so user sees 3-4 forming options.
     if (results.length === 0 && typedText.length >= 2) {
-        const formed = convertWithRules(lower);
-        if (formed && /[஀-௿]/.test(formed) && !seen.has(formed)) {
-            results.push({ tanglish: lower, tamil: formed, type: '🔧 Rule', priority: 5, exact: false });
-            seen.add(formed);
-        }
+        const ruleCandidates = beamSearchTransliterate(lower, 4, 3);
+        ruleCandidates.forEach((cand) => {
+            if (cand && /[஀-௿]/.test(cand) && !seen.has(cand)) {
+                results.push({
+                    tanglish: lower,
+                    tamil: cand,
+                    type: '🔧 Rule',
+                    priority: 5,
+                    exact: false,
+                    frequency: getWordFrequency(cand)
+                });
+                seen.add(cand);
+            }
+        });
         const forms5 = generateWordForms(lower);
         for (const f of forms5) {
             if (results.length >= limit) break;
             if (!seen.has(f) && /[஀-௿]/.test(f)) {
-                results.push({ tanglish: typedText, tamil: f, type: '🔧 Form', priority: 5, exact: false });
+                results.push({
+                    tanglish: typedText,
+                    tamil: f,
+                    type: '🔧 Form',
+                    priority: 5,
+                    exact: false,
+                    frequency: getWordFrequency(f)
+                });
                 seen.add(f);
             }
         }
@@ -1536,16 +1621,33 @@ export function getTypingSuggestions(typedText, limit = 8) {
 
     // ── PASS 6: Rule preview + word form variants (always show forming options) ──
     if (typedText.length >= 2 && results.length < limit) {
-        const formed = convertWithRules(lower);
-        if (formed && /[஀-௿]/.test(formed) && !seen.has(formed)) {
-            results.push({ tanglish: lower, tamil: formed, type: '🔧 Rule', priority: 6, exact: false });
-            seen.add(formed);
-        }
+        const ruleCandidates = beamSearchTransliterate(lower, 4, 3);
+        ruleCandidates.forEach((cand) => {
+            if (results.length >= limit) return;
+            if (cand && /[஀-௿]/.test(cand) && !seen.has(cand)) {
+                results.push({
+                    tanglish: lower,
+                    tamil: cand,
+                    type: '🔧 Rule',
+                    priority: 6,
+                    exact: false,
+                    frequency: getWordFrequency(cand)
+                });
+                seen.add(cand);
+            }
+        });
         const forms6 = generateWordForms(lower);
         for (const f of forms6) {
             if (results.length >= limit) break;
             if (!seen.has(f) && /[஀-௿]/.test(f)) {
-                results.push({ tanglish: typedText, tamil: f, type: '🔧 Form', priority: 6, exact: false });
+                results.push({
+                    tanglish: typedText,
+                    tamil: f,
+                    type: '🔧 Form',
+                    priority: 6,
+                    exact: false,
+                    frequency: getWordFrequency(f)
+                });
                 seen.add(f);
             }
         }
@@ -2620,6 +2722,14 @@ export function convertWithRules(tanglishWord) {
         if (compoundResult) return compoundResult;
     }
 
+    // Check phonetic fallback map
+    if (!_bypassDictionary.has(normalized)) {
+        const pKey = phoneticNormalize(normalized);
+        if (pKey && phoneticWordMap.has(pKey)) {
+            return phoneticWordMap.get(pKey).tamil;
+        }
+    }
+
     // Check verb forms — only for words with known verb suffixes (avoids false positives on nouns)
     if (_verbSuffixRe.test(normalized) && !_neverConjugate.has(normalized)) {
         const verbForms = conjugateVerb(normalized);
@@ -2653,7 +2763,19 @@ export function convertWithRules(tanglishWord) {
             const chunk = input.slice(pos, pos + len);
             for (const [key, val] of bucket) {
                 if (key === chunk) {
-                    result += val;
+                    let finalVal = val;
+                    if (pos === 0) {
+                        finalVal = finalVal.replace(/\u0BA9/g, '\u0BA8');
+                    }
+                    // Priority 3: Word-final 'o' after a consonant -> long 'ō' (ோ)
+                    if (key.endsWith('o') && key !== 'o' && pos + len === input.length) {
+                        finalVal = finalVal.replace(/\u0BCA/g, '\u0BCB');
+                    }
+                    // Priority 3: Standalone 'o' word -> long 'ō' (ஓ)
+                    if (key === 'o' && input.length === 1) {
+                        finalVal = '\u0B93';
+                    }
+                    result += finalVal;
                     pos += len;
                     matched = true;
                     break;
@@ -2753,21 +2875,24 @@ export function beamSearchTransliterate(tanglishWord, beamWidth = 4, topK = 5) {
     const lower = tanglishWord.toLowerCase().trim();
     const normalized = normalizeInput(lower);
     const input = normalized;
-    const seen = new Set();
-    const candidates = [];
+    const candidateScores = new Map(); // tamilWord -> confidence score
 
     // Seed: check dictionary/fallback first
-    const dictResult = fullWordMapping.get(normalized) || _fallbackTamilMap.get(lower);
+    let dictResult = fullWordMapping.get(normalized) || _fallbackTamilMap.get(lower);
+    if (!dictResult && !_bypassDictionary.has(normalized)) {
+        const pKey = phoneticNormalize(normalized);
+        if (pKey && phoneticWordMap.has(pKey)) {
+            dictResult = phoneticWordMap.get(pKey).tamil;
+        }
+    }
     if (dictResult) {
-        candidates.push(dictResult);
-        seen.add(dictResult);
+        candidateScores.set(dictResult, input.length * 2 + 10);
     }
 
     // Also add the standard rule engine output
     const ruleResult = convertWithRules(lower);
-    if (ruleResult && /[\u0B80-\u0BFF]/.test(ruleResult) && !seen.has(ruleResult)) {
-        candidates.push(ruleResult);
-        seen.add(ruleResult);
+    if (ruleResult && /[\u0B80-\u0BFF]/.test(ruleResult)) {
+        candidateScores.set(ruleResult, Math.max(candidateScores.get(ruleResult) || 0, input.length * 2 + 5));
     }
 
     // Beam search over token table
@@ -2790,9 +2915,8 @@ export function beamSearchTransliterate(tanglishWord, beamWidth = 4, topK = 5) {
                 if (final.length > 0 && final[0] === '\u0BB1') final = '\u0BB0' + final.slice(1);
                 if (final.length > 0 && final[0] === '\u0BB3') final = '\u0BB2' + final.slice(1);
 
-                if (/[\u0B80-\u0BFF]/.test(final) && !seen.has(final)) {
-                    candidates.push(final);
-                    seen.add(final);
+                if (/[\u0B80-\u0BFF]/.test(final)) {
+                    candidateScores.set(final, Math.max(candidateScores.get(final) || 0, beam.score));
                 }
                 continue;
             }
@@ -2806,8 +2930,20 @@ export function beamSearchTransliterate(tanglishWord, beamWidth = 4, topK = 5) {
                 const chunk = input.slice(beam.pos, beam.pos + len);
                 for (const [key, val] of bucket) {
                     if (key === chunk) {
+                        let finalVal = val;
+                        if (beam.pos === 0) {
+                            finalVal = finalVal.replace(/\u0BA9/g, '\u0BA8');
+                        }
+                        // Priority 3: Word-final 'o' after a consonant -> long 'ō' (ோ)
+                        if (key.endsWith('o') && key !== 'o' && beam.pos + len === input.length) {
+                            finalVal = finalVal.replace(/\u0BCA/g, '\u0BCB');
+                        }
+                        // Priority 3: Standalone 'o' word -> long 'ō' (ஓ)
+                        if (key === 'o' && input.length === 1) {
+                            finalVal = '\u0B93';
+                        }
                         // Score: longer matches get higher score (more confident)
-                        matches.push({ val, len, score: len * 2 });
+                        matches.push({ val: finalVal, len, score: len * 2 });
                     }
                 }
             }
@@ -2838,10 +2974,18 @@ export function beamSearchTransliterate(tanglishWord, beamWidth = 4, topK = 5) {
         beams = nextBeams.slice(0, beamWidth * 2);
 
         // Early exit if we have enough candidates
-        if (candidates.length >= topK) break;
+        if (candidateScores.size >= topK * 2) break;
     }
 
-    return candidates.slice(0, topK);
+    // Rank candidates using combined frequency + confidence score
+    const ranked = Array.from(candidateScores.entries()).map(([word, confidence]) => {
+        const freq = getWordFrequency(word);
+        const score = freq * 1000 + confidence;
+        return { word, score };
+    });
+
+    ranked.sort((a, b) => b.score - a.score);
+    return ranked.map(c => c.word).slice(0, topK);
 }
 
 // ============ FUZZY MATCHING ============
@@ -3021,7 +3165,7 @@ function _cleanupStaleCorrections() {
                 localStorage.setItem('tamilCorrectionHistory', JSON.stringify(filtered));
             }
         }
-    } catch (_) {}
+    } catch (_) { }
 }
 
 export function loadLearnedCorrections() {
@@ -4142,7 +4286,7 @@ function initFrequencyData() {
 // Get frequency score for a Tamil word
 export function getWordFrequency(word) {
     if (!word) return 0;
-    return frequencyData[word] || 0;
+    return Math.max(frequencyData[word] || 0, _tamilWordFrequency.get(word) || 0);
 }
 
 // Update frequency data (learn from user usage)
