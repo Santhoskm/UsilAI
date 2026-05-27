@@ -794,6 +794,11 @@ function normalizeInput(input) {
         // -nga → -inga (common suffix drop)
         .replace(/^(po|va|so|pa|pe)nga$/, '$1inga');
 
+    // Normalize final -ash to -aash for names (e.g. subash -> subaash -> சுபாஷ்)
+    if (normalized.endsWith('ash') && normalized.length > 3) {
+        normalized = normalized.replace(/ash$/, 'aash');
+    }
+
     return normalized;
 }
 
@@ -1985,7 +1990,7 @@ export function applyVallinamDoubling(tamilWord) {
         'த்': 'த்த', 'ப்': 'ப்ப', 'ற்': 'ற்ற'
     };
     for (const [pulli, doubled] of Object.entries(vallinamPulliMap)) {
-        const pattern = new RegExp(`([${shortVowelSigns}])(${pulli})`, 'g');
+        const pattern = new RegExp(`([${shortVowelSigns}])(${pulli})(?!${pulli[0]})`, 'g');
         result = result.replace(pattern, (_, vowel, cons) => vowel + doubled);
     }
     // Never double a consonant that follows visarga ஃ (foreign loan words: ஃப், ஃக் etc.)
@@ -2235,14 +2240,14 @@ function applyGeminationFix(tamilWord) {
     // e.g. ிக → ிக்க (only if not already doubled)
     for (const v of vallinam) {
         // After short vowel sign: sign + consonant + vowel → sign + consonant + pulli + consonant + vowel
-        const re1 = new RegExp(`([${shortVowelSigns}])(${v})([\u0BBE-\u0BCC])`, 'g');
+        const re1 = new RegExp(`([${shortVowelSigns}])(${v})([\u0BBF\u0BC1\u0BC6\u0BCA\u0BC8])`, 'g');
         result = result.replace(re1, (match, sign, cons, vowel) => {
             // Don't double if already preceded by pulli (already geminated)
             return sign + cons + PULLI + cons + vowel;
         });
 
         // After short standalone vowel: vowel + consonant + vowel-sign → vowel + consonant + pulli + consonant + vowel-sign
-        const re2 = new RegExp(`([${shortVowels}])(${v})([\u0BBE-\u0BCC])`, 'g');
+        const re2 = new RegExp(`([${shortVowels}])(${v})([\u0BBF\u0BC1\u0BC6\u0BCA\u0BC8])`, 'g');
         result = result.replace(re2, (match, vow, cons, sign) => {
             return vow + cons + PULLI + cons + sign;
         });
