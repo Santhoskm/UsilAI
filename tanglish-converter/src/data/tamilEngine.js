@@ -1014,62 +1014,50 @@ function _joinStemSuffix(stemTamil, suffixTamil) {
 function checkCompoundWord(normalized) {
     if (!normalized || normalized.length < 4) return null;
 
-    // ── PASS 1: Try each suffix (longest first) ─────────────────────────
-    for (const suffix of _compoundSuffixes) {
-        if (!normalized.endsWith(suffix)) continue;
-        const stem = normalized.slice(0, -suffix.length);
-        if (stem.length < 2) continue;  // stem too short — likely false positive
+    // ── PASS 1: Suffix loop — peel up to 4 suffixes deep ────────────────
+    // e.g. veedukkullaethan → veedu+kku+lla+ethan
+    let remaining = normalized;
+    let suffixTamilStack = [];
+    let stemTamil = null;
+    const MAX_DEPTH = 4;
 
-        // Check if stem exists in dictionary
-        if (fullWordMapping.has(stem)) {
-            const stemTamil = fullWordMapping.get(stem);
+    for (let depth = 0; depth < MAX_DEPTH; depth++) {
+        let matched = false;
+        for (const suffix of _compoundSuffixes) {
+            if (!remaining.endsWith(suffix)) continue;
+            const stem = remaining.slice(0, -suffix.length);
+            if (stem.length < 2) continue;
+
             const suffixTamil = _suffixTamilMap[suffix];
-            return _joinStemSuffix(stemTamil, suffixTamil);
-        }
+            if (!suffixTamil) continue;
 
-        // ── RULE: also check _fallbackTamilMap for stem ──────────────────
-        // Handles avankita (avan+kita), avalkita, ivankita etc. where the
-        // stem is a known pronoun/word in the fallback map but not in the
-        // backend dictionary (which only has 39 entries at startup).
-        const _fallbackStem = _fallbackTamilMap.get(stem);
-        if (_fallbackStem) {
-            const suffixTamil = _suffixTamilMap[suffix];
-            if (suffixTamil) return _joinStemSuffix(_fallbackStem, suffixTamil);
-        }
+            // Check stem in all sources
+            let foundStemTamil = fullWordMapping.get(stem)
+                || _fallbackTamilMap.get(stem)
+                || null;
 
-        // Also try common stem alternates:
-        //   veetila → stem "veeti" doesn't exist, but "veedu" does
-        //   Try removing last vowel-harmonized char and adding back base
-        const stemAlts = _generateStemAlternates(stem);
-        for (const altStem of stemAlts) {
-            if (fullWordMapping.has(altStem)) {
-                const stemTamil = fullWordMapping.get(altStem);
-                const suffixTamil = _suffixTamilMap[suffix];
-                return _joinStemSuffix(stemTamil, suffixTamil);
-            }
-            // Also check fallback for alternates
-            const _fallbackAlt = _fallbackTamilMap.get(altStem);
-            if (_fallbackAlt) {
-                const suffixTamil = _suffixTamilMap[suffix];
-                if (suffixTamil) return _joinStemSuffix(_fallbackAlt, suffixTamil);
-            }
-        }
-
-        // ── Fallback suffix split for unseen/new words ──────────────────
-        const allowedUnseenSuffixes = new Set([
-            'gal', 'kal', 'ukku', 'kku', 'aaga', 'kaaga',
-            'lirundhu', 'lerndhu', 'lendhu', 'kitta', 'kita',
-            'la', 'il'
-        ]);
-        if (stem.length >= 3 && allowedUnseenSuffixes.has(suffix)) {
-            const suffixTamil = _suffixTamilMap[suffix];
-            if (suffixTamil) {
-                const stemTamil = convertWithRules(stem);
-                if (stemTamil && stemTamil !== stem) {
-                    return _joinStemSuffix(stemTamil, suffixTamil);
+            if (!foundStemTamil) {
+                // Try stem alternates
+                for (const alt of _generateStemAlternates(stem)) {
+                    foundStemTamil = fullWordMapping.get(alt) || _fallbackTamilMap.get(alt);
+                    if (foundStemTamil) break;
                 }
             }
+
+            if (foundStemTamil) {
+                // Found the stem — join all accumulated suffixes
+                let result = foundStemTamil;
+                for (const sf of suffixTamilStack) result = _joinStemSuffix(result, sf);
+                return _joinStemSuffix(result, suffixTamil);
+            }
+
+            // Stem not found yet — peel this suffix and keep going deeper
+            suffixTamilStack.unshift(suffixTamil);
+            remaining = stem;
+            matched = true;
+            break;
         }
+        if (!matched) break;
     }
 
     // ── PASS 2: Try splitting into two known words (true compound) ──────
@@ -1892,6 +1880,24 @@ export function applySandhiRules(word1, word2) {
         return word1.slice(0, -1) + 'ற்' + word2;
     }
 
+    // Rule 6: ஐ-sandhi — word ending in ை + vowel-starting word → insert ய் glide
+    // e.g. கை + இல் → கையில்
+    if (ending1 === 'ை' && isVowel(start2)) {
+        return word1 + 'ய்' + word2;
+    }
+
+    // Rule 7: ஒ-sandhi — word ending in ஒ before vowel lengthens to ஓ
+    // e.g. கொ + அழகு → கோ + அழகு (uncommon but correct)
+    if (ending1 === 'ஒ' && isVowel(start2)) {
+        return word1.slice(0, -1) + 'ஓ' + word2;
+    }
+
+    // Rule 8: மெய்ம்மயக்கம் — ல் before க → ற்க (consonant assimilation)
+    // e.g. பல் + கள் → பற்கள்
+    if (ending1 === 'ல்' && start2 === 'க') {
+        return word1.slice(0, -2) + 'ற்' + word2;
+    }
+
     return word1 + word2;
 }
 
@@ -2229,6 +2235,19 @@ const postProcessRules = [
 function applyGeminationFix(tamilWord) {
     if (!tamilWord || tamilWord.length < 3) return tamilWord;
 
+    // Guard: skip gemination for Grantha-consonant words (loanwords)
+    // ஜ(0B9C) ஷ(0BB7) ஸ(0BB8) ஹ(0BB9) — these never geminate
+    const granthaOnly = /^[\u0B9C\u0BB7\u0BB8\u0BB9]/.test(tamilWord);
+    if (granthaOnly) return tamilWord;
+
+    // Guard: skip if word contains ONLY Grantha consonants + vowels
+    // e.g. பஸ், டிப், கப் — common English borrowings
+    const _loanRoots = new Set([
+        'பஸ்', 'டிப்', 'கப்', 'ஷாப்', 'ஆபீஸ்', 'கேம்', 'டீம்', 'ஸ்டேஜ்',
+        'பிளான்', 'டெஸ்ட்', 'ஸ்கூல்', 'காலேஜ்', 'ஹோட்டல்', 'பஸ்ஸ்'
+    ]);
+    if (_loanRoots.has(tamilWord)) return tamilWord;
+
     const PULLI = '\u0BCD'; // ்
     // Short vowel signs: ி(0BBF) ு(0BC1) ெ(0BC6) ொ(0BCA)
     const shortVowelSigns = '\u0BBF\u0BC1\u0BC6\u0BCA';
@@ -2299,6 +2318,15 @@ function applyPositionalNaFix(tamilWord) {
     if (result[0] === '\u0BA9') {
         result = '\u0BA8' + result.slice(1);
     }
+
+    // Rule 4: Medial ந before a vowel sign stays ந (dental)
+    // e.g. மனிதன் — the first ந before ி must stay ந, not ன
+    // Pattern: consonant/vowel-sign + ந + vowel-sign → keep ந (no change needed)
+    // But: ன in medial position before a vowel sign → fix to ந
+    result = result.replace(
+        /([\u0BBE-\u0BCC])\u0BA9([\u0BBE-\u0BCC])/g,
+        '$1\u0BA8$2'
+    );
 
     return result;
 }

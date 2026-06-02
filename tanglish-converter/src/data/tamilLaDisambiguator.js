@@ -100,6 +100,37 @@ function fixInitialApproximant(tamil) {
     return tamil;
 }
 
+
+/**
+ * positionalLaFallback(tanglishWord, tamilWord) → correctedTamil
+ *
+ * For words NOT in the root map, apply position rules:
+ *   - after ி or ு in medial position → ள (retroflex)
+ *   - word-initial → always ல (dental)
+ *   - after ழ cluster → stays ழ
+ */
+function positionalLaFallback(tanglishWord, tamilWord) {
+    if (!tamilWord) return tamilWord;
+
+    const VOWEL_SIGN_RETRO = /[\u0BBF\u0BC1]/; // ி or ு
+    let result = tamilWord;
+
+    // Rule: vowel-sign (ி/ு) + ல் in medial position → ள்
+    // e.g. "kuli" → குளி, "puli" → புளி (not குலி/புலி for unknown words)
+    result = result.replace(
+        /([\u0BBF\u0BC1])\u0BB2\u0BCD(?![\u0BB2\u0BB3])/g,
+        '$1\u0BB3\u0BCD'
+    );
+
+    // Rule: ி/ு + ல + vowel-sign (medial open syllable) → ள
+    result = result.replace(
+        /([\u0BBF\u0BC1])\u0BB2([\u0BBF\u0BC1\u0BC6\u0BCA\u0BC8])/g,
+        '$1\u0BB3$2'
+    );
+
+    return result;
+}
+
 // ── LAYER 3: ROOT PATTERN TABLE ──────────────────────────────────────────────
 // Maps tanglish root/word → correct Tamil.
 // Covers the ~200 most common words where l/L/zh confusion occurs.
@@ -938,6 +969,14 @@ export function disambiguateRa(tanglishWord, naiveTamil) {
             }
         }
     }
+    if (result === naiveTamil) {
+        result = positionalLaFallback(tanglishWord, result);
+    }
+    return result;
+
 
     return naiveTamil;
+
+
 }
+
