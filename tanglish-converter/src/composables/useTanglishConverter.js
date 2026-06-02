@@ -20,6 +20,9 @@ export function useTanglishConverter() {
 
     // Internal: last backend fetch abort controller
     let _abortCtrl = null
+    // Bug 3 fix: tracks the most recent query word so stale backend
+    // responses (from old keystrokes) are discarded when they arrive late
+    let _lastQuery = ''
 
     const convertWord = (tanglishWord, surroundingText = '') => {
         if (!tanglishWord || tanglishWord.trim() === '') return ''
@@ -53,6 +56,10 @@ export function useTanglishConverter() {
         // Always normalize to lowercase before any lookup
         const normalizedWord = partialWord.toLowerCase().trim()
 
+        // Bug 3 fix: stamp which word this call is for
+        _lastQuery = normalizedWord
+        const fetchedFor = normalizedWord
+
         // 1. Instant local engine results (synchronous)
         let localSuggestions
         if (surroundingText) {
@@ -70,6 +77,9 @@ export function useTanglishConverter() {
 
         fetchSuggestions(normalizedWord, 5)
             .then(backendResults => {
+                // Bug 3 fix: discard if user typed/deleted since this fetch started
+                if (_lastQuery !== fetchedFor) return
+
                 if (backendResults && backendResults.length > 0) {
                     // Merge: local first, then backend extras
                     // Dedup by BOTH tamil value AND tanglish key.

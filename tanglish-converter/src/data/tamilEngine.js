@@ -1347,6 +1347,21 @@ function buildSuggestionTrie() {
 
     phoneticWordMap.clear();
 
+    // Seed from _fallbackTamilMap first — always available, no backend needed.
+    // Gives ~700 high-frequency colloquial words instantly at startup.
+    for (const [tanglish, tamil] of _fallbackTamilMap.entries()) {
+        suggestionTrie.insert(tanglish, tamil, 500);
+        const pKey = phoneticNormalize(tanglish);
+        if (pKey) {
+            const existing = phoneticWordMap.get(pKey);
+            if (!existing || 500 > existing.frequency) {
+                phoneticWordMap.set(pKey, { tanglish, tamil, frequency: 500 });
+            }
+            if (pKey !== tanglish) phoneticTrie.insert(pKey, tamil, 500);
+        }
+        count++;
+    }
+
     for (const [tanglish, tamil] of exactDictionary.entries()) {
         // Combine backend DB frequency + local user frequency for ranking
         const backendFreq = _backendFrequency.get(tanglish) || 0;
@@ -1394,6 +1409,20 @@ function buildPhoneticIndex() {
 }
 
 // Fast suggestion function using Trie
+
+// Helper: returns true if a Tamil string contains broken tokenizer artifacts
+// e.g. ்+standalone-vowel (வர்உ, வர்இய்) or ஒஒ (double standalone vowel)
+function _isBrokenTamil(s) {
+    if (!s) return true;
+    // virama followed by standalone vowel
+    if (/்[அ-ஔ]/.test(s)) return true;
+    // two standalone vowels adjacent (ஒஒரு)
+    if (/[அ-ஔ]{2}/.test(s)) return true;
+    // consonant + standalone vowel (no virama between) e.g. நஅ
+    if (/[க-ஹ][அ-ஔ]/.test(s)) return true;
+    return false;
+}
+
 export function getTypingSuggestions(typedText, limit = 8) {
     if (!typedText || typedText.length < 1) return [];
 
@@ -1409,7 +1438,11 @@ export function getTypingSuggestions(typedText, limit = 8) {
     if (typedText.length >= 2) {
         const ruleCandidates = beamSearchTransliterate(lower, 4, 3);
         ruleCandidates.forEach((cand) => {
-            if (cand && /[\u0B80-\u0BFF]/.test(cand) && !seen.has(cand)) {
+            // Reject broken forms: virama+standalone-vowel mid-word (வர்இய், வ்அர், நஅன்)
+            // Pattern 1: ் followed by standalone vowel (அ-ஔ) = virama+vowel hiatus
+            // Pattern 2: consonant followed immediately by standalone vowel with no virama
+            //            e.g. நஅ (na + a standalone) = tokenizer split error
+            if (!_isBrokenTamil(cand) && !seen.has(cand)) {
                 results.push({
                     tanglish: lower,
                     tamil: cand,
@@ -1447,7 +1480,7 @@ export function getTypingSuggestions(typedText, limit = 8) {
     const triePrefixMatches = suggestionTrie.getWordsWithPrefix(lower, limit * 2);
     for (const match of triePrefixMatches) {
         if (results.length >= limit) break;
-        if (!seenKeys.has(match.tanglish) && !seen.has(match.tamil)) {
+        if (!seenKeys.has(match.tanglish) && !seen.has(match.tamil) && !_isBrokenTamil(match.tamil)) {
             results.push({
                 tanglish: match.tanglish,
                 tamil: match.tamil,
@@ -1583,7 +1616,7 @@ export function getTypingSuggestions(typedText, limit = 8) {
     if (results.length === 0 && typedText.length >= 2) {
         const ruleCandidates = beamSearchTransliterate(lower, 4, 3);
         ruleCandidates.forEach((cand) => {
-            if (cand && /[஀-௿]/.test(cand) && !seen.has(cand)) {
+            if (cand && !_isBrokenTamil(cand) && !seen.has(cand)) {
                 results.push({
                     tanglish: lower,
                     tamil: cand,
@@ -1598,7 +1631,7 @@ export function getTypingSuggestions(typedText, limit = 8) {
         const forms5 = generateWordForms(lower);
         for (const f of forms5) {
             if (results.length >= limit) break;
-            if (!seen.has(f) && /[஀-௿]/.test(f)) {
+            if (!seen.has(f) && !_isBrokenTamil(f) && /[஀-௿]/.test(f)) {
                 results.push({
                     tanglish: typedText,
                     tamil: f,
@@ -1617,7 +1650,7 @@ export function getTypingSuggestions(typedText, limit = 8) {
         const ruleCandidates = beamSearchTransliterate(lower, 4, 3);
         ruleCandidates.forEach((cand) => {
             if (results.length >= limit) return;
-            if (cand && /[஀-௿]/.test(cand) && !seen.has(cand)) {
+            if (cand && !_isBrokenTamil(cand) && !seen.has(cand)) {
                 results.push({
                     tanglish: lower,
                     tamil: cand,
@@ -1632,7 +1665,7 @@ export function getTypingSuggestions(typedText, limit = 8) {
         const forms6 = generateWordForms(lower);
         for (const f of forms6) {
             if (results.length >= limit) break;
-            if (!seen.has(f) && /[஀-௿]/.test(f)) {
+            if (!seen.has(f) && !_isBrokenTamil(f) && /[஀-௿]/.test(f)) {
                 results.push({
                     tanglish: typedText,
                     tamil: f,

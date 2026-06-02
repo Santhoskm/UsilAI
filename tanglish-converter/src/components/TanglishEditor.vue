@@ -271,17 +271,16 @@
 
 
       <!-- Suggestions Popup -->
-      <div v-if="showSuggestions && suggestionsList.length > 0"
+      <div v-show="showSuggestions && suggestionsList.length > 0"
            class="suggestions-popup"
            :style="popupStyle">
         <div v-for="(suggestion, idx) in suggestionsList"
-             :key="idx"
+             :key="suggestion.tamil"
              @click="selectSuggestion(suggestion)"
              :class="{ 'selected': idx === selectedSuggestionIndex }"
              class="suggestion-item">
-          <span class="tanglish-text">{{ suggestion.tanglish }}</span>
-          <span class="arrow">→</span>
-          <span class="tamil-text">{{ suggestion.tamil }}</span>
+          <span class="tamil-text-main">{{ suggestion.tamil }}</span>
+          <span class="suggestion-space-hint" v-if="idx === 0">Space</span>
         </div>
       </div>
 
@@ -566,6 +565,11 @@ const handleTyping = (view, from, to, text) => {
         ' ', ' '
     )
     
+    // Bug 2 fix: clear old suggestions immediately so stale entries
+    // don't flash on screen for one frame while new fetch is in flight
+    suggestionsList.value = []
+    showSuggestions.value = false
+
     // Update suggestions AFTER TipTap commits the new character
     setTimeout(() => {
         if (!editor.value) return
@@ -580,9 +584,10 @@ const handleTyping = (view, from, to, text) => {
             ' ', ' '
         )
         if (newWordObj.word && newWordObj.word.length >= 1) {
-            const suggestions = getSuggestions(newWordObj.word, newContext).slice(0, 6)
-            suggestionsList.value = suggestions
-            if (suggestions.length > 0) {
+            const newSuggestions = getSuggestions(newWordObj.word, newContext).slice(0, 6)
+            // Update list in place — no hide/show, keeps popup stable
+            suggestionsList.value = newSuggestions
+            if (newSuggestions.length > 0) {
                 showSuggestions.value = true
                 selectedSuggestionIndex.value = 0
                 updatePopupPosition(editor.value.view)
@@ -689,6 +694,9 @@ const handleKeyDown = (view, event) => {
       return false
       
     case 'Backspace':
+      // Clear immediately before the timeout so stale list never flashes
+      suggestionsList.value = []
+      showSuggestions.value = false
       setTimeout(() => {
         const { state } = view
         const { selection } = state
@@ -1306,13 +1314,14 @@ onBeforeUnmount(() => {
   position: absolute;
   background: #fff;
   border: 1px solid #e0e0e0;
-  border-radius: 10px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  border-radius: 12px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.14);
   z-index: 1000;
-  min-width: 260px;
-  max-width: 320px;
+  min-width: 220px;
+  max-width: 300px;
   max-height: 320px;
   overflow-y: auto;
+  transition: opacity 0.1s ease;
 }
 
 .suggestion-item {
@@ -1320,44 +1329,62 @@ onBeforeUnmount(() => {
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 12px;
-  transition: background 0.15s;
+  justify-content: space-between;
+  gap: 8px;
   font-size: 14px;
-}
-
-.suggestion-item:first-child {
-  border-radius: 10px 10px 0 0;
+  border-bottom: 1px solid #f5f5f5;
+  transition: background 0.1s;
 }
 
 .suggestion-item:last-child {
-  border-radius: 0 0 10px 10px;
+  border-bottom: none;
 }
 
-.suggestion-item:hover,
-.suggestion-item.selected {
-  background: #f0edff;
+.suggestion-item:first-child {
+  border-radius: 12px 12px 0 0;
+  background: #1a1a2e;
+  color: #fff;
 }
 
-.tanglish-text {
-  font-family: 'Courier New', monospace;
-  color: #888;
-  font-size: 12px;
-  min-width: 80px;
-  font-weight: 500;
+.suggestion-item:first-child .tamil-text-main {
+  color: #fff;
+  font-size: 18px;
 }
 
-.arrow {
-  color: #6c47ff;
-  font-weight: bold;
-  font-size: 14px;
+.suggestion-item:first-child:hover {
+  background: #2d2d4e;
 }
 
-.tamil-text {
+.suggestion-item:not(:first-child):hover,
+.suggestion-item:not(:first-child).selected {
+  background: #f5f3ff;
+}
+
+.suggestion-item.selected:first-child {
+  background: #1a1a2e;
+}
+
+.tamil-text-main {
   font-family: 'Noto Sans Tamil', sans-serif;
-  font-size: 16px;
-  color: #1a1a2e;
+  font-size: 17px;
   font-weight: 500;
+  color: #1a1a2e;
   flex: 1;
+}
+
+.suggestion-space-hint {
+  font-size: 10px;
+  color: #aaa;
+  background: #f0f0f0;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-family: 'Inter', sans-serif;
+  letter-spacing: 0.03em;
+}
+
+.suggestion-item:first-child .suggestion-space-hint {
+  background: rgba(255,255,255,0.15);
+  color: rgba(255,255,255,0.7);
 }
 
 /* Floating AI Assistant Panel */
