@@ -1671,12 +1671,15 @@ export function getTypingSuggestions(typedText, limit = 8) {
 
     // Sort: priority → exact first → frequency → shorter tanglish length
     filtered.sort((a, b) => {
+        // Exact-length match always beats a longer completion, regardless of priority
+        const aExactLen = a.tanglish.length === typedText.length;
+        const bExactLen = b.tanglish.length === typedText.length;
+        if (aExactLen && !bExactLen) return -1;
+        if (!aExactLen && bExactLen) return 1;
         if (a.priority !== b.priority) return a.priority - b.priority;
         if (a.exact && !b.exact) return -1;
         if (!a.exact && b.exact) return 1;
-        // ✅ Shorter tanglish = closer match to what user typed → show first
         if (a.tanglish.length !== b.tanglish.length) return a.tanglish.length - b.tanglish.length;
-        // ✅ Within same length, higher frequency wins
         return (b.frequency || 0) - (a.frequency || 0);
     });
 
