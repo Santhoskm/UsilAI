@@ -358,6 +358,7 @@ const LA_ROOT_MAP = new Map([
     ['sol', 'சொல்'],
     ['solla', 'சொல்ல'],
     ['sollu', 'சொல்லு'],
+    ['solli', 'சொல்லி'],
     ['sollaan', 'சொல்லான்'],
     ['sollamatten', 'சொல்லமாட்டேன்'],
 

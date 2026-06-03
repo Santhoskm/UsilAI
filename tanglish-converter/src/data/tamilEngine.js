@@ -516,6 +516,7 @@ const _fallbackTamilMap = new Map([
     ['eppo', 'எப்போ'], ['epo', 'எப்போ'],
     ['yepo', 'எப்போ'],
     ['enga', 'எங்க'], ['enge', 'எங்கே'],
+    ['kitte', 'கிட்டே'],
     ['eng', 'எங்க'],
     ['evvalo', 'எவ்வளோ'], ['evalo', 'எவ்வளோ'],
     ['evlo', 'எவ்வளோ'], ['evalu', 'எவ்வளோ'],
@@ -880,6 +881,134 @@ const _suffixTamilMap = {
     'irukkingala': 'இருக்கிங்களா',
     'irukkaala': 'இருக்காளா',
     'irukkaanaa': 'இருக்கானா',
+    // ── Progressive/Aspectual verb suffixes (-kittu/-kitte paradigm) ───────
+    // Participles
+    'kitte': 'கிட்டே',
+    'kkitte': 'க்கிட்டே',
+    'kitu': 'கிட்டு',
+    'kkitu': 'க்கிட்டு',
+    'kittu': 'கிட்டு',
+    'kkittu': 'க்கிட்டு',
+    'kite': 'கிட்டே',
+    'kkite': 'க்கிட்டே',
+    'kittae': 'கிட்டே',
+    'kkittae': 'க்கிட்டே',
+    // Conjugated forms for kittu
+    'kitten': 'கிட்டேன்',
+    'kkitten': 'க்கிட்டேன்',
+    'kittein': 'கிட்டேன்',
+    'kkittein': 'க்கிட்டேன்',
+    'kittan': 'கிட்டான்',
+    'kkittan': 'க்கிட்டான்',
+    'kittal': 'கிட்டாள்',
+    'kkittal': 'க்கிட்டாள்',
+    'kittom': 'கிட்டோம்',
+    'kkittom': 'க்கிட்டோம்',
+    'kittinga': 'கிட்டீங்க',
+    'kkittinga': 'க்கிட்டீங்க',
+    'kittanga': 'கிட்டாங்க',
+    'kkittanga': 'க்கிட்டாங்க',
+    'kiten': 'கிட்டேன்',
+    'kkiten': 'க்கிட்டேன்',
+    'kitein': 'கிட்டேன்',
+    'kkitein': 'க்கிட்டேன்',
+    'kitan': 'கிட்டான்',
+    'kkitan': 'க்கிட்டான்',
+    'kital': 'கிட்டாள்',
+    'kkital': 'க்கிட்டாள்',
+    'kitom': 'கிட்டோம்',
+    'kkitom': 'க்கிட்டோம்',
+    'kitinga': 'கிட்டீங்க',
+    'kkitinga': 'க்கிட்டீங்க',
+    'kitanga': 'கிட்டாங்க',
+    'kkitanga': 'க்கிட்டாங்க',
+    // Progressive continuous (kittiru)
+    'kittirukken': 'கிட்டிருக்கேன்',
+    'kkittirukken': 'க்கிட்டிருக்கேன்',
+    'kittirukkeen': 'கிட்டிருக்கேன்',
+    'kkittirukkeen': 'க்கிட்டிருக்கேன்',
+    'kittiruken': 'கிட்டிருக்கேன்',
+    'kkittiruken': 'க்கிட்டிருக்கேன்',
+    'kittirukkaan': 'கிட்டிருக்கான்',
+    'kkittirukkaan': 'க்கிட்டிருக்கான்',
+    'kittirukaal': 'கிட்டிருக்காள்',
+    'kkittirukaal': 'க்கிட்டிருக்காள்',
+    'kittirukkom': 'கிட்டிருக்கோம்',
+    'kkittirukkom': 'க்கிட்டிருக்கோம்',
+    'kittirukkeenga': 'கிட்டிருக்கீங்க',
+    'kkittirukkeenga': 'க்கிட்டிருக்கீங்க',
+    'kittirukkingala': 'கிட்டிருக்கீங்களா',
+    'kkittirukkingala': 'க்கிட்டிருக்கீங்களா',
+    'kittirukkaanga': 'கிட்டிருக்காங்க',
+    'kkittirukkaanga': 'க்கிட்டிருக்காங்க',
+    'kittirukku': 'கிட்டிருக்கு',
+    'kkittirukku': 'க்கிட்டிருக்கு',
+    'kittirukka': 'கிட்டிருக்க',
+    'kkittirukka': 'க்கிட்டிருக்க',
+    'kittiru': 'கிட்டிரு',
+    'kkittiru': 'க்கிட்டிரு',
+    // Continuous past (kittirundhu)
+    'kittirundhen': 'கிட்டிருந்தேன்',
+    'kkittirundhen': 'க்கிட்டிருந்தேன்',
+    'kittirundhan': 'கிட்டிருந்தான்',
+    'kkittirundhan': 'க்கிட்டிருந்தான்',
+    'kittirundhaal': 'கிட்டிருந்தாள்',
+    'kkittirundhaal': 'க்கிட்டிருந்தாள்',
+    'kittirundhom': 'கிட்டிருந்தோம்',
+    'kkittirundhom': 'க்கிட்டிருந்தோம்',
+    'kittirundhaanga': 'கிட்டிருந்தாங்க',
+    'kkittirundhaanga': 'க்கிட்டிருந்தாங்க',
+    'kittirundhu': 'கிட்டிருந்து',
+    'kkittirundhu': 'க்கிட்டிருந்து',
+    // Short progressive forms (kitru / kittru)
+    'kitruken': 'கிட்டுருக்கேன்',
+    'kkitruken': 'க்கிட்டுருக்கேன்',
+    'kitrukeen': 'கிட்டுருக்கேன்',
+    'kkitrukeen': 'க்கிட்டுருக்கேன்',
+    'kittruken': 'கிட்டுருக்கேன்',
+    'kkittruken': 'க்கிட்டுருக்கேன்',
+    'kittrukeen': 'கிட்டுருக்கேன்',
+    'kkittrukeen': 'க்கிட்டுருக்கேன்',
+    'kitrukan': 'கிட்டுருக்கான்',
+    'kkitrukan': 'க்கிட்டுருக்கான்',
+    'kitrukaan': 'கிட்டுருக்கான்',
+    'kkitrukaan': 'க்கிட்டுருக்கான்',
+    'kittrukan': 'கிட்டுருக்கான்',
+    'kkittrukan': 'க்கிட்டுருக்கான்',
+    'kittrukaan': 'கிட்டுருக்கான்',
+    'kkittrukaan': 'க்கிட்டுருக்கான்',
+    'kitrukaal': 'கிட்டுருக்காள்',
+    'kkitrukaal': 'க்கிட்டுருக்காள்',
+    'kitrukkaal': 'கிட்டுருக்காள்',
+    'kkitrukkaal': 'க்கிட்டுருக்காள்',
+    'kittrukaal': 'கிட்டுருக்காள்',
+    'kkittrukaal': 'க்கிட்டுருக்காள்',
+    'kittrukkaal': 'கிட்டுருக்காள்',
+    'kkittrukkaal': 'க்கிட்டுருக்காள்',
+    'kitrukom': 'கிட்டுருக்கோம்',
+    'kkitrukom': 'க்கிட்டுருக்கோம்',
+    'kittrukom': 'கிட்டுருக்கோம்',
+    'kkittrukom': 'க்கிட்டுருக்கோம்',
+    'kitrukinga': 'கிட்டுருக்கீங்க',
+    'kkitrukinga': 'க்கிட்டுருக்கீங்க',
+    'kitrukeenga': 'கிட்டுருக்கீங்க',
+    'kkitrukeenga': 'க்கிட்டுருக்கீங்க',
+    'kittrukinga': 'கிட்டுருக்கீங்க',
+    'kkittrukinga': 'க்கிட்டுருக்கீங்க',
+    'kittrukeenga': 'கிட்டுருக்கீங்க',
+    'kkittrukeenga': 'க்கிட்டுருக்கீங்க',
+    'kitrukanga': 'கிட்டுருக்காங்க',
+    'kkitrukanga': 'க்கிட்டுருக்காங்க',
+    'kitrukkaanga': 'கிட்டுருக்காங்க',
+    'kkitrukkaanga': 'க்கிட்டுருக்காங்க',
+    'kittrukanga': 'கிட்டுருக்காங்க',
+    'kkittrukanga': 'க்கிட்டுருக்காங்க',
+    'kittrukkaanga': 'கிட்டுருக்காங்க',
+    'kkittrukkaanga': 'க்கிட்டுருக்காங்க',
+    'kitruku': 'கிட்டுருக்கு',
+    'kkitruku': 'க்கிட்டுருக்கு',
+    'kittruku': 'கிட்டுருக்கு',
+    'kkittruku': 'க்கிட்டுருக்கு',
 
 };
 
@@ -931,11 +1060,11 @@ function _joinStemSuffix(stemTamil, suffixTamil) {
             // Rule 1: Insert linking 'ய்'
             stemTamil = stemTamil + '\u0BAF\u0BCD';
         } else if (last === '\u0BC1') {
-            // Rule 2: 'u'-deletion and optional vallinam doubling
+            // Rule 2: 'u'-deletion and optional retroflex/alveolar stop doubling (oblique stem formation)
             const base = stemTamil.slice(0, -1);
             const baseLastChar = base.slice(-1);
-            const vallinam = ['\u0B95', '\u0B9A', '\u0B9F', '\u0BA4', '\u0BAA', '\u0BB1'];
-            if (vallinam.includes(baseLastChar)) {
+            const doubleableStops = ['\u0B9F', '\u0BB1']; // Only ட and ற double in oblique stems (e.g. வீடு->வீட்டு, ஆறு->ஆற்று)
+            if (doubleableStops.includes(baseLastChar)) {
                 stemTamil = base.slice(0, -1) + baseLastChar + PULLI + baseLastChar + PULLI;
             } else {
                 stemTamil = base + PULLI;
@@ -950,12 +1079,12 @@ function _joinStemSuffix(stemTamil, suffixTamil) {
         lastTwo = stemTamil.slice(-2);
     }
 
-    // Pattern A: stem ends in ு → double the consonant before it
+    // Pattern A: stem ends in ு → double the consonant before it (only for ட/ற)
     if (last === '\u0BC1') {
         const base = stemTamil.slice(0, -1);
         const baseLastChar = base.slice(-1);
-        const vallinam = ['\u0B95', '\u0B9A', '\u0B9F', '\u0BA4', '\u0BAA', '\u0BB1'];
-        if (vallinam.includes(baseLastChar)) {
+        const doubleableStops = ['\u0B9F', '\u0BB1'];
+        if (doubleableStops.includes(baseLastChar)) {
             const doubled = base + PULLI + baseLastChar + '\u0BC1';
             return doubled + suffixTamil;
         }
@@ -1011,7 +1140,7 @@ function _joinStemSuffix(stemTamil, suffixTamil) {
     return stemTamil + suffixTamil;
 }
 
-function checkCompoundWord(normalized) {
+function checkCompoundWord(normalized, skipRuleFallback = false) {
     if (!normalized || normalized.length < 4) return null;
 
     // ── PASS 1: Suffix loop — peel up to 4 suffixes deep ────────────────
@@ -1048,7 +1177,11 @@ function checkCompoundWord(normalized) {
                 // Found the stem — join all accumulated suffixes
                 let result = foundStemTamil;
                 for (const sf of suffixTamilStack) result = _joinStemSuffix(result, sf);
-                return _joinStemSuffix(result, suffixTamil);
+                let finalResult = _joinStemSuffix(result, suffixTamil);
+                finalResult = applyPostProcess(finalResult);
+                finalResult = applyVallinamDoubling(finalResult);
+                finalResult = applyPositionalNaFix(finalResult);
+                return finalResult;
             }
 
             // Stem not found yet — peel this suffix and keep going deeper
@@ -1058,6 +1191,23 @@ function checkCompoundWord(normalized) {
             break;
         }
         if (!matched) break;
+    }
+
+    // ── FALLBACK: If suffixes were peeled but no dictionary stem was found ──
+    if (!skipRuleFallback && suffixTamilStack.length > 0 && remaining.length >= 2) {
+        // Transliterate the stem using the rule engine (skipping nested compound checks)
+        const stemTamil = convertWithRules(remaining, true);
+        if (stemTamil && /[\u0B80-\u0BFF]/.test(stemTamil)) {
+            let result = stemTamil;
+            for (const sf of suffixTamilStack) {
+                result = _joinStemSuffix(result, sf);
+            }
+            let finalResult = result;
+            finalResult = applyPostProcess(finalResult);
+            finalResult = applyVallinamDoubling(finalResult);
+            finalResult = applyPositionalNaFix(finalResult);
+            return finalResult;
+        }
     }
 
     // ── PASS 2: Try splitting into two known words (true compound) ──────
@@ -2054,6 +2204,8 @@ export function applyVallinamDoubling(tamilWord) {
         { suffix: 'கு', doubled: 'க்கு' },
         { suffix: 'கே', doubled: 'க்கே' },
         { suffix: 'கிட்ட', doubled: 'க்கிட்ட' },
+        { suffix: 'கிட்டே', doubled: 'க்கிட்டே' },
+        { suffix: 'கிட்டு', doubled: 'க்கிட்டு' },
         { suffix: 'தில்', doubled: 'த்தில்' },
         { suffix: 'திலிருந்து', doubled: 'த்திலிருந்து' },
         { suffix: 'துக்கு', doubled: 'த்துக்கு' },
@@ -2091,6 +2243,8 @@ export function applyVallinamDoubling(tamilWord) {
 
 // ============ POST-PROCESS CORRECTIONS ============
 const postProcessRules = [
+    // Fix aspectual verb doubling after short vowel signs (e.g. vandhukitte -> வந்துக்கிட்டே)
+    { pattern: /([\u0BBF\u0BC1\u0BC6\u0BCA])கி(ட்ட|ட்டே|ட்டு|ட்டுரு|ட்டிரு)/g, replace: '$1க்கி$2' },
     // Rules for thirunthani, untana, untanar
     { pattern: /திருந்தனி/g, replace: 'திருந்தணி' },
     { pattern: /உண்டன$/g, replace: 'உண்டாண' },
@@ -2743,7 +2897,7 @@ const _neverConjugate = new Set([
     'unthan', 'unthane', 'unthanai', 'unthankaga',
     'untana', 'untanar', 'thirunthani', 'cheythirunthanar',
 ]);
-export function convertWithRules(tanglishWord) {
+export function convertWithRules(tanglishWord, skipCompoundCheck = false) {
     if (!tanglishWord || !tanglishWord.trim()) return '';
 
     // STEP 1: Normalize
@@ -2783,21 +2937,17 @@ export function convertWithRules(tanglishWord) {
     }
 
     // Check compound words
-    const compoundResult = checkCompoundWord(normalized);
-    if (compoundResult) return compoundResult;
-
-    if (_locativeSuffixRe.test(normalized)) {
+    if (!skipCompoundCheck) {
         const compoundResult = checkCompoundWord(normalized);
         if (compoundResult) return compoundResult;
-    }
 
-    // Check phonetic fallback map
-    if (!_bypassDictionary.has(normalized)) {
-        const pKey = phoneticNormalize(normalized);
-        if (pKey && phoneticWordMap.has(pKey)) {
-            return phoneticWordMap.get(pKey).tamil;
+        if (_locativeSuffixRe.test(normalized)) {
+            const compoundResult = checkCompoundWord(normalized);
+            if (compoundResult) return compoundResult;
         }
     }
+
+
 
     // Check verb forms — only for words with known verb suffixes (avoids false positives on nouns)
     if (_verbSuffixRe.test(normalized) && !_neverConjugate.has(normalized)) {
@@ -3180,7 +3330,11 @@ function _cleanupStaleCorrections() {
         'thirunthani': 'திருந்தணி',
         'cheythirunthanar': 'செய்திருந்தனர்',
         'untana': 'உண்டாண',
-        'untanar': 'உண்டணர்'
+        'untanar': 'உண்டணர்',
+        'vandhukkitte': 'வந்துக்கிட்டே',
+        'sollikkitte': 'சொல்லிக்கிட்டே',
+        'kitte': 'கிட்டே',
+        'solli': 'சொல்லி'
     };
 
     try {
@@ -4095,9 +4249,9 @@ export function conjugateVerb(tanglish) {
     if (person && suffixes[person]) {
         results.push(stem + suffixes[person]);
     } else {
-        for (const sfx of Object.values(suffixes)) {
-            results.push(stem + sfx);
-        }
+        // If person is null, do not return any conjugated finite verb forms.
+        // This prevents incorrect guessing of first-person endings for participles/nouns.
+        return [];
     }
     return results.filter(Boolean);
 }
@@ -4904,21 +5058,33 @@ export function transliterateWithContext(tanglishWord, surroundingText = '') {
     const lower = tanglishWord.toLowerCase().trim();
 
     // ── PRIORITY CHECK ──────────────────────────────────────────────────────
-    // If the word is in the hardcoded fallback map OR the full dictionary,
-    // return that result immediately — do NOT let generateWordForms() override
-    // it with phonetically-guessed candidates from the rule engine.
-    // e.g. "naalaikku" → நாளைக்கு (correct), NOT நாலைக்க (wrong rule output)
+    // 1. Learned corrections
+    const learned = getLearnedCorrection(lower);
+    if (learned) return learned;
+
+    // 2. Hardcoded fallback map
     const directFallback = _fallbackTamilMap.get(lower);
     if (directFallback) return directFallback;
 
+    // 3. Direct exact dictionary
     const directDict = _bypassDictionary.has(lower) ? null : fullWordMapping.get(lower);
     if (directDict) return directDict;
 
-    // Check spelling correction → dictionary path
+    // 4. Check spelling correction → dictionary path
     const spellingCorrected = _tanglishSpellingMap.get(lower);
     if (spellingCorrected && !_bypassDictionary.has(lower) && !_bypassDictionary.has(spellingCorrected)) {
         const dictResult = fullWordMapping.get(spellingCorrected) || _fallbackTamilMap.get(spellingCorrected);
         if (dictResult) return dictResult;
+    }
+
+    // 5. Compound words
+    const compoundResult = checkCompoundWord(normalizeInput(lower));
+    if (compoundResult) return compoundResult;
+
+    // 6. Verb conjugations
+    const verbForms = (!_neverConjugate.has(lower) && !_neverConjugate.has(normalizeInput(lower))) ? conjugateVerb(normalizeInput(lower)) : [];
+    if (verbForms && verbForms.length > 0 && verbForms[0]) {
+        return verbForms[0];
     }
 
     const standard = transliterateWord(tanglishWord);
