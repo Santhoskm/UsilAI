@@ -868,9 +868,9 @@ const _suffixTamilMap = {
     'ndhuttu': 'ந்துட்டு',    // colloquial perfect: vandhuttu → வந்துட்டு
     'ttuttu': 'ட்டுட்டு',    // colloquial double perfect
     'nga': 'ங்க',          // respectful plural: vaanga → வாங்க
-    'la': 'ல',             // negation/locative: varala → வரல, veetila → வீட்டில  ← already exists, skip if present
+    // 'la': 'ல',             // negation/locative: varala → வரல, veetila → வீட்டில  ← already exists, skip if present
     'e': 'ே',              // emphatic: ingae → இங்கே
-    'thaan': 'தான்',       // emphatic: avanthaan → அவன்தான்  ← already exists? check
+    // 'thaan': 'தான்',       // emphatic: avanthaan → அவன்தான்  ← already exists? check
     'o': 'ஓ',            // respectful plural: vaanga → வாங்க
     'ngala': 'ங்களா',        // respectful question: vandheengala
     'ngale': 'ங்களே',        // respectful vocative
@@ -2945,7 +2945,7 @@ function _buildTokenTable() {
     addFamily('t', '\u0b9f'); addFamily('d', '\u0b9f');
     addFamily('j', '\u0b9c');
     addFamily('n', '\u0ba8'); // n → ந (dental-na; nn=ன்ன handles alveolar doubled case)
-    // addFamily('n', '\u0ba9'); // n → ன (alveolar — correct default for colloquial Tanglish)
+    addFamily('n', '\u0ba9'); // n → ன (alveolar — correct default for colloquial Tanglish)
     // nh → ந (dental) is already above; word-initial ன→ந fixed below
     addFamily('w', '\u0bb5'); // w → வ (same as v; wa=வா, wi=வி)
     addFamily('N', '\u0ba3');
