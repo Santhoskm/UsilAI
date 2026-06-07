@@ -814,6 +814,8 @@ const _suffixTamilMap = {
     'ku': 'கு',          // short dative
     'il': 'இல்',         // locative: veetil → வீட்டில்
     'la': 'ல',           // colloquial locative: veetila → வீட்டில
+    'ala': 'ல',          // verb negation: varala → வரல, solala → சொல்ல
+    'ella': 'இல்ல',      // negation: illai colloquial form
     'le': 'ல',           // colloquial locative: inge → இங்கே
     'ulla': 'உள்ள',        // inside: veetuulla → வீட்டுள்ள
     'ule': 'உள்ள',        // colloquial inside
@@ -866,6 +868,10 @@ const _suffixTamilMap = {
     'ndhuttu': 'ந்துட்டு',    // colloquial perfect: vandhuttu → வந்துட்டு
     'ttuttu': 'ட்டுட்டு',    // colloquial double perfect
     'nga': 'ங்க',          // respectful plural: vaanga → வாங்க
+    'la': 'ல',             // negation/locative: varala → வரல, veetila → வீட்டில  ← already exists, skip if present
+    'e': 'ே',              // emphatic: ingae → இங்கே
+    'thaan': 'தான்',       // emphatic: avanthaan → அவன்தான்  ← already exists? check
+    'o': 'ஓ',            // respectful plural: vaanga → வாங்க
     'ngala': 'ங்களா',        // respectful question: vandheengala
     'ngale': 'ங்களே',        // respectful vocative
     'kal': 'கள்',          // plural: manithargal → மனிதர்கள்
@@ -1148,7 +1154,7 @@ function checkCompoundWord(normalized, skipRuleFallback = false) {
     let remaining = normalized;
     let suffixTamilStack = [];
     let stemTamil = null;
-    const MAX_DEPTH = 4;
+    const MAX_DEPTH = 6;
 
     for (let depth = 0; depth < MAX_DEPTH; depth++) {
         let matched = false;
@@ -1227,37 +1233,85 @@ function checkCompoundWord(normalized, skipRuleFallback = false) {
 // Generate plausible stem alternates for sandhi-modified stems.
 // When users type "veetila", the stem is "veeti" but the dict has "veedu".
 // Tamil sandhi often changes final -u to -i/-a before certain suffixes.
+// function _generateStemAlternates(stem) {
+//     const alts = new Set();
+//     if (!stem || stem.length < 2) return alts;
+
+//     // -i ending → try -u (veetila → veeti → veetu → veedu)
+//     if (stem.endsWith('i')) {
+//         alts.add(stem.slice(0, -1) + 'u');
+//         alts.add(stem.slice(0, -1) + 'u'); // vidu → veedu
+//     }
+//     // -a ending → try -u, -am
+//     if (stem.endsWith('a')) {
+//         alts.add(stem.slice(0, -1) + 'u');
+//         alts.add(stem + 'm'); // pana → panam
+//     }
+//     // -tt ending → try -du, -tu (vettu → veedu? unlikely but try)
+//     if (stem.endsWith('tt')) {
+//         alts.add(stem.slice(0, -2) + 'du');
+//         alts.add(stem.slice(0, -2) + 'tu');
+//     }
+//     // doubled consonant → single (veettu → veetu → veedu)
+//     const doubleMatch = stem.match(/(.+?)(.)\2$/);  // ends in cc
+//     if (doubleMatch) {
+//         alts.add(doubleMatch[1] + doubleMatch[2] + 'u');
+//         alts.add(doubleMatch[1] + doubleMatch[2]);
+//     }
+//     // Try adding 'u' or 'am' to the stem directly
+//     alts.add(stem + 'u');
+//     alts.add(stem + 'am');
+//     // Try removing trailing consonant cluster and adding -u
+//     if (/[bcdfghjklmnpqrstvwxyz]$/.test(stem)) {
+//         alts.add(stem + 'u');
+//     }
+
+//     return alts;
+// }
+
+
 function _generateStemAlternates(stem) {
     const alts = new Set();
     if (!stem || stem.length < 2) return alts;
 
-    // -i ending → try -u (veetila → veeti → veetu → veedu)
+    // -i ending → try -u  (veetila → veeti → veedu)
     if (stem.endsWith('i')) {
         alts.add(stem.slice(0, -1) + 'u');
-        alts.add(stem.slice(0, -1) + 'u'); // vidu → veedu
     }
-    // -a ending → try -u, -am
+    // -a ending → try -u, -am, -ai  (kadha → kadhai type nouns)
     if (stem.endsWith('a')) {
         alts.add(stem.slice(0, -1) + 'u');
-        alts.add(stem + 'm'); // pana → panam
+        alts.add(stem + 'm');
+        alts.add(stem.slice(0, -1) + 'ai');  // ← NEW: kadha → kadhai
     }
-    // -tt ending → try -du, -tu (vettu → veedu? unlikely but try)
+    // -ai ending → try -a, -u  (kadhai → kadha, solai → sola)
+    if (stem.endsWith('ai')) {                // ← NEW block
+        alts.add(stem.slice(0, -2) + 'a');
+        alts.add(stem.slice(0, -2) + 'u');
+    }
+    // -al ending → try -attu oblique  (sol → solli, kal → kalli type)
+    if (stem.endsWith('al')) {                // ← NEW block
+        alts.add(stem.slice(0, -2) + 'attu');
+        alts.add(stem.slice(0, -2) + 'l');
+    }
+    // -tt ending → try -du, -tu
     if (stem.endsWith('tt')) {
         alts.add(stem.slice(0, -2) + 'du');
         alts.add(stem.slice(0, -2) + 'tu');
     }
-    // doubled consonant → single (veettu → veetu → veedu)
-    const doubleMatch = stem.match(/(.+?)(.)\2$/);  // ends in cc
+    // doubled consonant → single  (veettu → veetu → veedu)
+    const doubleMatch = stem.match(/(.+?)(.)\2$/);
     if (doubleMatch) {
         alts.add(doubleMatch[1] + doubleMatch[2] + 'u');
         alts.add(doubleMatch[1] + doubleMatch[2]);
     }
-    // Try adding 'u' or 'am' to the stem directly
-    alts.add(stem + 'u');
-    alts.add(stem + 'am');
-    // Try removing trailing consonant cluster and adding -u
+    // bare consonant-ending → add -u or -am
     if (/[bcdfghjklmnpqrstvwxyz]$/.test(stem)) {
         alts.add(stem + 'u');
+        alts.add(stem + 'am');              // ← was missing for consonant-ending
+    } else {
+        alts.add(stem + 'u');
+        alts.add(stem + 'am');
     }
 
     return alts;
@@ -2081,6 +2135,34 @@ export function applySandhiRules(word1, word2) {
         return word1.slice(0, -2) + 'ற்' + word2;
     }
 
+    // Rule 9: long-vowel ending (ஆ ஈ ஊ ஏ ஓ) + vowel-starting word → insert வ் glide
+    // e.g. பா + அடி → பாவடி, நூ + உல் → நூவுல் (rare but correct)
+    const longVowelEndings = ['ா', 'ீ', 'ூ', 'ே', 'ோ'];
+    if (longVowelEndings.includes(ending1) && isVowel(start2)) {
+        return word1 + 'வ்' + word2;
+    }
+
+    // Rule 10: ன்-ending + vowel-starting suffix → drop pulli and merge
+    // e.g. அவன் + உக்கு → அவனுக்கு  (don't use Rule 2 which inserts 'ன' standalone)
+    if (word1.endsWith('ன்') && isVowel(start2)) {
+        return word1.slice(0, -1) + word2;  // drop ் only, keep ன, let vowel sign attach
+    }
+
+    // Rule 11: ண்-ending + vowel-starting suffix → merge
+    // e.g. மண் + இல் → மணில் (colloquial)
+    if (word1.endsWith('ண்') && isVowel(start2)) {
+        return word1.slice(0, -1) + word2;
+    }
+
+    // Rule 12: short-vowel sign ending + vallinam initial → double the vallinam
+    // e.g. படி + கிறேன் → படிக்கிறேன்
+    const shortVowelSignsS = '\u0BBF\u0BC1\u0BC6\u0BCA';
+    const vallinamInitials = ['க', 'ச', 'ட', 'த', 'ப', 'ற'];
+    if (shortVowelSignsS.includes(ending1) && vallinamInitials.includes(word2[0])) {
+        return word1 + word2[0] + '்' + word2;
+    }
+
+
     return word1 + word2;
 }
 
@@ -2510,10 +2592,10 @@ function applyPositionalNaFix(tamilWord) {
     // e.g. மனிதன் — the first ந before ி must stay ந, not ன
     // Pattern: consonant/vowel-sign + ந + vowel-sign → keep ந (no change needed)
     // But: ன in medial position before a vowel sign → fix to ந
-    result = result.replace(
-        /([\u0BBE-\u0BCC])\u0BA9([\u0BBE-\u0BCC])/g,
-        '$1\u0BA8$2'
-    );
+    // result = result.replace(
+    //     /([\u0BBE-\u0BCC])\u0BA9([\u0BBE-\u0BCC])/g,
+    //     '$1\u0BA8$2'
+    // );
 
     return result;
 }
@@ -2644,6 +2726,16 @@ function _buildTokenTable() {
     t.push(['ndam', 'ண்டம்']);
     t.push(['ndha', 'ண்ட']);
     t.push(['ndham', 'ண்டம்']);
+
+    t.push(['naithum', 'னைத்தும்']);   // anaithum → அ + னைத்தும்
+    t.push(['naithu', 'னைத்து']);      // anaithu  → அ + னைத்து
+    t.push(['naithavargal', 'னைத்தவர்கள்']);
+    t.push(['naivorum', 'னைவரும்']);
+    t.push(['naivarum', 'னைவரும்']);
+    t.push(['naivar', 'னைவர்']);
+    t.push(['naiyum', 'னையும்']);
+    t.push(['naith', 'னைத்']);        // bare cluster
+
 
 
 
@@ -2852,8 +2944,8 @@ function _buildTokenTable() {
     addFamily('s', '\u0b9a');
     addFamily('t', '\u0b9f'); addFamily('d', '\u0b9f');
     addFamily('j', '\u0b9c');
-    // addFamily('n', '\u0ba8'); // n → ந (dental-na; nn=ன்ன handles alveolar doubled case)
-    addFamily('n', '\u0ba9'); // n → ன (alveolar — correct default for colloquial Tanglish)
+    addFamily('n', '\u0ba8'); // n → ந (dental-na; nn=ன்ன handles alveolar doubled case)
+    // addFamily('n', '\u0ba9'); // n → ன (alveolar — correct default for colloquial Tanglish)
     // nh → ந (dental) is already above; word-initial ன→ந fixed below
     addFamily('w', '\u0bb5'); // w → வ (same as v; wa=வா, wi=வி)
     addFamily('N', '\u0ba3');
