@@ -433,6 +433,17 @@ const LA_ROOT_MAP = new Map([
 
     // கழுவு (wash) vs கலவை (mixture)
     ['kazhuvu', 'கழுவு'],   // wash → ழ
+    // Detective / investigation words
+    ['thupari', 'துப்பறி'],
+    ['thuppari', 'துப்பறி'],
+    ['thuparivalan', 'துப்பறிவாளன்'],
+    ['thuparivaalan', 'துப்பறிவாளன்'],
+    ['thupparivalan', 'துப்பறிவாளன்'],
+    ['thupparivaalan', 'துப்பறிவாளன்'],
+    ['thuparivalar', 'துப்பறிவாளர்'],
+    ['thuparivaalar', 'துப்பறிவாளர்'],
+    ['thupparivalar', 'துப்பறிவாளர்'],
+    ['thupparivaalar', 'துப்பறிவாளர்'],
     ['kalavai', 'கலவை'],    // mixture → dental ல
 
     // இழை (thread/wire) vs இலை (leaf)
@@ -884,7 +895,7 @@ export function isRaAmbiguous(tanglishWord) {
     // For medial ற patterns (maru, veru, paravai etc.) rely on RA_ROOT_MAP and prefix list.
     return /[bcdfghjklmnpqrstvwxyz][ui]ra$/.test(t) ||
         RA_ROOT_MAP.has(t) ||
-        /^(maru|mara|veru|vera|veri|veruppu|uravu|karai|porumai|poru|peru|paravai|parandhu|thirandhu|thiramai|thiran|marandhu|thirakka|aran|arivu)/.test(t);
+        /^(maru|mara|veru|vera|veri|veruppu|uravu|karai|porumai|poru|peru|paravai|parandhu|thirandhu|thiramai|thiran|marandhu|thirakka|aran|arivu|thupari|thuppari)/.test(t);
 }
 
 /**
@@ -904,6 +915,7 @@ export function disambiguateRa(tanglishWord, naiveTamil) {
     if (!tanglishWord || !naiveTamil) return naiveTamil;
 
     const t = tanglishWord.toLowerCase().trim();
+    let result = naiveTamil;
 
     // ── LAYER 1: Exact root map ──────────────────────────────────────────
     if (RA_ROOT_MAP.has(t)) {
@@ -944,6 +956,7 @@ export function disambiguateRa(tanglishWord, naiveTamil) {
     //   karuppu = கறுப்பு, porumai = பொறுமை, paravai = பறவை
     //   thirandhu/thiramI/thiran = திற roots, parandhu = பற roots
     const hardRaRoots = [
+        [/^thuppari|^thupari/, /^துபரி|^துப்பரி/, 'துப்பறி'],
         [/^maru/, /^மரு/, 'மறு'],   // மர → மற
         [/^veru/, /^வெரு|^வேரு/, s => s.replace(/^(வெ|வே)ர/, '$1ற')],
         [/^uravu/, /^உர/, 'உற'],    // உர → உற

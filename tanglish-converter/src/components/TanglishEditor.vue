@@ -694,18 +694,22 @@ const handleKeyDown = (view, event) => {
       return false
       
     case 'Backspace':
-      // Clear immediately before the timeout so stale list never flashes
-      suggestionsList.value = []
-      showSuggestions.value = false
-      setTimeout(() => {
-        const { state } = view
-        const { selection } = state
-        const { $from } = selection
-        const textBefore = state.doc.textBetween(0, $from.pos, ' ', ' ')
-        const currentWordObj = getCurrentWord(textBefore, $from.pos)
-        
-        if (currentWordObj.word && currentWordObj.word.length > 0) {
-          const suggestions = getSuggestions(currentWordObj.word).slice(0, 6)
+  // Clear immediately before the timeout so stale list never flashes
+  suggestionsList.value = []
+  showSuggestions.value = false
+  setTimeout(() => {
+    const { state } = view
+    const { selection } = state
+    const { $from } = selection
+    const textBefore = state.doc.textBetween(0, $from.pos, ' ', ' ')
+    const currentWordObj = getCurrentWord(textBefore, $from.pos)
+    const backspaceContext = state.doc.textBetween(
+      Math.max(0, $from.pos - 100),
+      Math.min(state.doc.content.size, $from.pos + 50),
+      ' ', ' '
+    )
+    if (currentWordObj.word && currentWordObj.word.length > 0) {
+      const suggestions = getSuggestions(currentWordObj.word, backspaceContext).slice(0, 6)
           suggestionsList.value = suggestions
           if (suggestions.length > 0) {
             showSuggestions.value = true

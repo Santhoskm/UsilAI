@@ -1153,6 +1153,7 @@ function checkCompoundWord(normalized, skipRuleFallback = false) {
     // e.g. veedukkullaethan → veedu+kku+lla+ethan
     let remaining = normalized;
     let suffixTamilStack = [];
+    let peeledSuffixes = [];
     let stemTamil = null;
     const MAX_DEPTH = 6;
 
@@ -1191,6 +1192,7 @@ function checkCompoundWord(normalized, skipRuleFallback = false) {
             }
 
             // Stem not found yet — peel this suffix and keep going deeper
+            peeledSuffixes.push(suffix);
             suffixTamilStack.unshift(suffixTamil);
             remaining = stem;
             matched = true;
@@ -1201,6 +1203,10 @@ function checkCompoundWord(normalized, skipRuleFallback = false) {
 
     // ── FALLBACK: If suffixes were peeled but no dictionary stem was found ──
     if (!skipRuleFallback && suffixTamilStack.length > 0 && remaining.length >= 2) {
+        const _dictionaryOnlySuffixes = new Set(['ai', 'e', 'um', 'yum', 'nu', 'nnu', 'nnnu', 'dhu', 'udhu', 'aadhu']);
+        const hasDictOnlySuffix = peeledSuffixes.some(s => _dictionaryOnlySuffixes.has(s));
+        if (hasDictOnlySuffix) return null;
+
         // Transliterate the stem using the rule engine (skipping nested compound checks)
         const stemTamil = convertWithRules(remaining, true);
         if (stemTamil && /[\u0B80-\u0BFF]/.test(stemTamil)) {
@@ -1632,13 +1638,25 @@ export function getTypingSuggestions(typedText, limit = 8) {
 
     const lower = typedText.toLowerCase();
     const results = [];
-    const seen = new Set();   // dedup by tamil value
-    const seenKeys = new Set(); // dedup by tanglish key
+    const seen = new Set();
+    const seenKeys = new Set();
+
+    // ── PASS -1: Learned corrections FIRST (user previously corrected this word) ──
+    const learnedSuggestion = getLearnedSuggestion(lower);
+    if (learnedSuggestion && learnedSuggestion.tamil && !_isBrokenTamil(learnedSuggestion.tamil)) {
+        results.push({
+            tanglish: learnedSuggestion.tanglish || lower,
+            tamil: learnedSuggestion.tamil,
+            type: '🎓 Learned',
+            priority: -1,
+            exact: true,
+            frequency: 999
+        });
+        seen.add(learnedSuggestion.tamil);
+        seenKeys.add(lower);
+    }
 
     // ── PASS 0: Rule engine FIRST — always option 1 ──────────────────────
-    // Rule engine gives the phonetically correct output for exactly what was
-    // typed (ramesh→ரமெஷ், kara→கர). Dictionary entries can have wrong values
-    // (kara→கற in backend), so rule result is shown first; dict becomes option 2+.
     if (typedText.length >= 2) {
         const ruleCandidates = beamSearchTransliterate(lower, 4, 3);
         ruleCandidates.forEach((cand) => {
@@ -1705,7 +1723,7 @@ export function getTypingSuggestions(typedText, limit = 8) {
     //
     // Only kicks in when lower.length >= 4 (avoids false positives on
     // very short inputs where normalization collapses too much).
-    if (lower.length >= 4) {
+    if (lower.length >= 3) {
         const phoneticPrefix = phoneticNormalize(lower);
         // Query phonetic trie
         const phoneticMatches = phoneticTrie.getWordsWithPrefix(phoneticPrefix, limit * 3);
@@ -1895,8 +1913,13 @@ export function getTypingSuggestions(typedText, limit = 8) {
     });
 
     // Sort: priority → exact first → frequency → shorter tanglish length
+    // Sort: learned first → priority → exact → context boost → frequency
+    const _context = analyzeContext('');  // pass surrounding text if available
     filtered.sort((a, b) => {
-        // Exact-length match always beats a longer completion, regardless of priority
+        // Learned corrections always win
+        if (a.priority === -1 && b.priority !== -1) return -1;
+        if (b.priority === -1 && a.priority !== -1) return 1;
+        // Exact-length match beats longer completions
         const aExactLen = a.tanglish.length === typedText.length;
         const bExactLen = b.tanglish.length === typedText.length;
         if (aExactLen && !bExactLen) return -1;
@@ -2942,7 +2965,8 @@ function _buildTokenTable() {
     addFamily('v', '\u0bb5');
     addFamily('h', '\u0bb9'); // h → ஹ (ha, hi, hu etc.)
     addFamily('s', '\u0b9a');
-    addFamily('t', '\u0b9f'); addFamily('d', '\u0b9f');
+    addFamily('t', '\u0ba4'); addFamily('d', '\u0ba4');  // t/d → த (dental, correct for Tanglish)
+    addFamily('T', '\u0b9f'); addFamily('D', '\u0b9f');  // T/D → ட (retroflex, explicit capital)
     addFamily('j', '\u0b9c');
     addFamily('n', '\u0ba8'); // n → ந (dental-na; nn=ன்ன handles alveolar doubled case)
     addFamily('n', '\u0ba9'); // n → ன (alveolar — correct default for colloquial Tanglish)
@@ -3967,13 +3991,16 @@ export function generateWordForms(tanglish) {
         const endsInVowel = TAMIL_STANDALONE_VOWELS.includes(lastChar) || TAMIL_VOWEL_SIGNS.includes(lastChar);
         const endsInPulli = lastChar === PULLI;
         if (!endsInVowel && !endsInPulli) {
-            const endings = ['ா', 'ு', 'ம்', 'ன்', 'ான்', 'ான'];
-            endings.forEach(ending => {
-                const withEnding = base + ending;
-                if (isLikelyValid(withEnding) && !forms.has(withEnding)) {
-                    forms.add(withEnding);
-                }
-            });
+            const baseTamilChars = [...base].filter(c => /[\u0B80-\u0BFF]/.test(c)).length;
+            if (baseTamilChars <= 4) {
+                const endings = ['ா', 'ு', 'ம்', 'ன்', 'ான்', 'ான'];
+                endings.forEach(ending => {
+                    const withEnding = base + ending;
+                    if (isLikelyValid(withEnding) && !forms.has(withEnding)) {
+                        forms.add(withEnding);
+                    }
+                });
+            }
         }
     }
 

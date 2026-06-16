@@ -582,6 +582,9 @@ export const commonWords = {
     'daniel': 'டானியேல்',   // ← ADD THIS
     'samuel': 'சாமுவேல்',   // ← ADD THIS
     'michael': 'மிக்கேல்',  // ← ADD THIS
+    'thuni': 'துணி',
+    'thunivu': 'துணிவு',
+    'thunbam': 'துன்பம்',
 
 }
 
