@@ -477,6 +477,10 @@ const _tanglishSpellingMap = _buildSpellingMap([
 // Both the informal spelling AND the canonical form are included.
 const _fallbackTamilMap = new Map([
     // ── TIME ─────────────────────────────────────────────────────────────
+    ['raghunath', 'ரகுநாத்'],
+    ['raghunaath', 'ரகுநாத்'],
+    ['ragunath', 'ரகுநாத்'],   // common alternate spelling
+    ['raghu', 'ரகு'],
     ['oorula', 'ஊருல'],
     ['oorulae', 'ஊருலே'],
     ['ellorum', 'எல்லோரும்'],
@@ -1927,8 +1931,14 @@ export function getTypingSuggestions(typedText, limit = 8) {
         if (a.priority !== b.priority) return a.priority - b.priority;
         if (a.exact && !b.exact) return -1;
         if (!a.exact && b.exact) return 1;
+        // Penalize completions much longer than what was typed
+        // e.g. typed 'raghu'(5) → 'raghunaath'(10) should NOT beat 'raghu' itself
+        const aLenPenalty = Math.max(0, a.tanglish.length - typedText.length);
+        const bLenPenalty = Math.max(0, b.tanglish.length - typedText.length);
+        const aScore = (a.frequency || 0) - aLenPenalty * 5;
+        const bScore = (b.frequency || 0) - bLenPenalty * 5;
         if (a.tanglish.length !== b.tanglish.length) return a.tanglish.length - b.tanglish.length;
-        return (b.frequency || 0) - (a.frequency || 0);
+        return bScore - aScore;
     });
 
     return filtered.slice(0, limit);
@@ -2925,6 +2935,7 @@ function _buildTokenTable() {
     // thambhi → தம்பி, not தம்பஹி
     t.push(['bhi', '\u0baa\u0bbf']); // bhi → பி
     t.push(['bhe', '\u0baa\u0bc6']); // bhe → பெ
+    addFamily('gh', '\u0b95');
     addFamily('ch', '\u0b9a');
     addFamily('zh', '\u0bb4');
     // Tamil ஞ never takes a direct vowel — it always needs ஞ்ச cluster.
@@ -3012,6 +3023,10 @@ const _neverConjugate = new Set([
     'yaathukkuun', 'eppadi', 'eppovum', 'enga',
     'unthan', 'unthane', 'unthanai', 'unthankaga',
     'untana', 'untanar', 'thirunthani', 'cheythirunthanar',
+    // Proper nouns ending in -than/-nthan (names, not verbs)
+    'ragunanthan', 'raghunanthan', 'rajinikanth', 'karthikeyan',
+    'ganeshan', 'murugan', 'kumaran', 'sivakanthan', 'selvan',
+    'deivanathan', 'subramanyan', 'krishnan', 'saravanan',
 ]);
 export function convertWithRules(tanglishWord, skipCompoundCheck = false) {
     if (!tanglishWord || !tanglishWord.trim()) return '';
@@ -3066,7 +3081,10 @@ export function convertWithRules(tanglishWord, skipCompoundCheck = false) {
 
 
     // Check verb forms — only for words with known verb suffixes (avoids false positives on nouns)
-    if (_verbSuffixRe.test(normalized) && !_neverConjugate.has(normalized)) {
+    const _likelyProperNoun = tanglishWord[0] === tanglishWord[0].toUpperCase()
+        && tanglishWord[0] !== tanglishWord[0].toLowerCase()  // actually has uppercase
+        && normalized.length >= 7;
+    if (_verbSuffixRe.test(normalized) && !_neverConjugate.has(normalized) && !_likelyProperNoun) {
         const verbForms = conjugateVerb(normalized);
         if (verbForms && verbForms.length > 0 && verbForms[0]) {
             return verbForms[0];
