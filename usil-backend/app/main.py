@@ -86,6 +86,7 @@ from app.config import settings           # ✅ add this if missing
 from app.api.v1 import suggestions
 from app.api.v1 import tools_service as tools
 from app.models import word  # noqa: F401
+from app.api.v1 import rerank
 
 load_dotenv()
 
@@ -101,6 +102,7 @@ app.add_middleware(
 
 app.include_router(suggestions.router, prefix="/api/v1")
 app.include_router(tools.router, prefix="/api/v1")
+app.include_router(rerank.router, prefix="/api/usil")
 
 
 @app.on_event("startup")

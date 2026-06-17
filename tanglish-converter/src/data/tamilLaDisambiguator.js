@@ -47,7 +47,7 @@ const VOWEL_SIGNS = '\u0BBE\u0BBF\u0BC0\u0BC1\u0BC2\u0BC6\u0BC7\u0BC8\u0BCA\u0BC
 // Pattern: [tanglishSuffix, tamilSuffix_wrong, tamilSuffix_correct]
 const SUFFIX_RULES_LA_TO_LA_RETROFLEX = [
     // Locative suffix -il/-ul → always ள் in colloquial: veetula, schoolla
-    { tanglish: /l[ae]$/i, tamil: /லை?$/, fix: s => s.slice(0, -2) + 'ளை' },  // -lai → -ளை if retroflex context
+    { tanglish: /[aeiou]{2}l[ae]$|[^aeiou]{2}l[ae]$/i, tamil: /லை?$/, fix: s => s.slice(0, -2) + 'ளை' }, // -lai → -ளை if retroflex context
     // -lla (kuLLa, uLLa, paLLam)
     { tanglish: /lla$/i, tamil: /ல்ல$/, fix: s => s.slice(0, -4) + 'ள்ள' },
     // -lle (kuLLe)

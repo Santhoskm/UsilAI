@@ -1740,6 +1740,13 @@ export function getTypingSuggestions(typedText, limit = 8) {
             // ✅ ADD THIS: skip phonetic match if we already have an exact match
             // Skip phonetic match if first letter doesn't match what user typed
             if (originalKey[0] !== lower[0]) continue;
+            // Skip if second char vowel class differs: 'aa' (long a) vs 'i' (short i)
+            // Prevents vaalai matching villai, kaalam matching killam etc.
+            const typedVowel = lower.slice(1, 3);   // e.g. 'aa' from 'vaalai'
+            const matchVowel = originalKey.slice(1, 3); // e.g. 'il' from 'villai'
+            const isTypedLong = /^(aa|ee|ii|oo|uu)/.test(typedVowel);
+            const isMatchLong = /^(aa|ee|ii|oo|uu)/.test(matchVowel);
+            if (isTypedLong !== isMatchLong) continue; // long vs short vowel — skip this hit
             // and the phonetic result's tanglish is longer than what was typed
             if (results.some(r => r.priority === 0) && originalKey.length > lower.length) continue;
 
@@ -5191,7 +5198,7 @@ export function rankTamilCandidates(candidates, surroundingText = '') {
 }
 
 // Enhanced transliteration with context awareness
-export function transliterateWithContext(tanglishWord, surroundingText = '') {
+export async function transliterateWithContext(tanglishWord, surroundingText = '') {
     const lower = tanglishWord.toLowerCase().trim();
 
     // ── PRIORITY CHECK ──────────────────────────────────────────────────────
@@ -5230,9 +5237,14 @@ export function transliterateWithContext(tanglishWord, surroundingText = '') {
     const forms = generateWordForms(tanglishWord);
     if (forms.length <= 1) return standard;
 
-    const ranked = rankTamilCandidates(forms, surroundingText);
-
-    return ranked[0] || standard;
+    // Try DL reranker first, fall back to rule-based ranking
+    try {
+        const dlRanked = await rerankWithDL(lower, forms);
+        return dlRanked[0] || standard;
+    } catch {
+        const ranked = rankTamilCandidates(forms, surroundingText);
+        return ranked[0] || standard;
+    }
 }
 
 // Update frequency when user accepts a suggestion
@@ -5290,6 +5302,26 @@ export function resetContext() {
 // Get current context state
 export function getCurrentContext() {
     return { ...contextState };
+}
+
+
+
+
+// ── DL RERANKER ─────────────────────────────────────────────────────────────
+async function rerankWithDL(tanglishWord, candidates) {
+    if (!candidates || candidates.length < 2) return candidates;
+    try {
+        const res = await fetch('/api/usil/rerank', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tanglish: tanglishWord, candidates })
+        });
+        if (!res.ok) return candidates;
+        const data = await res.json();
+        return data.ranked.map(r => r.tamil);
+    } catch {
+        return candidates; // fallback to rule-based if DL fails
+    }
 }
 
 // Load all data on init
