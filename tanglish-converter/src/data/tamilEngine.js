@@ -4957,7 +4957,7 @@ export function getIntelligentSuggestions(tanglishWord, surroundingText = '', li
 }
 
 // Enhanced transliteration with auto-learning
-export function transliterateWithLearning(tanglishWord, surroundingText = '') {
+export async function transliterateWithLearning(tanglishWord, surroundingText = '') {
     if (!tanglishWord) return '';
 
     const lower = tanglishWord.toLowerCase();
