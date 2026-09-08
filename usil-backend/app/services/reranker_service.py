@@ -7,7 +7,7 @@ class RerankerService:
     def __init__(self, model_dir="reranker"):
         self.tokenizer = AutoTokenizer.from_pretrained(model_dir)
         # Use ONNX for fast CPU inference (no GPU needed)
-        self.session = InferenceSession(f"{model_dir}/model.onnx")
+        self.session = InferenceSession(f"{model_dir}/model_dynamic.onnx")
 
     
     def score(self, tanglish: str, candidates: list[str]) -> list[dict]:
