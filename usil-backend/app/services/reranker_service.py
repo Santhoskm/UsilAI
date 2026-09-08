@@ -8,9 +8,13 @@ class RerankerService:
         self.tokenizer = AutoTokenizer.from_pretrained(model_dir)
         # Use ONNX for fast CPU inference (no GPU needed)
         self.session = InferenceSession(f"{model_dir}/model.onnx")
+
     
     def score(self, tanglish: str, candidates: list[str]) -> list[dict]:
         """Score each Tamil candidate for how well it matches the tanglish input."""
+        if not candidates:
+            return []
+            
         results = []
         for tamil in candidates:
             enc = self.tokenizer(
@@ -25,6 +29,7 @@ class RerankerService:
             # Softmax: probability that this candidate is CORRECT (label=1)
             score = float(np.exp(logits[0][1]) / np.sum(np.exp(logits[0])))
             results.append({"tamil": tamil, "score": score})
-        
+
+            
         # Sort highest score first
         return sorted(results, key=lambda x: x["score"], reverse=True)

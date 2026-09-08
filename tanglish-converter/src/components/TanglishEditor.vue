@@ -385,8 +385,9 @@ import { useTanglishConverter } from '@/composables/useTanglishConverter'
 import { preloadCommonChunks } from '@/data/tamilEngine'
 import { useClaudeGrammarChecker } from '@/composables/useClaudeGrammarChecker'
 
-const { convertWord, convertSentence, getSuggestions, learnCorrection, recordUsage } = useTanglishConverter()
+const { suggestions: aiSuggestions, convertWord, convertSentence, getSuggestions, learnCorrection, recordUsage } = useTanglishConverter()
 const { checkGrammar, isChecking: aiChecking, error: aiError, correctionResult } = useClaudeGrammarChecker()
+
 
 // State
 const autoConvert = ref(true)
@@ -400,6 +401,20 @@ const wordCount = ref(0)
 const charCount = ref(0)
 const lastProcessedWord = ref('')
 const lastProcessedPosition = ref(-1)
+
+// Watch for Deep Learning suggestions from the backend API
+watch(aiSuggestions, (newSuggestions) => {
+  if (newSuggestions && newSuggestions.length > 0) {
+    suggestionsList.value = newSuggestions
+    if (!showSuggestions.value) {
+      showSuggestions.value = true
+      selectedSuggestionIndex.value = 0
+      if (editor.value) {
+        updatePopupPosition(editor.value.view)
+      }
+    }
+  }
+})
 
 // AI Assistant State
 const aiHelpEnabled = ref(false)

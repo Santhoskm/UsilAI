@@ -3,6 +3,8 @@ from sqlalchemy import text
 from typing import List, Dict
 from app.utils.ranking import rank_suggestions
 from app.state import trie_cache   # ✅ import from state, not main
+from app.utils.word_former import generate_dynamic_tamil_words
+
 
 
 class SuggestionService:
@@ -32,8 +34,18 @@ class SuggestionService:
 
 
         if self.trie and self.trie.size > 0:
-            results = self.trie.search_prefix(query.lower(), limit)
-            suggestions = rank_suggestions(results, query.lower())
+            # 1. Get dictionary matches
+            db_results = self.trie.search_prefix(query.lower(), limit)
+            
+            # 2. Get dynamically formed words
+            dynamic_results = generate_dynamic_tamil_words(query.lower())
+            
+            # 3. Merge both lists together
+            combined_results = db_results + dynamic_results
+            
+            # 4. Pass the merged list to your Deep Learning ranker!
+            suggestions = rank_suggestions(combined_results, query.lower())
+
 
     #  put exact match first
             if exact_row:
@@ -45,7 +57,7 @@ class SuggestionService:
 
                 suggestions = [
                     s for s in suggestions
-                    if s["tanglish"] != exact_row.tanglish
+                    if s["tamil"] != exact_row.tamil
                 ]
 
                 suggestions.insert(0, exact_word)
@@ -64,7 +76,7 @@ class SuggestionService:
 
             suggestions = [
                 s for s in suggestions
-                if s["tanglish"] != exact_row.tanglish
+                if s["tamil"] != exact_row.tamil
             ]
 
             suggestions.insert(0, exact_word)
@@ -75,7 +87,7 @@ class SuggestionService:
         """Direct DB prefix query — fallback only."""
         result = await self.db.execute(
             text("""
-                SELECT tanglish, tamil, frequency
+                SELECT tanglish, tamil, frequency 
                 FROM words
                 WHERE tanglish LIKE :prefix
                 ORDER BY frequency DESC, tanglish
@@ -84,10 +96,11 @@ class SuggestionService:
             {"prefix": f"{query.lower()}%", "limit": limit}
         )
         rows = result.fetchall()
-        return rank_suggestions(
-            [{"tanglish": r[0], "tamil": r[1], "frequency": r[2]} for r in rows],
-            query.lower()
-        )
+        db_results = [{"tanglish": r[0], "tamil": r[1], "frequency": r[2]} for r in rows]
+        dynamic_results = generate_dynamic_tamil_words(query.lower())   
+        combined_results = db_results + dynamic_results
+        return rank_suggestions(combined_results, query.lower())
+
 
     async def get_fuzzy_suggestions(self, query: str, limit: int = 10) -> List[Dict]:
         """Get fuzzy suggestions using trigram similarity (typo tolerance)"""

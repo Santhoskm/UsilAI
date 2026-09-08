@@ -90,15 +90,10 @@ export function useTanglishConverter() {
                     const seenTanglish = new Set()
                     const merged = []
 
-                    for (const item of localSuggestions) {
-                        seenTamil.add(item.tamil)
-                        seenTanglish.add(item.tanglish)
-                        merged.push(item)
-                    }
-
+                    // 1. Put Backend Deep Learning results FIRST
                     for (const item of backendResults) {
                         if (!item.tanglish.startsWith(normalizedWord)) continue;
-                        if (!seenTamil.has(item.tamil) && !seenTanglish.has(item.tanglish)) {
+                        if (!seenTamil.has(item.tamil)) {
                             seenTamil.add(item.tamil)
                             seenTanglish.add(item.tanglish)
                             merged.push({
@@ -107,6 +102,15 @@ export function useTanglishConverter() {
                                 frequency: item.frequency || 0,
                                 source: 'db'
                             })
+                        }
+                    }
+
+                    // 2. Append local suggestions at the end as fallbacks
+                    for (const item of localSuggestions) {
+                        if (!seenTamil.has(item.tamil)) {
+                            seenTamil.add(item.tamil)
+                            seenTanglish.add(item.tanglish)
+                            merged.push(item)
                         }
                     }
 

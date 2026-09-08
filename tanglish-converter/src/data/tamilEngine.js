@@ -638,8 +638,9 @@ const _fallbackTamilMap = new Map([
     ['ivalkita', 'இவள்கிட்ட'], ['ivalkitta', 'இவள்கிட்ட'],
     ['neengakku', 'நீங்களுக்கு'], ['ningakku', 'நீங்களுக்கு'],
     ['neengaku', 'நீங்களுக்கு'], ['ningaku', 'நீங்களுக்கு'],
-    ['ooru', 'ஊரு'], ['oru', 'ஊரு'],
+    ['ooru', 'ஊரு'], ['oru', 'ஒரு'],
     ['oorukku', 'ஊருக்கு'], ['oruku', 'ஊருக்கு'],
+
     ['uruku', 'ஊருக்கு'],
     ['kadai', 'கடை'], ['kade', 'கடை'],
     ['kadaikku', 'கடைக்கு'], ['kadaiku', 'கடைக்கு'],
@@ -693,7 +694,7 @@ const _fallbackTamilMap = new Map([
     ['santhosham', 'சந்தோஷம்'],
     ['kovam', 'கோபம்'], ['kopam', 'கோபம்'],
     ['kobam', 'கோபம்'], ['bayam', 'பயம்'],
-    ['kadhal', 'காதல்'], ['kadal', 'காதல்'], ['kathal', 'காதல்'],
+    ['kadhal', 'காதல்'], ['kathal', 'காதல்'],
     ['anbu', 'அன்பு'],
     ['kastam', 'கஷ்டம்'], ['kasdam', 'கஷ்டம்'],
     ['kashtam', 'கஷ்டம்'],
@@ -740,6 +741,24 @@ const _fallbackTamilMap = new Map([
     ['vettai', 'வேட்டை'], ['vettu', 'வெட்டு'],
     ['ottam', 'ஓட்டம்'], ['ottu', 'ஓட்டு'],
     ['ittam', 'இட்டம்'], ['ittu', 'இட்டு'],
+    // ── RETROFLEX d (ட) WORDS ─────────────────────────────────────────
+    ['vaadivaasal', 'வாடிவாசல்'],
+    ['vaadi', 'வாடி'], ['vaadai', 'வாடை'],
+    ['padi', 'படி'], ['padikka', 'படிக்க'],
+    ['kodi', 'கொடி'], ['kodai', 'கொடை'],
+    ['adi', 'அடி'], ['adikka', 'அடிக்க'],
+    ['vadi', 'வடி'], ['vadai', 'வடை'],
+    ['kadu', 'காடு'], ['kadal', 'கடல்'],
+    ['aadu', 'ஆடு'], ['aadal', 'ஆடல்'],
+    ['odi', 'ஓடி'], ['odum', 'ஓடும்'],
+    ['udal', 'உடல்'], ['udai', 'உடை'],
+    ['tadi', 'தடி'], ['tadam', 'தடம்'],
+    ['madai', 'மடை'], ['madam', 'மடம்'],
+    ['padu', 'படு'], ['padai', 'படை'],
+    ['nadai', 'நடை'], ['nadam', 'நடம்'],
+    ['vidai', 'விடை'], ['vidal', 'விடல்'],
+    ['idai', 'இடை'], ['idam', 'இடம்'],
+    ['adai', 'அடை'], ['adam', 'ஆடம்'],
 ]);
 
 function normalizeInput(input) {
@@ -1275,11 +1294,6 @@ function checkCompoundWord(normalized, skipRuleFallback = false) {
 //     if (/[bcdfghjklmnpqrstvwxyz]$/.test(stem)) {
 //         alts.add(stem + 'u');
 //     }
-
-//     return alts;
-// }
-
-
 function _generateStemAlternates(stem) {
     const alts = new Set();
     if (!stem || stem.length < 2) return alts;
@@ -1406,8 +1420,15 @@ class Trie {
         const _badStart = /^[னறளா-ௌ]/;
         const _valid = results.filter(r => r.tamil && !_badStart.test(r.tamil));
         _valid.sort((a, b) => {
-            if (a.word.length !== b.word.length) return a.word.length - b.word.length;
-            return b.frequency - a.frequency;
+            // Exact-length match beats longer completions
+            const aExact = a.word.length === lowerPrefix.length;
+            const bExact = b.word.length === lowerPrefix.length;
+            if (aExact && !bExact) return -1;
+            if (!aExact && bExact) return 1;
+            // Then by frequency (most popular first)
+            if (b.frequency !== a.frequency) return b.frequency - a.frequency;
+            // Tiebreak: shorter words first
+            return a.word.length - b.word.length;
         });
 
         return _valid.slice(0, limit);
@@ -1673,7 +1694,7 @@ export function getTypingSuggestions(typedText, limit = 8) {
                     tanglish: lower,
                     tamil: cand,
                     type: '\u{1F527} Rule',
-                    priority: 0,
+                    priority: 1,
                     exact: false,
                     frequency: getWordFrequency(cand)
                 });
@@ -1692,7 +1713,7 @@ export function getTypingSuggestions(typedText, limit = 8) {
                 tanglish: lower,
                 tamil: trieExact.tamil,
                 type: '\u2B50 Match',
-                priority: 1,
+                priority: 0,
                 exact: true,
                 frequency: trieExact.frequency
             });
@@ -1711,7 +1732,7 @@ export function getTypingSuggestions(typedText, limit = 8) {
                 tanglish: match.tanglish,
                 tamil: match.tamil,
                 type: '📚 Trie',
-                priority: 1,
+                priority: 0,
                 exact: true,
                 frequency: match.frequency
             });
@@ -1748,8 +1769,8 @@ export function getTypingSuggestions(typedText, limit = 8) {
             const isMatchLong = /^(aa|ee|ii|oo|uu)/.test(matchVowel);
             if (isTypedLong !== isMatchLong) continue; // long vs short vowel — skip this hit
             // and the phonetic result's tanglish is longer than what was typed
-            if (results.some(r => r.priority === 0) && originalKey.length > lower.length) continue;
-
+            const phonLower = phoneticNormalize(lower);
+            if (results.some(r => r.tanglish === lower && r.tanglish.length >= 5) && match.tanglish.length > phonLower.length) continue;
             results.push({
                 tanglish: originalKey,
                 tamil: match.tamil,
@@ -1816,7 +1837,7 @@ export function getTypingSuggestions(typedText, limit = 8) {
                     tanglish: key,
                     tamil: value,
                     type: '📚 Word',
-                    priority: 3,
+                    priority: 0,
                     exact: true
                 });
                 seen.add(value);
@@ -1835,7 +1856,7 @@ export function getTypingSuggestions(typedText, limit = 8) {
                     tanglish: key,
                     tamil: value,
                     type: '🔍 Contains',
-                    priority: 4,
+                    priority: 0,
                     exact: true
                 });
                 seen.add(value);
@@ -1879,7 +1900,7 @@ export function getTypingSuggestions(typedText, limit = 8) {
     }
 
     // ── PASS 6: Rule preview + word form variants (always show forming options) ──
-    if (typedText.length >= 2 && results.length < limit) {
+    if (typedText.length >= 2) {
         const ruleCandidates = beamSearchTransliterate(lower, 4, 3);
         ruleCandidates.forEach((cand) => {
             if (results.length >= limit) return;
@@ -1897,13 +1918,13 @@ export function getTypingSuggestions(typedText, limit = 8) {
         });
         const forms6 = generateWordForms(lower);
         for (const f of forms6) {
-            if (results.length >= limit) break;
+            // REMOVED THE BREAK LINE HERE
             if (!seen.has(f) && !_isBrokenTamil(f) && /[஀-௿]/.test(f)) {
                 results.push({
                     tanglish: typedText,
                     tamil: f,
                     type: '🔧 Form',
-                    priority: 6,
+                    priority: 2,
                     exact: false,
                     frequency: getWordFrequency(f)
                 });
@@ -2882,8 +2903,9 @@ function _buildTokenTable() {
     t.push(['chr', '\u0B95\u0BBF\u0BB1\u0BCD']); // கிற்
 
 
-    // tr family (Sanskrit) → த்ர
-    addFamily('tr', '\u0ba4\u0bcd\u0bb0');
+    // tr family → ற்ற (e.g. vetri -> வெற்றி, patri -> பற்றி)
+    addFamily('tr', '\u0bb1\u0bcd\u0bb1');
+
 
     // NOTE: Duplicate thr/ndr/str blocks removed — already defined above in section 1.
     // un+than split — must come before nth cluster to prevent nth from grabbing across word boundary
@@ -2968,6 +2990,7 @@ function _buildTokenTable() {
     addFamily('kk', '\u0b95\u0bcd\u0b95'); // kk → க்க (nallozhukkam etc.)
     addFamily('pp', '\u0baa\u0bcd\u0baa'); // pp → ப்ப
     addFamily('tt', '\u0b9f\u0bcd\u0b9f'); // tt → ட்ட (retroflex double)
+    addFamily('dd', '\u0b9f\u0bcd\u0b9f'); // dd → ட்ட (retroflex double, e.g. paddi)
     addFamily('mm', '\u0bae\u0bcd\u0bae'); // mm → ம்ம
 
     // ── 3. SINGLE CONSONANTS ──
@@ -2983,7 +3006,7 @@ function _buildTokenTable() {
     addFamily('v', '\u0bb5');
     addFamily('h', '\u0bb9'); // h → ஹ (ha, hi, hu etc.)
     addFamily('s', '\u0b9a');
-    addFamily('t', '\u0ba4'); addFamily('d', '\u0ba4');  // t/d → த (dental, correct for Tanglish)
+    addFamily('t', '\u0ba4'); addFamily('d', '\u0b9f');  // t → த (dental), d → ட (retroflex)
     addFamily('T', '\u0b9f'); addFamily('D', '\u0b9f');  // T/D → ட (retroflex, explicit capital)
     addFamily('j', '\u0b9c');
     addFamily('n', '\u0ba8'); // n → ந (dental-na; nn=ன்ன handles alveolar doubled case)
@@ -3061,7 +3084,7 @@ export function convertWithRules(tanglishWord, skipCompoundCheck = false) {
     // AND the remainder matches common dental patterns, rewrite to th/dh before tokenizing.
     // This is a limited rule; the dictionary/fallback map covers known words already.
     // We only fire for unseen words (dict check below will catch known ones).
-    const _dentalStartRe = /^[td](?:a(?:mb|ng|m|n|l|r|v|k|pp|tt)|e(?:v|n|rin|ru|ra|l)|i(?:n|r|tt|ru|l)|u(?:r|n|mb|tt)|h)/i;
+    const _dentalStartRe = /^t(?:a(?:mb|ng|m|n|l|r|v|k|pp|tt)|e(?:v|n|rin|ru|ra|l)|i(?:n|r|tt|ru|l)|u(?:r|n|mb|tt)|h)/i;
     let normalizedForTokenizer = normalized;
 
     // STEP 2: Check full word first
@@ -3107,8 +3130,8 @@ export function convertWithRules(tanglishWord, skipCompoundCheck = false) {
         _dentalStartRe.test(normalized) &&
         !fullWordMapping.has(normalized) &&
         !_fallbackTamilMap.has(normalized)) {
-        // Rewrite leading t/d → th/dh so tokenizer picks dental-ta (த) not retroflex (ட)
-        normalizedForTokenizer = normalized.replace(/^t/, 'th').replace(/^d/, 'dh');
+        // Rewrite leading t → th so tokenizer picks dental-ta (த)
+        normalizedForTokenizer = normalized.replace(/^t/, 'th');
     }
     let result = '';
     let pos = 0;
@@ -3883,10 +3906,31 @@ function generateSafeVariations(base) {
     const variations = new Set();
     variations.add(base);
 
+    // 1. Change 'ச' to 'ஸ' (e.g. வாடிவாச -> வாடிவாஸ)
+    if (base.includes('ச')) {
+        variations.add(base.replace(/ச/g, 'ஸ'));
+    }
+
+    // 2. Change 'ச' at the end to 'சா' (e.g. வாடிவாச -> வாடிவாசா)
+    if (base.endsWith('ச')) {
+        variations.add(base.replace(/ச$/, 'சா'));
+    }
+
+    // 3. Change 'ச' at the end to 'சை' (e.g. வாடிவாச -> வாடிவாசை)
+    if (base.endsWith('ச')) {
+        variations.add(base.replace(/ச$/, 'சை'));
+    }
+
+    // 4. Shorten starting long 'வா' to short 'வ' (e.g. வாடிவாச -> வடிவாச)
+    if (base.startsWith('வா')) {
+        variations.add(base.replace(/^வா/, 'வ'));
+    }
+
     // ல → ள only in middle (not at start or end)
     if (base.includes('ல') && !base.startsWith('ல') && !base.endsWith('ல')) {
         variations.add(base.replace(/ல/g, 'ள'));
     }
+
 
     // ல → ழ only in middle (limited, only for specific words)
     if (base.includes('ல') && !base.startsWith('ல') && !base.endsWith('ல')) {
@@ -3898,13 +3942,63 @@ function generateSafeVariations(base) {
         variations.add(base.replace(/([டதற])ந/g, '$1ண'));
     }
 
-    // ர → ற only in middle
-    // if (base.includes('ர') && !base.startsWith('ர') && !base.endsWith('ர')) {
-    //     variations.add(base.replace(/ர/g, 'ற'));
-    // }
+    // 5. Change 'ர' to 'ற' (e.g. மாரன் -> மாறன்)
+    if (base.includes('ர') && !base.startsWith('ர') && !base.endsWith('ர')) {
+        variations.add(base.replace(/ர/g, 'ற'));
+    }
+
+    // 6. Special variations for 'ran' ending (handles both ரன், ரண், றன், றண்)
+    const endingRegex = /(ர|ற)(ன்|ண்)$/;
+    if (endingRegex.test(base)) {
+        variations.add(base.replace(endingRegex, 'றான்'));
+        variations.add(base.replace(endingRegex, 'யன்'));
+        variations.add(base.replace(endingRegex, 'றனை'));
+        variations.add(base.replace(endingRegex, 'றன்')); // guarantees மாறன்
+        variations.add(base.replace(endingRegex, 'ரன்')); // guarantees மாரன்
+    }
+
+    // 7. Swapping nn and th doubling (e.g. வின்னைதாண்டி -> விண்ணைத்தாண்டி, வின்னைத்தாண்டி, விண்ணைதாண்டி)
+    if (base.includes('ன்னை')) {
+        variations.add(base.replace(/ன்னை/g, 'ண்ணை'));
+        variations.add(base.replace(/ன்னைதா/g, 'ன்னைத்தா'));
+        variations.add(base.replace(/ன்னைதா/g, 'ண்ணைத்தா'));
+        variations.add(base.replace(/ன்னைதாண்டி/g, 'ண்ணைத்தாந்தி'));
+    }
+
+    // 8. Variations for “rani” (ரனி) and its common suffixes
+    if (base === 'ரனி') {
+        variations.add('ரனின்');   // ரனின்
+        variations.add('ரணிப்');   // ரணிப்
+        variations.add('ரணிச்'); // ரணிச்
+        variations.add('ரனீம்');   // ரனீம்
+    }
+
+    // 9. Variations for “raja” (ரஜா) and its common suffixes
+    if (base.endsWith('ஜா')) {
+        variations.add(base.replace(/ஜா$/, 'ஜா'));   // ராஜா (keeps the correct spelling)
+        variations.add(base.replace(/ஜா$/, 'ஜீ'));   // ராஜீ
+        variations.add(base.replace(/ஜா$/, 'ஜன்'));  // ராஜன்
+        variations.add(base.replace(/ஜா$/, 'ஜி'));   // ராஜி
+    }
+
+    // 10. Variations for "Sillunu" (சில்லுனு) and its correct orthographic forms
+    if (base === 'சில்லுனு') {
+        variations.add('சில்லுன்னு');  // doubled ending variant
+        variations.add('சுள்ளுனு');   // alternate vowel form
+        variations.add('சிலுனு');     // short form
+    }
+
+    // 11. Variations for "oru" (ஒரு) - means "one/a"
+    if (base === 'ஒரு') {
+        variations.add('ஒருக்கு');   // dative
+        variations.add('ஒரோர்');    // distributive
+        variations.add('ஓர்');      // short literary form
+    }
+
 
     return Array.from(variations);
 }
+
 
 // ============ STRICT WORD FILTER ============
 
@@ -3965,17 +4059,21 @@ export function generateWordForms(tanglish) {
         _fallbackTamilMap.get(lower) === base  // exact fallback hit
     );
 
-    if (_isCompleteSuffix) {
-        // Word is already complete — return only the base form, no variants
-        return [base].filter(w => isLikelyValid(w));
-    }
-
-    // Apply controlled letter variations
+    // Apply controlled letter variations FIRST!
     if (base) {
         const safeVariations = generateSafeVariations(base);
         safeVariations.forEach(v => {
             if (isLikelyValid(v)) forms.add(v);
         });
+    }
+
+    if (_isCompleteSuffix) {
+        // Word is already complete — return the base form AND its safe variations
+        return Array.from(forms).filter(w => isLikelyValid(w));
+    }
+
+    if (base) {
+
 
         // ந் at word end → ன் (very common: bhagavan, raman, krishnan etc.)
         if (base.endsWith('ந்')) {
@@ -5119,7 +5217,8 @@ export function getContextAwareSuggestions(tanglishWord, surroundingText = '') {
     const context = analyzeContext(surroundingText);
 
     const scored = suggestions.map(suggestion => {
-        let score = suggestion.priority * 10;
+        let score = (10 - suggestion.priority) * 100;  // Scale by 100 so priority always beats frequency!
+
 
         const freq = getWordFrequency(suggestion.tamil);
         score += Math.min(freq / 10, 50);

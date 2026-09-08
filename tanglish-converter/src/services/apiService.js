@@ -16,10 +16,19 @@ const API_BASE = '/api/usil'
  */
 export async function fetchSuggestions(query, limit = 10, fuzzy = false) {
     if (!query || query.length < 1) return []
+    const lowerQuery = query.toLowerCase();
+
+    let cachedWord = null;
+    try {
+        const cache = JSON.parse(localStorage.getItem('usil_cache') || '{}');
+        if (cache[lowerQuery]) {
+            cachedWord = { tamil: cache[lowerQuery], score: 999 };
+        }
+    } catch (e) { }
 
     try {
         const params = new URLSearchParams({
-            q: query.toLowerCase(),
+            q: lowerQuery,
             limit: limit.toString(),
             fuzzy: fuzzy.toString()
         })
@@ -28,17 +37,24 @@ export async function fetchSuggestions(query, limit = 10, fuzzy = false) {
 
         if (!response.ok) {
             console.warn(`[API] Suggestions request failed: ${response.status}`)
-            return []
+            return cachedWord ? [cachedWord] : []
         }
 
         const data = await response.json()
-        return data.suggestions || []
+        let suggestions = data.suggestions || []
+
+        if (cachedWord) {
+            suggestions = suggestions.filter(s => s.tamil !== cachedWord.tamil);
+            suggestions.unshift(cachedWord);
+        }
+
+        return suggestions
     } catch (err) {
-        // Backend might be offline — fail silently, frontend engine handles fallback
         console.warn('[API] Backend unreachable, using local engine:', err.message)
-        return []
+        return cachedWord ? [cachedWord] : []
     }
 }
+
 
 /**
  * Check grammar using the backend's Claude integration
@@ -93,8 +109,8 @@ export async function transliterateViaBackend(text) {
 export async function isBackendOnline() {
     try {
         // /api/usil/suggestions/health → proxied → /api/v1/suggestions/health
-        const response = await fetch(`${API_BASE}/suggestions/health`, { 
-            signal: AbortSignal.timeout(3000) 
+        const response = await fetch(`${API_BASE}/suggestions/health`, {
+            signal: AbortSignal.timeout(3000)
         })
         if (!response.ok) return false
         const data = await response.json()
@@ -117,13 +133,23 @@ let _flushTimer = null
  */
 export function enqueueUsage(tanglish, tamil = '') {
     if (!tanglish) return
-    _usageQueue.push({ tanglish: tanglish.toLowerCase(), tamil })
+    const lowerTanglish = tanglish.toLowerCase();
 
-    // Auto-flush after 30 seconds of the first enqueue
+    if (tamil) {
+        try {
+            const cache = JSON.parse(localStorage.getItem('usil_cache') || '{}');
+            cache[lowerTanglish] = tamil;
+            localStorage.setItem('usil_cache', JSON.stringify(cache));
+        } catch (e) { }
+    }
+
+    _usageQueue.push({ tanglish: lowerTanglish, tamil })
+
     if (!_flushTimer) {
         _flushTimer = setTimeout(flushUsageBatch, 30000)
     }
 }
+ 
 
 /**
  * Flush all pending usage records to the backend in one batch call.
@@ -160,7 +186,7 @@ if (typeof window !== 'undefined') {
         if (_usageQueue.length > 0) {
             // Use sendBeacon for reliability during unload
             const payload = JSON.stringify({ words: _usageQueue.splice(0) })
-            navigator.sendBeacon(`${API_BASE}/suggestions/usage/batch`, 
+            navigator.sendBeacon(`${API_BASE}/suggestions/usage/batch`,
                 new Blob([payload], { type: 'application/json' }))
         }
     })

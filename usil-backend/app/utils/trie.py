@@ -50,9 +50,10 @@ class Trie:
         
         if len(prefix) >= 3:
             results.sort(key=lambda x: (
-              0 if x['tanglish'] == prefix else 1,          # exact match always first
-              len(x['tanglish']) - len(prefix),              # how many extra chars beyond typed
-              x['tanglish']                                  # alphabetical tiebreak
+                0 if x['tanglish'] == prefix else 1,          # exact match always first
+                len(x['tanglish']) - len(prefix),              # shorter completions first
+                -x['frequency'],                               # then by frequency (highest first)
+                x['tanglish']                                  # alphabetical tiebreak
             ))
         else:
             results.sort(key=lambda x: (-x['frequency'], len(x['tanglish'])))
