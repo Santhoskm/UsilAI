@@ -1,127 +1,92 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text
 from typing import List, Dict
-from app.utils.ranking import rank_suggestions
-from app.state import trie_cache   # ✅ import from state, not main
 from app.utils.word_former import generate_dynamic_tamil_words
-
-
+from app.utils.morph_engine import MorphEngine
+from app.utils.ranking import rank_combinations
+from app.services.google_input_service import fetch_google_candidates
 
 class SuggestionService:
-    def __init__(self, db: AsyncSession, trie=None):
+    def __init__(self, db: AsyncSession, trie=None, morph_engine=None):
         self.db = db
         self.trie = trie
+        self.morph_engine = morph_engine or MorphEngine()
 
-    async def get_suggestions(self, query: str, limit: int = 10) -> List[Dict]:
-        """Trie first (fast), DB fallback if trie is empty."""
-        if not query:
+    async def get_suggestions(self, phrase: str, limit: int = 10, session_cache: Dict = None) -> List[Dict]:
+        """Generate candidates for the last word and context words, then rank combinations."""
+        if not phrase:
             return []
+            
+        words = phrase.strip().split()
+        if not words:
+            return []
+            
+        current_word = words[-1]
+        context_words = words[-3:-1]  # Up to 2 preceding words
         
-        query = query.strip().lower()
+        # 1. Get exact/near candidates for context words (purely local & fast)
+        context_candidates = []
+        for ctx_w in context_words:
+            results = self.trie.fuzzy_search_prefix(ctx_w.lower(), max_cost=0.5, limit=3)
+            cands = [r["tamil"] for r in results]
+            if not cands:
+                morph_res = self.morph_engine.generate_morph_candidates(ctx_w.lower(), self.trie, limit=3)
+                cands = [d["tamil"] for d in morph_res[:3]] if morph_res else []
+                if not cands:
+                    dyn = generate_dynamic_tamil_words(ctx_w.lower())
+                    cands = [d["tamil"] for d in dyn[:3]]
+            context_candidates.append(cands if cands else [ctx_w])
+            
+        # 2. Get candidates for the word being typed
+        db_results = self.trie.fuzzy_search_prefix(current_word.lower(), max_cost=1.0, limit=limit)
+        has_exact_match = any(r.get("cost", 1.0) == 0 for r in db_results) if db_results else False
 
-        exact = await self.db.execute(
-            text("""
-                 SELECT tanglish, tamil, frequency
-                 FROM words
-                 WHERE tanglish = :query
-                 LIMIT 1
-            """),
-            {"query": query}
-        )
-
-        exact_row = exact.fetchone()
+        # If no exact match exists in the Trie (slang, typo, or OOV), query Google Input Tools
+        google_results = []
+        if not has_exact_match:
+            google_cands = await fetch_google_candidates(current_word.lower(), limit=4)
+            existing_tamil = {r["tamil"] for r in db_results}
+            for cand in google_cands:
+                if cand not in existing_tamil:
+                    google_results.append({
+                        "tanglish": current_word.lower(),
+                        "tamil": cand,
+                        "frequency": 15000,
+                        "cost": 0.05
+                    })
+                    existing_tamil.add(cand)
         
-
-
-        if self.trie and self.trie.size > 0:
-            # 1. Get dictionary matches
-            db_results = self.trie.search_prefix(query.lower(), limit)
+        if db_results:
+            if has_exact_match and len(db_results) > 2:
+                dynamic_results = []
+            else:
+                dynamic_results = generate_dynamic_tamil_words(current_word.lower())
+        else:
+            # ── Layer 1.5: Morphological suffix-stripping ─────────────────
+            dynamic_results = self.morph_engine.generate_morph_candidates(
+                current_word.lower(), self.trie, limit=limit
+            )
+            # ── Layer 2: Raw phoneme decomposer (last resort) ─────────────
+            if not dynamic_results and not google_results:
+                dynamic_results = generate_dynamic_tamil_words(current_word.lower())
             
-            # 2. Get dynamically formed words
-            dynamic_results = generate_dynamic_tamil_words(query.lower())
-            
-            # 3. Merge both lists together
-            combined_results = db_results + dynamic_results
-            
-            # 4. Pass the merged list to your Deep Learning ranker!
-            suggestions = rank_suggestions(combined_results, query.lower())
-
-
-    #  put exact match first
-            if exact_row:
-                exact_word = {
-                    "tanglish": exact_row.tanglish,
-                    "tamil": exact_row.tamil,
-                    "frequency": exact_row.frequency
-                }
-
-                suggestions = [
-                    s for s in suggestions
-                    if s["tamil"] != exact_row.tamil
-                ]
-
-                suggestions.insert(0, exact_word)
-
-            return suggestions
-
-        suggestions = await self._db_suggestions(query, limit)
-
-#  exact match first for DB fallback also
-        if exact_row:
-            exact_word = {
-                 "tanglish": exact_row.tanglish,
-                 "tamil": exact_row.tamil,
-                  "frequency": exact_row.frequency
-            }
-
-            suggestions = [
-                s for s in suggestions
-                if s["tamil"] != exact_row.tamil
-            ]
-
-            suggestions.insert(0, exact_word)
+        combined_raw = google_results + db_results + dynamic_results
+        combined_current = []
+        seen_tamil = set()
+        for item in combined_raw:
+            tw = item.get("tamil")
+            if tw and tw not in seen_tamil:
+                seen_tamil.add(tw)
+                combined_current.append(item)
+        
+        # 3. Rank combinations via sentence-level Deep Learning scoring
+        suggestions = rank_combinations(combined_current, phrase.lower(), context_candidates, limit, session_cache=session_cache)
 
         return suggestions
 
-    async def _db_suggestions(self, query: str, limit: int) -> List[Dict]:
-        """Direct DB prefix query — fallback only."""
-        result = await self.db.execute(
-            text("""
-                SELECT tanglish, tamil, frequency 
-                FROM words
-                WHERE tanglish LIKE :prefix
-                ORDER BY frequency DESC, tanglish
-                LIMIT :limit
-            """),
-            {"prefix": f"{query.lower()}%", "limit": limit}
-        )
-        rows = result.fetchall()
-        db_results = [{"tanglish": r[0], "tamil": r[1], "frequency": r[2]} for r in rows]
-        dynamic_results = generate_dynamic_tamil_words(query.lower())   
-        combined_results = db_results + dynamic_results
-        return rank_suggestions(combined_results, query.lower())
-
-
-    async def get_fuzzy_suggestions(self, query: str, limit: int = 10) -> List[Dict]:
-        """Get fuzzy suggestions using trigram similarity (typo tolerance)"""
-        result = await self.db.execute(
-            text("""
-                SELECT tanglish, tamil, frequency,
-                       similarity(tanglish, :query) as sim
-                FROM words
-                WHERE tanglish % :query
-                ORDER BY sim DESC, frequency DESC
-                LIMIT :limit
-            """),
-            {"query": query.lower(), "limit": limit}
-        )
-        suggestions = result.fetchall()
-        return [
-            {
-                "tanglish": row[0],
-                "tamil": row[1],
-                "frequency": row[2],
-                "similarity": float(row[3]) if len(row) > 3 else 0
-            }
-            for row in suggestions
-        ]
+    async def get_fuzzy_suggestions(self, phrase: str, limit: int = 10, session_cache: Dict = None) -> List[Dict]:
+        """
+        Fuzzy suggestion mode — uses a higher edit-distance tolerance.
+        Delegates to get_suggestions() since the Trie already handles fuzzy
+        matching via fuzzy_search_prefix(max_cost=1.0).
+        """
+        return await self.get_suggestions(phrase, limit, session_cache)

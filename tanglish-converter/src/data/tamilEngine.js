@@ -476,6 +476,12 @@ const _tanglishSpellingMap = _buildSpellingMap([
 // produce the correct Tamil even when the backend dictionary is offline.
 // Both the informal spelling AND the canonical form are included.
 const _fallbackTamilMap = new Map([
+    // ── DEV & DENTAL NAMES ───────────────────────────────────────────────
+    ['dev', 'தேவ்'],
+    ['deva', 'தேவா'],
+    ['devaa', 'தேவா'],
+    ['devi', 'தேவி'],
+
     // ── TIME ─────────────────────────────────────────────────────────────
     ['raghunath', 'ரகுநாத்'],
     ['raghunaath', 'ரகுநாத்'],
@@ -2223,6 +2229,43 @@ export function applySandhiRules(word1, word2) {
         return word1 + word2[0] + '்' + word2;
     }
 
+    // Rule 13: Accusative Case -ஐ (இரண்டாம் வேற்றுமை) + Vallinam initial → double vallinam
+    // e.g. புத்தகத்தை + படித்தான் → புத்தகத்தைப் படித்தான்
+    const vallinamPulliMap = { 'க': 'க்', 'ச': 'ச்', 'த': 'த்', 'ப': 'ப்' };
+    const firstChar2 = word2[0];
+    if ((word1.endsWith('ை') || word1.endsWith('த்தை')) && vallinamPulliMap[firstChar2]) {
+        const pulli = vallinamPulliMap[firstChar2];
+        if (!word1.endsWith(pulli)) {
+            return word1 + pulli + ' ' + word2;
+        }
+    }
+
+    // Rule 14: Dative Case -க்கு (நான்காம் வேற்றுமை) + Vallinam initial → double vallinam
+    // e.g. வீட்டுக்கு + சென்றான் → வீட்டுக்குச் சென்றான்
+    if ((word1.endsWith('க்கு') || word1.endsWith('கிற்கு') || word1.endsWith('ற்கு')) && vallinamPulliMap[firstChar2]) {
+        const pulli = vallinamPulliMap[firstChar2];
+        if (!word1.endsWith(pulli)) {
+            return word1 + pulli + ' ' + word2;
+        }
+    }
+
+    // Rule 15: Demonstratives (அந்த, இந்த, எந்த) + Vallinam initial → double vallinam
+    // e.g. அந்த + பையன் → அந்தப் பையன்
+    if (['அந்த', 'இந்த', 'எந்த'].includes(word1) && vallinamPulliMap[firstChar2]) {
+        const pulli = vallinamPulliMap[firstChar2];
+        if (!word1.endsWith(pulli)) {
+            return word1 + pulli + ' ' + word2;
+        }
+    }
+
+    // Rule 16: Infinitive verb ending in -க்க / -வா + Vallinam initial → double vallinam
+    // e.g. படிக்க + போனான் → படிக்கப் போனான்
+    if ((word1.endsWith('க்க') || word1.endsWith('வா')) && vallinamPulliMap[firstChar2]) {
+        const pulli = vallinamPulliMap[firstChar2];
+        if (!word1.endsWith(pulli)) {
+            return word1 + pulli + ' ' + word2;
+        }
+    }
 
     return word1 + word2;
 }
@@ -3127,11 +3170,13 @@ export function convertWithRules(tanglishWord, skipCompoundCheck = false) {
     //   Without this guard, dhurandhar → dhhurandhar → த்ஹுரந்தர் (wrong!)
     const alreadyDental = /^(th|dh)/i.test(normalized);
     if (!alreadyDental &&
-        _dentalStartRe.test(normalized) &&
         !fullWordMapping.has(normalized) &&
         !_fallbackTamilMap.has(normalized)) {
-        // Rewrite leading t → th so tokenizer picks dental-ta (த)
-        normalizedForTokenizer = normalized.replace(/^t/, 'th');
+        if (/^t/i.test(normalized) && _dentalStartRe.test(normalized)) {
+            normalizedForTokenizer = normalized.replace(/^t/i, 'th');
+        } else if (/^d[aeiou]/i.test(normalized)) {
+            normalizedForTokenizer = normalized.replace(/^d/i, 'dh');
+        }
     }
     let result = '';
     let pos = 0;

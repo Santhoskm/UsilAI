@@ -1,0 +1,331 @@
+{
+  "summary": {
+    "total": 10,
+    "usil_wins": 8,
+    "draws": 0,
+    "usil_partial": 1,
+    "desh_wins": 0,
+    "both_fail": 1,
+    "usil_exact_accuracy_pct": 80.0,
+    "desh_exact_accuracy_pct": 0.0,
+    "net_improvement_pct": 80.0
+  },
+  "results": [
+    {
+      "id": 1,
+      "tanglish": "naan padikka pogiren",
+      "category": "Infinitive Sandhi + 1S PNG",
+      "desh_baseline": "நான் படிக்க போகிறேன்",
+      "usil_raw": "நான் படிக்க போகிறேன்",
+      "usil_final": "நான் படிக்கப் போகிறேன்",
+      "gold_standard": "நான் படிக்கப் போகிறேன்",
+      "verdict": "USIL_WIN",
+      "usil_ok": true,
+      "desh_ok": false,
+      "word_trace": [
+        {
+          "tanglish": "naan",
+          "position": 1,
+          "top_pick": "நான்",
+          "api_ok": true
+        },
+        {
+          "tanglish": "padikka",
+          "position": 2,
+          "top_pick": "படிக்க",
+          "api_ok": true
+        },
+        {
+          "tanglish": "pogiren",
+          "position": 3,
+          "top_pick": "போகிறேன்",
+          "api_ok": true
+        }
+      ],
+      "consistency_score": 4.0,
+      "notes": "Desh: word-by-word, no Sandhi between infinitive and next verb. UsilAI consistency engine should add Vallinam p-pulli after kka and verify 1S PNG (-en)."
+    },
+    {
+      "id": 2,
+      "tanglish": "avan veettukku sendran",
+      "category": "Dative Sandhi (-kku + ch) + 3SM PNG",
+      "desh_baseline": "அவன் வீட்டுக்கு சென்றான்",
+      "usil_raw": "அவன் வீட்டுக்கு சென்றான்",
+      "usil_final": "அவன் வீட்டுக்குச் சென்றான்",
+      "gold_standard": "அவன் வீட்டுக்குச் சென்றான்",
+      "verdict": "USIL_WIN",
+      "usil_ok": true,
+      "desh_ok": false,
+      "word_trace": [
+        {
+          "tanglish": "avan",
+          "position": 1,
+          "top_pick": "அவன்",
+          "api_ok": true
+        },
+        {
+          "tanglish": "veettukku",
+          "position": 2,
+          "top_pick": "வீட்டுக்கு",
+          "api_ok": true
+        },
+        {
+          "tanglish": "sendran",
+          "position": 3,
+          "top_pick": "சென்றான்",
+          "api_ok": true
+        }
+      ],
+      "consistency_score": 4.0,
+      "notes": "Desh: no Sandhi after dative -kku. UsilAI should double ch before sendran (Vallinam rule 2)."
+    },
+    {
+      "id": 3,
+      "tanglish": "aval pusthagathai padithal",
+      "category": "Accusative Sandhi (-ai + p) + 3SF PNG fix",
+      "desh_baseline": "அவள் புத்தகத்தை படித்தான்",
+      "usil_raw": "அவள் புத்தகத்தை படித்தாள்",
+      "usil_final": "அவள் புத்தகத்தைப் படித்தாள்",
+      "gold_standard": "அவள் புத்தகத்தைப் படித்தாள்",
+      "verdict": "USIL_WIN",
+      "usil_ok": true,
+      "desh_ok": false,
+      "word_trace": [
+        {
+          "tanglish": "aval",
+          "position": 1,
+          "top_pick": "அவள்",
+          "api_ok": true
+        },
+        {
+          "tanglish": "pusthagathai",
+          "position": 2,
+          "top_pick": "புத்தகத்தை",
+          "api_ok": true
+        },
+        {
+          "tanglish": "padithal",
+          "position": 3,
+          "top_pick": "படித்தாள்",
+          "api_ok": true
+        }
+      ],
+      "consistency_score": 4.0,
+      "notes": "Desh: PNG mismatch (3SF subject + 3SM verb) and no Sandhi. UsilAI should pick paditthaal (3SF) and add p after accusative -ai."
+    },
+    {
+      "id": 4,
+      "tanglish": "andha paiyan varugiran",
+      "category": "Demonstrative Sandhi (andha -> andhap) + 3SM PNG",
+      "desh_baseline": "அந்த பையன் வருகிறான்",
+      "usil_raw": "அந்த பையன் வருகிறான்",
+      "usil_final": "அந்தப் பையன் வருகிறான்",
+      "gold_standard": "அந்தப் பையன் வருகிறான்",
+      "verdict": "USIL_WIN",
+      "usil_ok": true,
+      "desh_ok": false,
+      "word_trace": [
+        {
+          "tanglish": "andha",
+          "position": 1,
+          "top_pick": "அந்த",
+          "api_ok": true
+        },
+        {
+          "tanglish": "paiyan",
+          "position": 2,
+          "top_pick": "பையன்",
+          "api_ok": true
+        },
+        {
+          "tanglish": "varugiran",
+          "position": 3,
+          "top_pick": "வருகிறான்",
+          "api_ok": true
+        }
+      ],
+      "consistency_score": 1.5,
+      "notes": "Desh: no Sandhi after demonstrative andha. UsilAI should append p-pulli before p-initial next word (Vallinam rule 3)."
+    },
+    {
+      "id": 5,
+      "tanglish": "naangal saappittom",
+      "category": "1P Plural PNG Agreement (-om)",
+      "desh_baseline": "நாங்கள் சாப்பிட்டான்",
+      "usil_raw": "நாங்கள் சாப்பிட்டோம்",
+      "usil_final": "நாங்கள் சாப்பிட்டோம்",
+      "gold_standard": "நாங்கள் சாப்பிட்டோம்",
+      "verdict": "USIL_WIN",
+      "usil_ok": true,
+      "desh_ok": false,
+      "word_trace": [
+        {
+          "tanglish": "naangal",
+          "position": 1,
+          "top_pick": "நாங்கள்",
+          "api_ok": true
+        },
+        {
+          "tanglish": "saappittom",
+          "position": 2,
+          "top_pick": "சாப்பிட்டோம்",
+          "api_ok": true
+        }
+      ],
+      "consistency_score": 2.5,
+      "notes": "Desh: picks 3SM verb despite 1P subject. UsilAI reranker should boost saappittom via PNG agreement scoring."
+    },
+    {
+      "id": 6,
+      "tanglish": "thanni kudikren",
+      "category": "Colloquial Normalisation (thanni -> thanneer)",
+      "desh_baseline": "தன்னி குடிகிரேன்",
+      "usil_raw": "தண்ணி குடிக்கிறேன்",
+      "usil_final": "தண்ணி குடிக்கிறேன்",
+      "gold_standard": "தண்ணீர் குடிக்கிறேன்",
+      "verdict": "USIL_PARTIAL",
+      "usil_ok": false,
+      "desh_ok": false,
+      "word_trace": [
+        {
+          "tanglish": "thanni",
+          "position": 1,
+          "top_pick": "தண்ணி",
+          "api_ok": true
+        },
+        {
+          "tanglish": "kudikren",
+          "position": 2,
+          "top_pick": "குடிக்கிறேன்",
+          "api_ok": true
+        }
+      ],
+      "consistency_score": 0.0,
+      "notes": "Desh: phonetic misspelling thanni (wrong nasal) and kudikiren (missing geminate). UsilAI DB should have thanni -> thanneer and kudikren -> kudikiren."
+    },
+    {
+      "id": 7,
+      "tanglish": "magizhchi adainthaan",
+      "category": "Pure Tamil Compound Consonant (magizhchi)",
+      "desh_baseline": "மகிழ்சி அடைந்தான்",
+      "usil_raw": "மகிழ்ச்சி அடைந்தான்",
+      "usil_final": "மகிழ்ச்சி அடைந்தான்",
+      "gold_standard": "மகிழ்ச்சி அடைந்தான்",
+      "verdict": "USIL_WIN",
+      "usil_ok": true,
+      "desh_ok": false,
+      "word_trace": [
+        {
+          "tanglish": "magizhchi",
+          "position": 1,
+          "top_pick": "மகிழ்ச்சி",
+          "api_ok": true
+        },
+        {
+          "tanglish": "adainthaan",
+          "position": 2,
+          "top_pick": "அடைந்தான்",
+          "api_ok": true
+        }
+      ],
+      "consistency_score": 0.0,
+      "notes": "Desh: drops the geminate ch-pulli in magizhchi. UsilAI DB entry must store the correct compound consonant cluster zh-ch-ch."
+    },
+    {
+      "id": 8,
+      "tanglish": "naan kalloori pogiren",
+      "category": "Implicit dative chain + Sandhi",
+      "desh_baseline": "நான் கல்லூரி போகிறேன்",
+      "usil_raw": "நான் கல்லூரி போகிறேன்",
+      "usil_final": "நான் கல்லூரி போகிறேன்",
+      "gold_standard": "நான் கல்லூரிக்குப் போகிறேன்",
+      "verdict": "BOTH_FAIL",
+      "usil_ok": false,
+      "desh_ok": false,
+      "word_trace": [
+        {
+          "tanglish": "naan",
+          "position": 1,
+          "top_pick": "நான்",
+          "api_ok": true
+        },
+        {
+          "tanglish": "kalloori",
+          "position": 2,
+          "top_pick": "கல்லூரி",
+          "api_ok": true
+        },
+        {
+          "tanglish": "pogiren",
+          "position": 3,
+          "top_pick": "போகிறேன்",
+          "api_ok": true
+        }
+      ],
+      "consistency_score": 2.5,
+      "notes": "Desh: treats kalloori as bare noun without dative -kku, no Sandhi. UsilAI should prefer the dative form and chain Sandhi before pogiren."
+    },
+    {
+      "id": 9,
+      "tanglish": "antha kutty paadugiraal",
+      "category": "Demonstrative Sandhi (antha -> anthak) + 3SF PNG",
+      "desh_baseline": "அந்த குட்டி பாடுகிறாள்",
+      "usil_raw": "அந்த குட்டி பாடுகிறாள்",
+      "usil_final": "அந்தக் குட்டி பாடுகிறாள்",
+      "gold_standard": "அந்தக் குட்டி பாடுகிறாள்",
+      "verdict": "USIL_WIN",
+      "usil_ok": true,
+      "desh_ok": false,
+      "word_trace": [
+        {
+          "tanglish": "antha",
+          "position": 1,
+          "top_pick": "அந்த",
+          "api_ok": true
+        },
+        {
+          "tanglish": "kutty",
+          "position": 2,
+          "top_pick": "குட்டி",
+          "api_ok": true
+        },
+        {
+          "tanglish": "paadugiraal",
+          "position": 3,
+          "top_pick": "பாடுகிறாள்",
+          "api_ok": true
+        }
+      ],
+      "consistency_score": 1.5,
+      "notes": "Desh: no Sandhi after antha before k-initial word kutty. UsilAI should add k-pulli (Vallinam rule 3, before ka)."
+    },
+    {
+      "id": 10,
+      "tanglish": "avargal vandhaargal",
+      "category": "3SP Plural PNG Agreement (-aargal)",
+      "desh_baseline": "அவர்கள் வந்தான்",
+      "usil_raw": "அவர்கள் வந்தார்கள்",
+      "usil_final": "அவர்கள் வந்தார்கள்",
+      "gold_standard": "அவர்கள் வந்தார்கள்",
+      "verdict": "USIL_WIN",
+      "usil_ok": true,
+      "desh_ok": false,
+      "word_trace": [
+        {
+          "tanglish": "avargal",
+          "position": 1,
+          "top_pick": "அவர்கள்",
+          "api_ok": true
+        },
+        {
+          "tanglish": "vandhaargal",
+          "position": 2,
+          "top_pick": "வந்தார்கள்",
+          "api_ok": true
+        }
+      ],
+      "consistency_score": 2.5,
+      "notes": "Desh: picks 3SM verb -aan for plural honorific subject. UsilAI reranker should enforce 3SP agreement and pick vandhaargal."
+    }
+  ]
+}

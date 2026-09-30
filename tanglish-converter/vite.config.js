@@ -22,7 +22,7 @@ export default defineConfig({
       },
       // Usil backend API proxy → FastAPI on port 8000
       '/api/usil': {
-        target: 'http://localhost:8000',
+        target: 'http://127.0.0.1:8000',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/usil/, '/api/v1')
       }

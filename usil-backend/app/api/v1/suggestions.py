@@ -27,23 +27,32 @@ async def suggestions_health():
         return {"status": "unhealthy", "error": str(e)}
 
 
+import json
+
 @router.get("/")
 async def get_suggestions(
-    q: str = Query(..., min_length=1, max_length=100, description="Search query"),
+    phrase: str = Query(..., min_length=1, max_length=200, description="Full phrase for context-aware ranking"),
     limit: int = Query(10, ge=1, le=50, description="Number of suggestions"),
     fuzzy: bool = Query(False, description="Enable fuzzy search"),
+    session_cache: str = Query("{}", description="JSON string of user's current session correction cache"),
     db: AsyncSession = Depends(get_db)
 ):
     """Get typing suggestions from usil_db"""
     service = SuggestionService(db, trie_cache)
+    
+    # Parse the session cache
+    try:
+        session_cache_dict = json.loads(session_cache)
+    except Exception:
+        session_cache_dict = {}
 
     if fuzzy:
-        suggestions = await service.get_fuzzy_suggestions(q, limit)
+        suggestions = await service.get_fuzzy_suggestions(phrase, limit, session_cache_dict)
     else:
-        suggestions = await service.get_suggestions(q, limit)
+        suggestions = await service.get_suggestions(phrase, limit, session_cache_dict)
 
     return {
-        "query": q,
+        "query": phrase,
         "suggestions": suggestions,
         "count": len(suggestions)
     }
@@ -89,23 +98,49 @@ async def record_usage(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Increment the frequency counter for a word when the user selects it.
-    This makes frequently used words appear first in future suggestions.
+    Increment frequency or auto-learn new words when the user selects them.
+    If the word is not in the database, it is automatically inserted into PostgreSQL
+    and immediately loaded into the in-memory Trie cache.
     """
-    result = await db.execute(
-        text("""
-            UPDATE words SET frequency = frequency + 1
-            WHERE tanglish = :tanglish
-            RETURNING tanglish, frequency
-        """),
-        {"tanglish": req.tanglish.lower()}
-    )
-    await db.commit()
-    
-    row = result.fetchone()
+    tanglish = req.tanglish.lower().strip()
+    tamil = req.tamil.strip()
+    if not tanglish:
+        return {"status": "ignored", "reason": "empty tanglish"}
 
-    if row:
-        return {"status": "ok", "tanglish": row[0], "frequency": row[1]}
+    prefix = tanglish[0] if tanglish else "other"
+
+    if tamil:
+        result = await db.execute(
+            text("""
+                INSERT INTO words (tanglish, tamil, prefix, frequency)
+                VALUES (:tanglish, :tamil, :prefix, 10)
+                ON CONFLICT (tanglish) DO UPDATE
+                SET frequency = words.frequency + 1,
+                    tamil = :tamil
+                RETURNING tanglish, tamil, frequency
+            """),
+            {"tanglish": tanglish, "tamil": tamil, "prefix": prefix}
+        )
+        row = result.fetchone()
+        await db.commit()
+        if row:
+            trie_cache.insert(row[0], row[1], frequency=row[2])
+            return {"status": "learned", "tanglish": row[0], "tamil": row[1], "frequency": row[2]}
+    else:
+        result = await db.execute(
+            text("""
+                UPDATE words SET frequency = frequency + 1
+                WHERE tanglish = :tanglish
+                RETURNING tanglish, tamil, frequency
+            """),
+            {"tanglish": tanglish}
+        )
+        row = result.fetchone()
+        await db.commit()
+        if row:
+            trie_cache.insert(row[0], row[1], frequency=row[2])
+            return {"status": "ok", "tanglish": row[0], "tamil": row[1], "frequency": row[2]}
+
     return {"status": "not_found", "tanglish": req.tanglish}
 
 
@@ -115,19 +150,48 @@ async def record_usage_batch(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Batch-increment frequency for multiple words at once.
-    Called by the frontend on a debounced timer (~30s) to avoid per-keystroke calls.
+    Batch-increment frequency or auto-learn multiple words at once.
+    Called by the frontend on a debounced timer (~30s) or page unload.
+    Newly selected words are immediately inserted into DB and Trie.
     """
     updated = 0
     for word in req.words:
-        result = await db.execute(
-            text("""
-                UPDATE words SET frequency = frequency + 1
-                WHERE tanglish = :tanglish
-            """),
-            {"tanglish": word.tanglish.lower()}
-        )
-        updated += result.rowcount
+        tanglish = word.tanglish.lower().strip()
+        tamil = word.tamil.strip()
+        if not tanglish:
+            continue
+            
+        prefix = tanglish[0] if tanglish else "other"
+
+        if tamil:
+            result = await db.execute(
+                text("""
+                    INSERT INTO words (tanglish, tamil, prefix, frequency)
+                    VALUES (:tanglish, :tamil, :prefix, 10)
+                    ON CONFLICT (tanglish) DO UPDATE
+                    SET frequency = words.frequency + 1,
+                        tamil = :tamil
+                    RETURNING tanglish, tamil, frequency
+                """),
+                {"tanglish": tanglish, "tamil": tamil, "prefix": prefix}
+            )
+            row = result.fetchone()
+            if row:
+                trie_cache.insert(row[0], row[1], frequency=row[2])
+                updated += 1
+        else:
+            result = await db.execute(
+                text("""
+                    UPDATE words SET frequency = frequency + 1
+                    WHERE tanglish = :tanglish
+                    RETURNING tanglish, tamil, frequency
+                """),
+                {"tanglish": tanglish}
+            )
+            row = result.fetchone()
+            if row:
+                trie_cache.insert(row[0], row[1], frequency=row[2])
+                updated += 1
 
     await db.commit()
     

@@ -276,7 +276,7 @@
            :style="popupStyle">
         <div v-for="(suggestion, idx) in suggestionsList"
              :key="suggestion.tamil"
-             @click="selectSuggestion(suggestion)"
+             @click="selectSuggestion(suggestion, idx)"
              :class="{ 'selected': idx === selectedSuggestionIndex }"
              class="suggestion-item">
           <span class="tamil-text-main">{{ suggestion.tamil }}</span>
@@ -593,13 +593,9 @@ const handleTyping = (view, from, to, text) => {
         const newCursorPos = new$from.pos
         const newTextBefore = newState.doc.textBetween(0, newCursorPos, ' ', ' ')
         const newWordObj = getCurrentWord(newTextBefore, newCursorPos)
-        const newContext = newState.doc.textBetween(
-            Math.max(0, newCursorPos - 100),
-            Math.min(newState.doc.content.size, newCursorPos + 50),
-            ' ', ' '
-        )
+        const contextBefore = newTextBefore.slice(0, newWordObj.start).trim()
         if (newWordObj.word && newWordObj.word.length >= 1) {
-            const newSuggestions = getSuggestions(newWordObj.word, newContext).slice(0, 6)
+            const newSuggestions = getSuggestions(newWordObj.word, contextBefore).slice(0, 6)
             // Update list in place — no hide/show, keeps popup stable
             suggestionsList.value = newSuggestions
             if (newSuggestions.length > 0) {
@@ -630,8 +626,20 @@ const handleTyping = (view, from, to, text) => {
     )
     
     if (shouldConvert && currentWordObj.word && currentWordObj.word.length > 0) {
-        // Use context-aware conversion
-        const converted = convertWord(currentWordObj.word, surroundingContext)
+        // Priority 1: Pick top suggestion from active suggestions popup if available
+        let converted = ''
+        const topCandidate = suggestionsList.value && suggestionsList.value[0]
+        if (topCandidate && topCandidate.tamil) {
+            const typedLower = currentWordObj.word.toLowerCase()
+            const candTanglish = (topCandidate.tanglish || '').toLowerCase()
+            if (topCandidate.source === 'db' || candTanglish === typedLower || candTanglish.startsWith(typedLower)) {
+                converted = topCandidate.tamil
+            }
+        }
+        // Priority 2: Fallback to local synchronous convertWord
+        if (!converted) {
+            converted = convertWord(currentWordObj.word, '')
+        }
         
         if (converted && converted !== currentWordObj.word) {
             let addSpace = true
@@ -693,7 +701,7 @@ const handleKeyDown = (view, event) => {
     case 'Tab':
       event.preventDefault()
       if (suggestionsList.value[selectedSuggestionIndex.value]) {
-        selectSuggestion(suggestionsList.value[selectedSuggestionIndex.value])
+        selectSuggestion(suggestionsList.value[selectedSuggestionIndex.value], selectedSuggestionIndex.value)
       }
       return true
       
@@ -746,7 +754,7 @@ const handleKeyDown = (view, event) => {
 }
 
 // Select suggestion from dropdown
-const selectSuggestion = (suggestion) => {
+const selectSuggestion = (suggestion, index = -1) => {
   if (!editor.value) return
   
   const { state, view } = editor.value
@@ -758,7 +766,15 @@ const selectSuggestion = (suggestion) => {
   
   if (currentWordObj.word) {
     replaceWord(view, currentWordObj.start, currentWordObj.end, suggestion.tamil, false)
-    learnCorrection(currentWordObj.word, suggestion.tamil)
+    
+    if (index > 0) {
+      // User picked a non-top candidate -> learn correction
+      learnCorrection(currentWordObj.word, suggestion.tamil)
+    } else {
+      // User picked the top candidate -> standard usage
+      recordUsage(suggestion.tamil, currentWordObj.word)
+    }
+    
     showSuggestions.value = false
     suggestionsList.value = []
   }

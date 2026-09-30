@@ -103,11 +103,12 @@ app.add_middleware(
 app.include_router(suggestions.router, prefix="/api/v1")
 app.include_router(tools.router, prefix="/api/v1")
 app.include_router(rerank.router, prefix="/api/usil")
+app.include_router(rerank.router, prefix="/api/v1")
 
 
 @app.on_event("startup")
 async def startup():
-    """Create tables and load Trie cache."""
+    """Create tables, load Trie cache, and pre-warm ONNX reranker."""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     async with AsyncSessionLocal() as session:
@@ -117,6 +118,15 @@ async def startup():
         for row in result.fetchall():
             trie_cache.insert(row[0], row[1], row[2] or 0)
     print(f"[Trie] Loaded {trie_cache.size} words into memory")
+
+    # Pre-warm ONNX Reranker model to avoid cold-start lag on first user keystroke
+    try:
+        from app.api.v1.rerank import get_reranker
+        warmup_reranker = get_reranker()
+        warmup_reranker.score_phrases_batch("naan pogiren", ["நான் போகிறேன்"])
+        print("[Reranker] ONNX model pre-warmed successfully")
+    except Exception as e:
+        print(f"[Reranker] Startup warm-up note: {e}")
 
 
 @app.get("/")

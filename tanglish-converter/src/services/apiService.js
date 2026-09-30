@@ -14,44 +14,39 @@ const API_BASE = '/api/usil'
  * @param {boolean} fuzzy - Enable fuzzy/typo-tolerant search
  * @returns {Promise<Array>} - [{tanglish, tamil, frequency}, ...]
  */
-export async function fetchSuggestions(query, limit = 10, fuzzy = false) {
-    if (!query || query.length < 1) return []
-    const lowerQuery = query.toLowerCase();
+export async function fetchSuggestions(phrase, limit = 10, fuzzy = false) {
+    if (!phrase || phrase.length < 1) return []
+    const lowerQuery = phrase.toLowerCase();
 
-    let cachedWord = null;
+    // Get the user's session correction cache
+    let sessionCacheStr = '{}';
     try {
-        const cache = JSON.parse(localStorage.getItem('usil_cache') || '{}');
-        if (cache[lowerQuery]) {
-            cachedWord = { tamil: cache[lowerQuery], score: 999 };
+        const cacheStr = localStorage.getItem('usil_cache');
+        if (cacheStr) {
+            sessionCacheStr = cacheStr;
         }
     } catch (e) { }
 
     try {
         const params = new URLSearchParams({
-            q: lowerQuery,
+            phrase: lowerQuery,
             limit: limit.toString(),
-            fuzzy: fuzzy.toString()
+            fuzzy: fuzzy.toString(),
+            session_cache: sessionCacheStr
         })
 
         const response = await fetch(`${API_BASE}/suggestions/?${params}`)
 
         if (!response.ok) {
             console.warn(`[API] Suggestions request failed: ${response.status}`)
-            return cachedWord ? [cachedWord] : []
+            return []
         }
 
         const data = await response.json()
-        let suggestions = data.suggestions || []
-
-        if (cachedWord) {
-            suggestions = suggestions.filter(s => s.tamil !== cachedWord.tamil);
-            suggestions.unshift(cachedWord);
-        }
-
-        return suggestions
+        return data.suggestions || []
     } catch (err) {
         console.warn('[API] Backend unreachable, using local engine:', err.message)
-        return cachedWord ? [cachedWord] : []
+        return []
     }
 }
 
@@ -126,28 +121,28 @@ export async function isBackendOnline() {
 const _usageQueue = []
 let _flushTimer = null
 
-/**
- * Record that the user selected a word (enqueue for batch send)
- * @param {string} tanglish - The Tanglish key of the word
- * @param {string} tamil - The Tamil value (optional, for logging)
- */
 export function enqueueUsage(tanglish, tamil = '') {
     if (!tanglish) return
     const lowerTanglish = tanglish.toLowerCase();
-
-    if (tamil) {
-        try {
-            const cache = JSON.parse(localStorage.getItem('usil_cache') || '{}');
-            cache[lowerTanglish] = tamil;
-            localStorage.setItem('usil_cache', JSON.stringify(cache));
-        } catch (e) { }
-    }
 
     _usageQueue.push({ tanglish: lowerTanglish, tamil })
 
     if (!_flushTimer) {
         _flushTimer = setTimeout(flushUsageBatch, 30000)
     }
+}
+
+/**
+ * Persist explicit user correction for session-level bias
+ */
+export function saveSessionCorrection(tanglish, tamil) {
+    if (!tanglish || !tamil) return;
+    try {
+        const lowerTanglish = tanglish.toLowerCase();
+        const cache = JSON.parse(localStorage.getItem('usil_cache') || '{}');
+        cache[lowerTanglish] = tamil;
+        localStorage.setItem('usil_cache', JSON.stringify(cache));
+    } catch (e) { }
 }
  
 

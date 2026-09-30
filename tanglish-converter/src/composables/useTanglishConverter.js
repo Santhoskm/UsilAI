@@ -12,7 +12,7 @@ import {
     getCurrentContext,
     resetContext
 } from '@/data/tamilEngine'
-import { fetchSuggestions, enqueueUsage } from '@/services/apiService'
+import { fetchSuggestions, enqueueUsage, saveSessionCorrection } from '@/services/apiService'
 
 export function useTanglishConverter() {
     const suggestions = ref([])
@@ -75,24 +75,29 @@ export function useTanglishConverter() {
         }
         _abortCtrl = new AbortController()
 
-        fetchSuggestions(normalizedWord, 5)
+        let phrase = normalizedWord
+        if (surroundingText && surroundingText.trim()) {
+            const trimmed = surroundingText.trim()
+            if (trimmed.toLowerCase().endsWith(normalizedWord)) {
+                phrase = trimmed
+            } else {
+                phrase = trimmed + ' ' + normalizedWord
+            }
+        }
+
+        fetchSuggestions(phrase, 5)
             .then(backendResults => {
                 // Bug 3 fix: discard if user typed/deleted since this fetch started
                 if (_lastQuery !== fetchedFor) return
 
                 if (backendResults && backendResults.length > 0) {
-                    // Merge: local first, then backend extras
-                    // Dedup by BOTH tamil value AND tanglish key.
-                    // Without tanglish dedup: vijaya→விஜய (backend) slips in even
-                    // when vijay→விஜய் (local) is already shown, because the Tamil
-                    // strings differ by just a pulli (விஜய் ≠ விஜய).
+                    // Merge: backend AI / Google results first, then local suggestions
                     const seenTamil = new Set()
                     const seenTanglish = new Set()
                     const merged = []
 
-                    // 1. Put Backend Deep Learning results FIRST
+                    // 1. Put Backend Deep Learning & Google results FIRST
                     for (const item of backendResults) {
-                        if (!item.tanglish.startsWith(normalizedWord)) continue;
                         if (!seenTamil.has(item.tamil)) {
                             seenTamil.add(item.tamil)
                             seenTanglish.add(item.tanglish)
@@ -128,6 +133,8 @@ export function useTanglishConverter() {
 
     const learnCorrection = (original, corrected) => {
         engineLearnCorrection(original, corrected)
+        // Session-level correction bias: boost candidate score for rest of session
+        saveSessionCorrection(original, corrected)
         // Record frequency with tanglish key for trie boosting
         recordWordUsage(corrected, original)
         // Sync to backend DB frequency
