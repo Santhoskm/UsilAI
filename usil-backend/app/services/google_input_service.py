@@ -12,7 +12,7 @@ def _get_http_client() -> httpx.AsyncClient:
     global _CLIENT
     if _CLIENT is None or _CLIENT.is_closed:
         _CLIENT = httpx.AsyncClient(
-            timeout=0.4,  # 400ms fast timeout so typing is never blocked
+            timeout=0.8,  # 800ms timeout for reliable online API primary mode
             limits=httpx.Limits(max_keepalive_connections=10, max_connections=20)
         )
     return _CLIENT
