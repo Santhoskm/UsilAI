@@ -327,7 +327,8 @@ class SyllableSegmentFormer:
                     "tanglish": clean_query,
                     "tamil": tw,
                     "frequency": 25000 - (i * 1000),
-                    "cost": 0.05 * i
+                    "cost": 0.05 * i,
+                    "source": "preset"
                 })
             return results[:max_candidates]
 
@@ -388,8 +389,9 @@ class SyllableSegmentFormer:
                 results.append({
                     "tanglish": clean_query,
                     "tamil": word,
-                    "frequency": max(500, 15000 - (i * 1200)),
-                    "cost": 0.05 + (i * 0.08)
+                    "frequency": max(500, 5000 - (i * 500)),
+                    "cost": 0.40 + (i * 0.1),
+                    "source": "phonetic"
                 })
                 if len(results) >= max_candidates:
                     break
