@@ -94,30 +94,37 @@ app = FastAPI(title="Usil AI Backend", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# Support both /api/usil and /api/v1 paths for direct server deployment and proxy setups
 app.include_router(suggestions.router, prefix="/api/v1")
+app.include_router(suggestions.router, prefix="/api/usil")
 app.include_router(tools.router, prefix="/api/v1")
-app.include_router(rerank.router, prefix="/api/usil")
+app.include_router(tools.router, prefix="/api/usil")
 app.include_router(rerank.router, prefix="/api/v1")
+app.include_router(rerank.router, prefix="/api/usil")
 
 
 @app.on_event("startup")
 async def startup():
-    """Create tables, load Trie cache, and pre-warm ONNX reranker."""
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    async with AsyncSessionLocal() as session:
-        result = await session.execute(
-            text("SELECT tanglish, tamil, frequency FROM words")
-        )
-        for row in result.fetchall():
-            trie_cache.insert(row[0], row[1], row[2] or 0)
-    print(f"[Trie] Loaded {trie_cache.size} words into memory")
+    """Create tables, load Trie cache, and pre-warm ONNX reranker with failsafe error handling."""
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        async with AsyncSessionLocal() as session:
+            result = await session.execute(
+                text("SELECT tanglish, tamil, frequency FROM words")
+            )
+            for row in result.fetchall():
+                trie_cache.insert(row[0], row[1], row[2] or 0)
+        print(f"[Trie] Loaded {trie_cache.size} words into memory")
+    except Exception as e:
+        print(f"[Database] Warning: Could not connect to database on startup: {e}")
+        print("[Database] Server running with Google Online API + Word Former fallback mode.")
 
     # Pre-warm ONNX Reranker model to avoid cold-start lag on first user keystroke
     try:

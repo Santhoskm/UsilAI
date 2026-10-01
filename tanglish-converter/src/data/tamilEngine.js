@@ -44,7 +44,10 @@ export async function loadDictionaryFromBackend() {
     _dictionaryLoadPromise = (async () => {
         try {
             console.log('[Engine] Loading dictionary from backend...');
-            const response = await fetch('/api/usil/suggestions/dictionary');
+            const apiBase = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE_URL)
+                ? import.meta.env.VITE_API_BASE_URL.replace(/\/$/, '')
+                : '/api/usil';
+            const response = await fetch(`${apiBase}/suggestions/dictionary`);
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const data = await response.json();
 
@@ -5455,7 +5458,10 @@ export function getCurrentContext() {
 async function rerankWithDL(tanglishWord, candidates) {
     if (!candidates || candidates.length < 2) return candidates;
     try {
-        const res = await fetch('/api/usil/rerank', {
+        const apiBase = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE_URL)
+            ? import.meta.env.VITE_API_BASE_URL.replace(/\/$/, '')
+            : '/api/usil';
+        const res = await fetch(`${apiBase}/rerank`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ tanglish: tanglishWord, candidates })
