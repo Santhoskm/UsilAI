@@ -1667,6 +1667,76 @@ function _isBrokenTamil(s) {
     return false;
 }
 
+// ── Instant 0 ms High-Precision Colloquial & Vocabulary Presets ────────────────
+export const _COLLOQUIAL_PRESETS = {
+    "vanakkam": ["வணக்கம்", "வனக்கம்"],
+    "nandri": ["நன்றி"],
+    "thanni": ["தண்ணி"],
+    "vanga": ["வாங்க", "வங்க"],
+    "vaanga": ["வாங்க"],
+    "pongo": ["போங்க"],
+    "panren": ["பண்றேன்", "பன்றேன்"],
+    "kudikren": ["குடிக்கிறேன்", "குடிகிறேன்"],
+    "kudikiren": ["குடிக்கிறேன்", "குடிகிறேன்"],
+    "irukanga": ["இருக்காங்க"],
+    "innaiku": ["இன்னைக்கு", "இன்றைக்கு"],
+    "naalaiku": ["நாளைக்கு"],
+    "naliku": ["நாளைக்கு"],
+    "kutty": ["குட்டி"],
+    "dev": ["தேவ்", "தெவ்"],
+    "deva": ["தேவா", "தெவா"],
+    "devaa": ["தேவா"],
+    "devi": ["தேவி"],
+    "desam": ["தேசம்"],
+    "deepam": ["தீபம்"],
+    "deivam": ["தெய்வம்", "தேய்வம்"],
+    "dosa": ["தோசை"],
+    "dosai": ["தோசை"],
+    "amma": ["அம்மா", "அம்ம"],
+    "appa": ["அப்பா", "அப்ப"],
+    "akkaa": ["அக்கா", "அக்க"],
+    "akka": ["அக்கா", "அக்க"],
+    "thambi": ["தம்பி"],
+    "thangai": ["தங்கை"],
+    "anna": ["அண்ணா", "அண்ண"],
+    "ungal": ["உங்கள்"],
+    "ungala": ["உங்களை"],
+    "ungalu": ["உங்களுக்கு"],
+    "ungakitta": ["உங்ககிட்ட"],
+    "engal": ["எங்கள்"],
+    "enga": ["எங்க"],
+    "enna": ["என்ன"],
+    "yenna": ["என்ன"],
+    "eppo": ["எப்போ", "எப்பொழுது"],
+    "eppadi": ["எப்படி"],
+    "epdi": ["எப்படி"],
+    "edhukku": ["எதுக்கு"],
+    "ethukku": ["எதுக்கு"],
+    "aama": ["ஆமா"],
+    "aamanga": ["ஆமாங்க"],
+    "illai": ["இல்லை"],
+    "ille": ["இல்லை"],
+    "illa": ["இல்ல"],
+    "irukku": ["இருக்கு"],
+    "irukken": ["இருக்கேன்"],
+    "neram": ["நேரம்", "நெரம்"],
+    "velai": ["வேலை", "வெலை"],
+    "kaalai": ["காலை"],
+    "maalai": ["மாலை"],
+    "padippu": ["படிப்பு"],
+    "tamil": ["தமிழ்", "தமில்"],
+    "thamizh": ["தமிழ்"],
+    "varaverpalar": ["வரவேற்பாளர்", "வரவேற்பாலர்"],
+    "pogum": ["போகும்", "பொகும்"],
+    "pogiren": ["போகிறேன்"],
+    "pogiran": ["போகிறான்"],
+    "pogiral": ["போகிறாள்"],
+    "padikiren": ["படிக்கிறேன்"],
+    "padikkiren": ["படிக்கிறேன்"],
+    "varugiren": ["வருகிறேன்"],
+    "varugiran": ["வருகிறான்"],
+};
+
 export function getTypingSuggestions(typedText, limit = 8) {
     if (!typedText || typedText.length < 1) return [];
 
@@ -1690,14 +1760,46 @@ export function getTypingSuggestions(typedText, limit = 8) {
         seenKeys.add(lower);
     }
 
-    // ── PASS 0: Rule engine FIRST — always option 1 ──────────────────────
-    if (typedText.length >= 2) {
+    // ── PASS 0: Colloquial & Verified Presets FIRST (0 ms Instant Perfect Output) ──
+    if (_COLLOQUIAL_PRESETS[lower]) {
+        for (const presetWord of _COLLOQUIAL_PRESETS[lower]) {
+            if (!seen.has(presetWord)) {
+                results.push({
+                    tanglish: lower,
+                    tamil: presetWord,
+                    type: '⭐ Preset',
+                    priority: 0,
+                    exact: true,
+                    frequency: 950
+                });
+                seen.add(presetWord);
+            }
+        }
+        seenKeys.add(lower);
+    }
+
+    // ── PASS 1: Trie exact match (0 ms Instant Dictionary Match from 64,000+ words) ──
+    const trieExact = suggestionTrie.search(lower);
+    if (trieExact) {
+        if (!seen.has(trieExact.tamil)) {
+            results.push({
+                tanglish: lower,
+                tamil: trieExact.tamil,
+                type: '⭐ Match',
+                priority: 0,
+                exact: true,
+                frequency: trieExact.frequency || 500
+            });
+            seen.add(trieExact.tamil);
+        }
+        seenKeys.add(lower);
+        if (limit === 1) return results;
+    }
+
+    // ── PASS 2: Rule engine fallback — only if exact matches don't fill the list ──
+    if (typedText.length >= 2 && results.length < limit) {
         const ruleCandidates = beamSearchTransliterate(lower, 4, 3);
         ruleCandidates.forEach((cand) => {
-            // Reject broken forms: virama+standalone-vowel mid-word (வர்இய், வ்அர், நஅன்)
-            // Pattern 1: ் followed by standalone vowel (அ-ஔ) = virama+vowel hiatus
-            // Pattern 2: consonant followed immediately by standalone vowel with no virama
-            //            e.g. நஅ (na + a standalone) = tokenizer split error
             if (!_isBrokenTamil(cand) && !seen.has(cand)) {
                 results.push({
                     tanglish: lower,
@@ -1713,26 +1815,7 @@ export function getTypingSuggestions(typedText, limit = 8) {
         });
     }
 
-    // ── PASS 1: Trie exact match (fastest - O(L)) ──
-    const trieExact = suggestionTrie.search(lower);
-    if (trieExact) {
-        // Only add if different from rule engine output (avoid duplicate)
-        if (!seen.has(trieExact.tamil)) {
-            results.push({
-                tanglish: lower,
-                tamil: trieExact.tamil,
-                type: '\u2B50 Match',
-                priority: 0,
-                exact: true,
-                frequency: trieExact.frequency
-            });
-            seen.add(trieExact.tamil);
-        }
-        seenKeys.add(lower);
-        if (limit === 1) return results;
-    }
-
-    // ── PASS 2: Trie prefix matches (fast - O(L) with collection) ──
+    // ── PASS 3: Trie prefix matches (fast - O(L) with collection) ──
     const triePrefixMatches = suggestionTrie.getWordsWithPrefix(lower, limit * 2);
     for (const match of triePrefixMatches) {
         if (results.length >= limit) break;
@@ -3623,6 +3706,11 @@ export function transliterateWord(word) {
 
     const lower = word.toLowerCase().trim();
     const orig = word.trim();
+
+    // 0. High-Precision Colloquial Presets (Instant 0 ms)
+    if (_COLLOQUIAL_PRESETS[lower] && _COLLOQUIAL_PRESETS[lower].length > 0) {
+        return _COLLOQUIAL_PRESETS[lower][0];
+    }
 
     // 1. Learned corrections
     // Guard: skip cached values that look like corrupted backend data
