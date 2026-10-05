@@ -1,8 +1,9 @@
 /**
  * Usil Backend API Service
  * 
- * Connects the frontend to the FastAPI backend at 192.168.1.8:8000
- * All requests go through Vite proxy: /api/usil → http://192.168.1.8:8000/api/v1
+ * Connects the frontend to the FastAPI backend
+ */
+
 // Supports both local Vite proxy (/api/usil) and production server backend URL (e.g. VITE_API_BASE_URL=https://api.usilai.com)
 export const API_BASE = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE_URL)
     ? import.meta.env.VITE_API_BASE_URL.replace(/\/$/, '')

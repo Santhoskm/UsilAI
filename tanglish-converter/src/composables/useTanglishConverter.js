@@ -105,7 +105,7 @@ export function useTanglishConverter() {
                                 tanglish: item.tanglish,
                                 tamil: item.tamil,
                                 frequency: item.frequency || 0,
-                                source: 'db'
+                                source: item.source || 'google_online'
                             })
                         }
                     }
