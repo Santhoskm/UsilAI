@@ -15,7 +15,7 @@ from app.models.word import Word, UserWordFrequency
 
 load_dotenv()
 
-app = FastAPI(title="Usil AI Backend", version="1.0.0")
+app = FastAPI(title="Usil AI Backend", version="1.0.0", debug=True)
 
 app.add_middleware(
     CORSMiddleware,
@@ -88,6 +88,7 @@ admin_auth = AdminAuth(secret_key=settings.ADMIN_SECRET_KEY)
 admin_portal = Admin(
     app,
     engine,
+    session_maker=AsyncSessionLocal,
     title="Usil AI Administration",
     base_url="/sqladmin",
     authentication_backend=admin_auth
