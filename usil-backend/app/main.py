@@ -89,7 +89,7 @@ admin_portal = Admin(
     app,
     engine,
     title="Usil AI Administration",
-    base_url="/admin",
+    base_url="/sqladmin",
     authentication_backend=admin_auth
 )
 admin_portal.add_model_view(WordAdmin)
@@ -139,7 +139,7 @@ async def root():
     return {
         "message": "Usil AI Backend is running",
         "database": "usil_db",
-        "sqladmin_portal": "/admin",
+        "sqladmin_portal": "/sqladmin",
         "api_docs": "/docs",
     }
 
