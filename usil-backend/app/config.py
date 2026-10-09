@@ -14,6 +14,11 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     CORS_ORIGINS: list = ["*"]
     
+    # Admin Portal Credentials
+    ADMIN_USERNAME: str = "admin"
+    ADMIN_PASSWORD: str = "admin123"
+    ADMIN_SECRET_KEY: str = "usil-ai-super-secret-admin-key-2026"
+    
     class Config:
         env_file = ".env"
 

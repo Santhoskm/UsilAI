@@ -573,46 +573,6 @@ const handleTyping = (view, from, to, text) => {
     const textBefore = state.doc.textBetween(0, cursorPos, ' ', ' ')
     const currentWordObj = getCurrentWord(textBefore, cursorPos)
     
-    // Get surrounding context for better suggestions
-    const surroundingContext = state.doc.textBetween(
-        Math.max(0, cursorPos - 100), 
-        Math.min(state.doc.content.size, cursorPos + 50), 
-        ' ', ' '
-    )
-    
-    // Bug 2 fix: clear old suggestions immediately so stale entries
-    // don't flash on screen for one frame while new fetch is in flight
-    suggestionsList.value = []
-    showSuggestions.value = false
-
-    // Update suggestions AFTER TipTap commits the new character
-    setTimeout(() => {
-        if (!editor.value) return
-        const { state: newState } = editor.value
-        const { $from: new$from } = newState.selection
-        const newCursorPos = new$from.pos
-        const newTextBefore = newState.doc.textBetween(0, newCursorPos, ' ', ' ')
-        const newWordObj = getCurrentWord(newTextBefore, newCursorPos)
-        const contextBefore = newTextBefore.slice(0, newWordObj.start).trim()
-        if (newWordObj.word && newWordObj.word.length >= 1) {
-            const newSuggestions = getSuggestions(newWordObj.word, contextBefore).slice(0, 6)
-            // Update list in place — no hide/show, keeps popup stable
-            suggestionsList.value = newSuggestions
-            if (newSuggestions.length > 0) {
-                showSuggestions.value = true
-                selectedSuggestionIndex.value = 0
-                updatePopupPosition(editor.value.view)
-            } else {
-                showSuggestions.value = false
-            }
-        } else {
-            showSuggestions.value = false
-            suggestionsList.value = []
-        }
-    }, 0)
-    
-    // Auto-convert logic with context ...
-    
     // Auto-convert logic with context
     const shouldConvert = autoConvert.value && (
         text === ' ' || 
@@ -630,27 +590,24 @@ const handleTyping = (view, from, to, text) => {
         let converted = ''
         const topCandidate = suggestionsList.value && suggestionsList.value[0]
         if (topCandidate && topCandidate.tamil) {
-            const typedLower = currentWordObj.word.toLowerCase()
-            const candTanglish = (topCandidate.tanglish || '').toLowerCase()
-            if (topCandidate.source === 'db' || candTanglish === typedLower || candTanglish.startsWith(typedLower)) {
-                converted = topCandidate.tamil
+            converted = topCandidate.tamil
+        }
+        
+        // Priority 2: Synchronous suggestions from getSuggestions (presets, trie, beam search)
+        if (!converted) {
+            const syncSuggs = getSuggestions(currentWordObj.word)
+            if (syncSuggs && syncSuggs.length > 0 && syncSuggs[0].tamil) {
+                converted = syncSuggs[0].tamil
             }
         }
-        // Priority 2: Fallback to local synchronous convertWord
+        
+        // Priority 3: Fallback to local synchronous convertWord
         if (!converted) {
             converted = convertWord(currentWordObj.word, '')
         }
         
         if (converted && converted !== currentWordObj.word) {
-            let addSpace = true
-            
-            if (text === ' ') {
-                addSpace = true
-            } else if (text === '\n') {
-                addSpace = false
-            } else {
-                addSpace = false
-            }
+            let addSpace = (text === ' ')
             
             replaceWord(view, currentWordObj.start, currentWordObj.end, converted, addSpace)
             
@@ -675,6 +632,35 @@ const handleTyping = (view, from, to, text) => {
             return true
         }
     }
+    
+    // If not converting, user is typing letters inside a word
+    suggestionsList.value = []
+    showSuggestions.value = false
+
+    // Update suggestions AFTER TipTap commits the new character
+    setTimeout(() => {
+        if (!editor.value) return
+        const { state: newState } = editor.value
+        const { $from: new$from } = newState.selection
+        const newCursorPos = new$from.pos
+        const newTextBefore = newState.doc.textBetween(0, newCursorPos, ' ', ' ')
+        const newWordObj = getCurrentWord(newTextBefore, newCursorPos)
+        const contextBefore = newTextBefore.slice(0, newWordObj.start).trim()
+        if (newWordObj.word && newWordObj.word.length >= 1) {
+            const newSuggestions = getSuggestions(newWordObj.word, contextBefore).slice(0, 6)
+            suggestionsList.value = newSuggestions
+            if (newSuggestions.length > 0) {
+                showSuggestions.value = true
+                selectedSuggestionIndex.value = 0
+                updatePopupPosition(editor.value.view)
+            } else {
+                showSuggestions.value = false
+            }
+        } else {
+            showSuggestions.value = false
+            suggestionsList.value = []
+        }
+    }, 0)
     
     return false
 }
@@ -701,7 +687,7 @@ const handleKeyDown = (view, event) => {
     case 'Tab':
       event.preventDefault()
       if (suggestionsList.value[selectedSuggestionIndex.value]) {
-        selectSuggestion(suggestionsList.value[selectedSuggestionIndex.value], selectedSuggestionIndex.value)
+        selectSuggestion(suggestionsList.value[selectedSuggestionIndex.value], selectedSuggestionIndex.value, false)
       }
       return true
       
@@ -711,28 +697,39 @@ const handleKeyDown = (view, event) => {
       return true
       
     case ' ':
-      // Do NOT intercept Space — let it fall through to handleTyping which
-      // calls convertWord() directly. Picking suggestion[0] here caused wrong
-      // outputs like "oruthar" → "ஒருத" (prefix match) instead of "ஒருதர்".
+      // Intercept Space to commit the active suggestion from dropdown with trailing space
+      if (showSuggestions.value && suggestionsList.value && suggestionsList.value.length > 0) {
+        const { state } = view
+        const { selection } = state
+        const { $from } = selection
+        const textBefore = state.doc.textBetween(0, $from.pos, ' ', ' ')
+        const currentWordObj = getCurrentWord(textBefore, $from.pos)
+        if (currentWordObj.word) {
+          event.preventDefault()
+          const selected = suggestionsList.value[selectedSuggestionIndex.value] || suggestionsList.value[0]
+          selectSuggestion(selected, selectedSuggestionIndex.value, true)
+          return true
+        }
+      }
       return false
       
     case 'Backspace':
-  // Clear immediately before the timeout so stale list never flashes
-  suggestionsList.value = []
-  showSuggestions.value = false
-  setTimeout(() => {
-    const { state } = view
-    const { selection } = state
-    const { $from } = selection
-    const textBefore = state.doc.textBetween(0, $from.pos, ' ', ' ')
-    const currentWordObj = getCurrentWord(textBefore, $from.pos)
-    const backspaceContext = state.doc.textBetween(
-      Math.max(0, $from.pos - 100),
-      Math.min(state.doc.content.size, $from.pos + 50),
-      ' ', ' '
-    )
-    if (currentWordObj.word && currentWordObj.word.length > 0) {
-      const suggestions = getSuggestions(currentWordObj.word, backspaceContext).slice(0, 6)
+      // Clear immediately before the timeout so stale list never flashes
+      suggestionsList.value = []
+      showSuggestions.value = false
+      setTimeout(() => {
+        const { state } = view
+        const { selection } = state
+        const { $from } = selection
+        const textBefore = state.doc.textBetween(0, $from.pos, ' ', ' ')
+        const currentWordObj = getCurrentWord(textBefore, $from.pos)
+        const backspaceContext = state.doc.textBetween(
+          Math.max(0, $from.pos - 100),
+          Math.min(state.doc.content.size, $from.pos + 50),
+          ' ', ' '
+        )
+        if (currentWordObj.word && currentWordObj.word.length > 0) {
+          const suggestions = getSuggestions(currentWordObj.word, backspaceContext).slice(0, 6)
           suggestionsList.value = suggestions
           if (suggestions.length > 0) {
             showSuggestions.value = true
@@ -754,8 +751,8 @@ const handleKeyDown = (view, event) => {
 }
 
 // Select suggestion from dropdown
-const selectSuggestion = (suggestion, index = -1) => {
-  if (!editor.value) return
+const selectSuggestion = (suggestion, index = -1, addSpace = false) => {
+  if (!editor.value || !suggestion) return
   
   const { state, view } = editor.value
   const { selection } = state
@@ -765,7 +762,7 @@ const selectSuggestion = (suggestion, index = -1) => {
   const currentWordObj = getCurrentWord(textBefore, cursorPos)
   
   if (currentWordObj.word) {
-    replaceWord(view, currentWordObj.start, currentWordObj.end, suggestion.tamil, false)
+    replaceWord(view, currentWordObj.start, currentWordObj.end, suggestion.tamil, addSpace)
     
     if (index > 0) {
       // User picked a non-top candidate -> learn correction

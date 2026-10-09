@@ -157,7 +157,40 @@ class Trie:
         for tanglish, tamil in _HARDCODED_PRIORITY.items():
             self.insert(tanglish, tamil, frequency=99999)
 
-    
+    def clear(self):
+        """Clears the trie and resets to hardcoded priority words."""
+        self.root = TrieNode()
+        self.size = 0
+        for tanglish, tamil in _HARDCODED_PRIORITY.items():
+            self.insert(tanglish, tamil, frequency=99999)
+
+    def delete(self, tanglish: str) -> bool:
+        """Removes a word from the Trie if present."""
+        node = self.root
+        path = []
+        for char in tanglish.lower():
+            if char not in node.children:
+                return False
+            path.append((node, char))
+            node = node.children[char]
+        
+        if not node.is_end:
+            return False
+        
+        node.is_end = False
+        node.tamil_word = None
+        node.frequency = 0
+        self.size = max(0, self.size - 1)
+        
+        # Cleanup orphan nodes bottom-up
+        for parent, char in reversed(path):
+            child = parent.children[char]
+            if not child.is_end and not child.children:
+                del parent.children[char]
+            else:
+                break
+        return True
+
     def insert(self, tanglish: str, tamil: str, frequency: int = 0):
         node = self.root
         for char in tanglish.lower():

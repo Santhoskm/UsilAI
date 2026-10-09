@@ -14,6 +14,7 @@
         <a href="/audio" class="nav-link">Audio to Text</a>
         <a href="/blog" class="nav-link">Blog Generator</a>
         <a href="/subtitle" class="nav-link">Subtitle Generator</a>
+        <a href="/admin" class="nav-link admin-nav-link">Admin</a>
       </div>
 
       <!-- Right Section -->
@@ -37,6 +38,14 @@
               <div class="user-name">{{ user?.name }}</div>
               <div class="user-email">{{ user?.email }}</div>
             </div>
+            <hr class="dropdown-divider">
+            <a href="/admin" class="dropdown-admin-btn" @click="showUserMenu = false">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+              </svg>
+              Admin Console
+            </a>
             <hr class="dropdown-divider">
             <button @click="handleLogout" class="logout-btn">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -79,6 +88,7 @@
         <a href="/audio" class="mobile-nav-link" @click="closeMobileMenu">Audio to Text</a>
         <a href="/blog" class="mobile-nav-link" @click="closeMobileMenu">Blog Generator</a>
         <a href="/subtitle" class="mobile-nav-link" @click="closeMobileMenu">Subtitle Generator</a>
+        <a href="/admin" class="mobile-nav-link" @click="closeMobileMenu">Admin</a>
         <hr class="mobile-divider">
         <button class="mobile-logout-btn" @click="handleMobileLogout">Logout</button>
       </template>
@@ -405,6 +415,32 @@ onBeforeUnmount(() => {
   margin: 0;
   border: none;
   border-top: 1px solid #eee;
+}
+
+.dropdown-admin-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 16px;
+  background: none;
+  border: none;
+  font-size: 14px;
+  color: #4f46e5;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  box-sizing: border-box;
+  transition: background 0.2s;
+}
+
+.dropdown-admin-btn:hover {
+  background: #f5f3ff;
+}
+
+.admin-nav-link {
+  color: #4f46e5 !important;
+  font-weight: 700 !important;
 }
 
 .logout-btn {

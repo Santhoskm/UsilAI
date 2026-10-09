@@ -188,3 +188,281 @@ if (typeof window !== 'undefined') {
         }
     })
 }
+
+// ── Admin API Endpoints & Authentication ────────────────────────────────────
+
+const ADMIN_TOKEN_KEY = 'usil_admin_token'
+const ADMIN_USER_KEY = 'usil_admin_username'
+
+export function getAdminToken() {
+    if (typeof window === 'undefined') return ''
+    return localStorage.getItem(ADMIN_TOKEN_KEY) || sessionStorage.getItem(ADMIN_TOKEN_KEY) || ''
+}
+
+export function getAdminUsername() {
+    if (typeof window === 'undefined') return ''
+    return localStorage.getItem(ADMIN_USER_KEY) || sessionStorage.getItem(ADMIN_USER_KEY) || 'admin'
+}
+
+export function isAdminLoggedIn() {
+    return Boolean(getAdminToken())
+}
+
+export function adminLogout() {
+    if (typeof window !== 'undefined') {
+        localStorage.removeItem(ADMIN_TOKEN_KEY)
+        localStorage.removeItem(ADMIN_USER_KEY)
+        sessionStorage.removeItem(ADMIN_TOKEN_KEY)
+        sessionStorage.removeItem(ADMIN_USER_KEY)
+    }
+}
+
+function getAdminHeaders(extraHeaders = {}) {
+    const token = getAdminToken()
+    return {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        ...extraHeaders
+    }
+}
+
+/**
+ * Log in to the Admin Portal using Admin ID and Password
+ */
+export async function adminLogin(username, password, remember = true) {
+    try {
+        const response = await fetch(`${API_BASE}/admin/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                username: username.trim(),
+                password: password.trim()
+            })
+        })
+
+        if (!response.ok) {
+            const errData = await response.json().catch(() => ({}))
+            throw new Error(errData.detail || 'Invalid Admin ID or Password')
+        }
+
+        const data = await response.json()
+        const storage = remember ? localStorage : sessionStorage
+        storage.setItem(ADMIN_TOKEN_KEY, data.token)
+        storage.setItem(ADMIN_USER_KEY, data.username)
+        return data
+    } catch (err) {
+        console.error('[Admin API] Login failed:', err)
+        throw err
+    }
+}
+
+/**
+ * Verify current Admin token validity
+ */
+export async function verifyAdminSession() {
+    const token = getAdminToken()
+    if (!token) return false
+    try {
+        const response = await fetch(`${API_BASE}/admin/auth/verify`, {
+            headers: getAdminHeaders()
+        })
+        if (!response.ok) {
+            adminLogout()
+            return false
+        }
+        return true
+    } catch {
+        return false
+    }
+}
+
+/**
+ * Change Admin ID and Password
+ */
+export async function changeAdminCredentials({ currentPassword, newUsername, newPassword }) {
+    try {
+        const response = await fetch(`${API_BASE}/admin/auth/change-credentials`, {
+            method: 'POST',
+            headers: getAdminHeaders(),
+            body: JSON.stringify({
+                current_password: currentPassword,
+                new_username: newUsername || undefined,
+                new_password: newPassword
+            })
+        })
+
+        if (!response.ok) {
+            const errData = await response.json().catch(() => ({}))
+            throw new Error(errData.detail || 'Failed to update admin credentials')
+        }
+
+        const data = await response.json()
+        if (data.token) {
+            localStorage.setItem(ADMIN_TOKEN_KEY, data.token)
+            localStorage.setItem(ADMIN_USER_KEY, data.username)
+        }
+        return data
+    } catch (err) {
+        console.error('[Admin API] Change credentials failed:', err)
+        throw err
+    }
+}
+
+/**
+ * Fetch paginated list of dictionary words with search and sorting
+ */
+export async function fetchAdminWords({ search = '', page = 1, limit = 20, sortBy = 'frequency', order = 'desc' } = {}) {
+    try {
+        const params = new URLSearchParams({
+            search,
+            page: page.toString(),
+            limit: limit.toString(),
+            sort_by: sortBy,
+            order
+        })
+        const response = await fetch(`${API_BASE}/admin/words?${params}`, {
+            headers: getAdminHeaders()
+        })
+        if (response.status === 401) {
+            adminLogout()
+            throw new Error('Unauthorized: Please log in with Admin ID and Password')
+        }
+        if (!response.ok) throw new Error(`HTTP ${response.status}`)
+        return await response.json()
+    } catch (err) {
+        console.error('[Admin API] Fetch words failed:', err)
+        throw err
+    }
+}
+
+/**
+ * Create a new word in the dictionary
+ */
+export async function createAdminWord({ tanglish, tamil, frequency = 100, prefix = '' }) {
+    try {
+        const response = await fetch(`${API_BASE}/admin/words`, {
+            method: 'POST',
+            headers: getAdminHeaders(),
+            body: JSON.stringify({
+                tanglish,
+                tamil,
+                frequency: Number(frequency) || 100,
+                prefix: prefix || undefined
+            })
+        })
+        if (!response.ok) {
+            const errData = await response.json().catch(() => ({}))
+            throw new Error(errData.detail || `HTTP ${response.status}`)
+        }
+        return await response.json()
+    } catch (err) {
+        console.error('[Admin API] Create word failed:', err)
+        throw err
+    }
+}
+
+/**
+ * Update an existing word in the dictionary
+ */
+export async function updateAdminWord(id, { tanglish, tamil, frequency, prefix }) {
+    try {
+        const response = await fetch(`${API_BASE}/admin/words/${id}`, {
+            method: 'PUT',
+            headers: getAdminHeaders(),
+            body: JSON.stringify({
+                tanglish,
+                tamil,
+                frequency: frequency !== undefined ? Number(frequency) : undefined,
+                prefix: prefix || undefined
+            })
+        })
+        if (!response.ok) {
+            const errData = await response.json().catch(() => ({}))
+            throw new Error(errData.detail || `HTTP ${response.status}`)
+        }
+        return await response.json()
+    } catch (err) {
+        console.error('[Admin API] Update word failed:', err)
+        throw err
+    }
+}
+
+/**
+ * Delete a word from the dictionary
+ */
+export async function deleteAdminWord(id) {
+    try {
+        const response = await fetch(`${API_BASE}/admin/words/${id}`, {
+            method: 'DELETE',
+            headers: getAdminHeaders()
+        })
+        if (!response.ok) {
+            const errData = await response.json().catch(() => ({}))
+            throw new Error(errData.detail || `HTTP ${response.status}`)
+        }
+        return await response.json()
+    } catch (err) {
+        console.error('[Admin API] Delete word failed:', err)
+        throw err
+    }
+}
+
+/**
+ * Get system status, DB connection, in-memory Trie size, and reranker status
+ */
+export async function fetchAdminStatus() {
+    try {
+        const response = await fetch(`${API_BASE}/admin/status`, {
+            headers: getAdminHeaders()
+        })
+        if (response.status === 401) {
+            adminLogout()
+            throw new Error('Unauthorized: Admin session expired')
+        }
+        if (!response.ok) throw new Error(`HTTP ${response.status}`)
+        return await response.json()
+    } catch (err) {
+        console.error('[Admin API] Fetch status failed:', err)
+        throw err
+    }
+}
+
+/**
+ * Trigger in-memory Trie reload from PostgreSQL
+ */
+export async function reloadAdminTrie() {
+    try {
+        const response = await fetch(`${API_BASE}/admin/trie/reload`, {
+            method: 'POST',
+            headers: getAdminHeaders()
+        })
+        if (!response.ok) {
+            const errData = await response.json().catch(() => ({}))
+            throw new Error(errData.detail || `HTTP ${response.status}`)
+        }
+        return await response.json()
+    } catch (err) {
+        console.error('[Admin API] Reload Trie failed:', err)
+        throw err
+    }
+}
+
+/**
+ * Get word usage analytics, top frequent words, and distribution
+ */
+export async function fetchAdminAnalytics() {
+    try {
+        const response = await fetch(`${API_BASE}/admin/analytics`, {
+            headers: getAdminHeaders()
+        })
+        if (response.status === 401) {
+            adminLogout()
+            throw new Error('Unauthorized: Admin session expired')
+        }
+        if (!response.ok) throw new Error(`HTTP ${response.status}`)
+        return await response.json()
+    } catch (err) {
+        console.error('[Admin API] Fetch analytics failed:', err)
+        throw err
+    }
+}

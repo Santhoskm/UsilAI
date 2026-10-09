@@ -122,6 +122,20 @@
             <span v-else class="try-now">Try Now →</span>
           </div> -->
         </div>
+
+        <!-- Tool 6: Admin Console -->
+        <div 
+          class="feature-card" 
+          :class="{ locked: !isAuthenticated }" 
+          @click="handleToolClick('/admin', false)"
+        >
+          <div class="card-icon"></div>
+          <h3 class="card-title">Admin Console</h3>
+          <p class="card-description">
+            Manage the Tamil dictionary, hot-reload in-memory Trie caching, 
+            inspect word frequency analytics, and access SQLAdmin.
+          </p>
+        </div>
       </div>
     </div>
 

@@ -5,6 +5,7 @@ import OCRPage from '@/views/OCRPage.vue'
 import AudioToTextPage from '@/views/AudioToTextPage.vue'
 import BlogGeneratorPage from '@/views/BlogGeneratorPage.vue'
 import SubtitleGeneratorPage from '@/views/SubtitleGeneratorPage.vue'
+import AdminDashboardPage from '@/views/AdminDashboardPage.vue'
 
 // Check authentication helper
 const isAuthenticated = () => {
@@ -47,6 +48,11 @@ const routes = [
         name: 'SubtitleGenerator',
         component: SubtitleGeneratorPage,
         meta: { requiresAuth: true }
+    },
+    {
+        path: '/admin',
+        name: 'AdminDashboard',
+        component: AdminDashboardPage
     }
 ]
 
