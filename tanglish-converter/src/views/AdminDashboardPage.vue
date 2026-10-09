@@ -735,10 +735,8 @@ import {
 // Tab state
 const activeTab = ref('overview')
 
-// Direct SQLAdmin Portal URL
-const sqlAdminUrl = (typeof window !== 'undefined' && window.location.hostname)
-  ? `http://${window.location.hostname}:8000/admin`
-  : 'http://localhost:8000/admin'
+// Direct SQLAdmin Portal URL (proxied through Nginx on port 80)
+const sqlAdminUrl = '/sqladmin/'
 
 // Toast state
 const toastMessage = ref('')
