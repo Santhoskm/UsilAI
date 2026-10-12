@@ -794,10 +794,11 @@ watch(subtitleContent, () => {
 
 <style scoped>
 .subtitle-generator {
-  background: white;
-  border-radius: 16px;
-  padding: 24px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  background: var(--card-bg, #ffffff);
+  border-radius: 20px;
+  padding: 28px;
+  border: 1px solid var(--card-border, #e2e8f0);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
 }
 
 .generator-header {
@@ -806,13 +807,14 @@ watch(subtitleContent, () => {
 }
 
 .generator-header h2 {
-  font-size: 28px;
-  color: #1a1a2e;
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--text-main, #1a1a2e);
   margin-bottom: 8px;
 }
 
 .generator-header .description {
-  color: #666;
+  color: var(--text-sub, #666);
   font-size: 14px;
 }
 
@@ -824,8 +826,9 @@ watch(subtitleContent, () => {
 
 /* Left Column */
 .input-column {
-  background: #f8f9fa;
-  border-radius: 12px;
+  background: var(--card-inner-bg, #f8f9fa);
+  border: 1px solid var(--card-inner-border, #e2e8f0);
+  border-radius: 16px;
   padding: 24px;
 }
 
@@ -836,7 +839,7 @@ watch(subtitleContent, () => {
 .form-group label {
   display: block;
   font-weight: 600;
-  color: #333;
+  color: var(--text-main, #333);
   margin-bottom: 8px;
   font-size: 14px;
 }
@@ -850,45 +853,51 @@ watch(subtitleContent, () => {
 .title-input, .time-input {
   width: 100%;
   padding: 10px 12px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--input-border, #e0e0e0);
   border-radius: 8px;
   font-size: 14px;
+  background: var(--input-bg, white);
+  color: var(--text-main, #0f172a);
+  box-sizing: border-box;
   transition: all 0.2s;
 }
 
 .title-input:focus, .time-input:focus, .content-input:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+  border-color: #ec4899;
+  box-shadow: 0 0 0 2px rgba(236, 72, 153, 0.2);
 }
 
 .time-input.readonly {
-  background: #e9ecef;
-  color: #666;
+  background: var(--card-inner-border, #e9ecef);
+  color: var(--text-muted, #666);
 }
 
 .content-input {
   width: 100%;
   padding: 12px;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
+  border: 1px solid var(--input-border, #e0e0e0);
+  border-radius: 10px;
   font-size: 14px;
-  font-family: monospace;
+  font-family: inherit;
+  background: var(--input-bg, white);
+  color: var(--text-main, #0f172a);
   resize: vertical;
+  box-sizing: border-box;
 }
 
 .settings-section {
-  background: white;
-  border-radius: 10px;
+  background: var(--card-bg, white);
+  border-radius: 12px;
   padding: 16px;
   margin-bottom: 20px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--card-inner-border, #e0e0e0);
 }
 
 .settings-header {
   font-weight: 600;
   margin-bottom: 12px;
-  color: #333;
+  color: var(--text-main, #333);
 }
 
 .settings-grid {
@@ -902,12 +911,12 @@ watch(subtitleContent, () => {
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  color: #555;
+  color: var(--text-sub, #555);
   cursor: pointer;
 }
 
 .checkbox-label input {
-  accent-color: #667eea;
+  accent-color: #ec4899;
   width: 16px;
   height: 16px;
   cursor: pointer;
@@ -923,7 +932,7 @@ watch(subtitleContent, () => {
   flex: 1;
   padding: 12px;
   border: none;
-  border-radius: 8px;
+  border-radius: 10px;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -941,22 +950,24 @@ watch(subtitleContent, () => {
 }
 
 .btn-generate {
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: linear-gradient(135deg, #ec4899, #8b5cf6);
   color: white;
 }
 
 .btn-generate:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 4px 12px rgba(236, 72, 153, 0.4);
 }
 
 .btn-clear {
-  background: #e0e0e0;
-  color: #666;
+  background: var(--card-bg, white);
+  border: 1px solid var(--card-inner-border, #cbd5e1);
+  color: var(--text-muted, #666);
 }
 
 .btn-clear:hover {
-  background: #ccc;
+  background: var(--toolbar-btn-hover, #ccc);
+  color: var(--text-main);
 }
 
 .btn:disabled {
@@ -970,20 +981,20 @@ watch(subtitleContent, () => {
 
 .progress-bar {
   height: 6px;
-  background: #e0e0e0;
+  background: var(--card-inner-border, #e0e0e0);
   border-radius: 3px;
   overflow: hidden;
 }
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: linear-gradient(135deg, #ec4899, #8b5cf6);
   transition: width 0.3s;
 }
 
 .progress-text {
   font-size: 12px;
-  color: #666;
+  color: var(--text-muted, #666);
   margin-top: 8px;
   text-align: center;
 }
@@ -991,7 +1002,7 @@ watch(subtitleContent, () => {
 .grammar-suggestions {
   margin-top: 20px;
   padding-top: 20px;
-  border-top: 1px solid #e0e0e0;
+  border-top: 1px solid var(--card-inner-border, #e0e0e0);
 }
 
 .suggestions-header {
@@ -1000,15 +1011,15 @@ watch(subtitleContent, () => {
   align-items: center;
   margin-bottom: 12px;
   font-weight: 600;
-  color: #e67e22;
+  color: #f59e0b;
 }
 
 .apply-all-btn {
   padding: 4px 12px;
-  background: #27ae60;
+  background: #10b981;
   color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   font-size: 11px;
   cursor: pointer;
 }
@@ -1019,38 +1030,38 @@ watch(subtitleContent, () => {
 }
 
 .suggestion-item {
-  background: white;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
+  background: var(--card-bg, white);
+  border: 1px solid var(--card-inner-border, #e0e0e0);
+  border-radius: 10px;
   padding: 12px;
   margin-bottom: 10px;
   position: relative;
 }
 
 .suggestion-original {
-  color: #e74c3c;
+  color: #ef4444;
   font-size: 13px;
   margin-bottom: 4px;
 }
 
 .suggestion-corrected {
-  color: #27ae60;
+  color: #10b981;
   font-size: 13px;
   margin-bottom: 4px;
 }
 
 .suggestion-explanation {
-  color: #7f8c8d;
+  color: var(--text-muted, #7f8c8d);
   font-size: 11px;
   margin-bottom: 8px;
 }
 
 .apply-suggestion-btn {
   padding: 4px 12px;
-  background: #667eea;
+  background: #6366f1;
   color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   font-size: 11px;
   cursor: pointer;
 }
@@ -1058,10 +1069,10 @@ watch(subtitleContent, () => {
 .api-status {
   margin-top: 12px;
   padding: 8px 12px;
-  background: #fff3cd;
-  border-radius: 6px;
+  background: rgba(245, 158, 11, 0.12);
+  border-radius: 8px;
   font-size: 12px;
-  color: #856404;
+  color: #d97706;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1073,8 +1084,9 @@ watch(subtitleContent, () => {
 
 /* Right Column */
 .output-column {
-  background: #f8f9fa;
-  border-radius: 12px;
+  background: var(--card-inner-bg, #f8f9fa);
+  border: 1px solid var(--card-inner-border, #e2e8f0);
+  border-radius: 16px;
   padding: 24px;
   display: flex;
   flex-direction: column;
@@ -1096,8 +1108,9 @@ watch(subtitleContent, () => {
 
 .tab-btn {
   padding: 8px 16px;
-  border: none;
-  background: white;
+  border: 1px solid var(--card-inner-border, #e2e8f0);
+  background: var(--card-bg, white);
+  color: var(--text-sub, #64748b);
   border-radius: 20px;
   cursor: pointer;
   font-size: 13px;
@@ -1106,11 +1119,12 @@ watch(subtitleContent, () => {
 }
 
 .tab-btn:hover {
-  background: #e0e0e0;
+  color: var(--text-main, #1e293b);
 }
 
 .tab-btn.active {
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: linear-gradient(135deg, #ec4899, #8b5cf6);
+  border-color: #ec4899;
   color: white;
 }
 
@@ -1122,21 +1136,20 @@ watch(subtitleContent, () => {
 
 .copy-btn {
   padding: 8px 16px;
-  border: 1px solid #ddd;
-  background: white;
-  border-radius: 6px;
+  border: 1px solid var(--card-inner-border, #ddd);
+  background: var(--card-bg, white);
+  border-radius: 8px;
   cursor: pointer;
   font-size: 13px;
   transition: all 0.2s;
-  color: #333;
+  color: var(--text-main, #333);
 }
 
 .copy-btn:hover {
-  background: #f5f5f5;
-  border-color: #bbb;
+  background: var(--toolbar-btn-hover, #f5f5f5);
 }
 
-/* Dropdown Styles - Clean outline style */
+/* Dropdown Styles */
 .dropdown {
   position: relative;
   display: inline-block;
@@ -1144,27 +1157,26 @@ watch(subtitleContent, () => {
 
 .download-dropdown-btn {
   padding: 8px 16px;
-  border: 1px solid #ddd;
-  background: white;
-  border-radius: 6px;
+  border: 1px solid var(--card-inner-border, #ddd);
+  background: var(--card-bg, white);
+  border-radius: 8px;
   cursor: pointer;
   font-size: 13px;
   transition: all 0.2s;
-  color: #333;
+  color: var(--text-main, #333);
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
 .download-dropdown-btn:hover {
-  background: #f5f5f5;
-  border-color: #bbb;
+  background: var(--toolbar-btn-hover, #f5f5f5);
 }
 
 .dropdown-arrow {
   font-size: 10px;
   transition: transform 0.2s;
-  color: #888;
+  color: var(--text-muted, #888);
 }
 
 .dropdown-arrow.open {
@@ -1176,12 +1188,12 @@ watch(subtitleContent, () => {
   top: 100%;
   right: 0;
   margin-top: 4px;
-  background: white;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
+  background: var(--card-bg, white);
+  border: 1px solid var(--card-inner-border, #e0e0e0);
+  border-radius: 10px;
   min-width: 160px;
   z-index: 100;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
   overflow: hidden;
 }
 
@@ -1192,16 +1204,16 @@ watch(subtitleContent, () => {
   width: 100%;
   padding: 10px 14px;
   border: none;
-  background: white;
+  background: var(--card-bg, white);
   cursor: pointer;
   font-size: 13px;
-  color: #333;
+  color: var(--text-main, #333);
   text-align: left;
   transition: background 0.15s;
 }
 
 .dropdown-item:hover {
-  background: #f5f5f5;
+  background: var(--toolbar-btn-hover, #f5f5f5);
 }
 
 .dropdown-icon {
@@ -1212,13 +1224,14 @@ watch(subtitleContent, () => {
 .dropdown-hint {
   margin-left: auto;
   font-size: 11px;
-  color: #999;
+  color: var(--text-muted, #999);
   font-family: monospace;
 }
 
 .output-content {
   flex: 1;
-  background: white;
+  background: var(--card-bg, white);
+  border: 1px solid var(--card-inner-border, #e2e8f0);
   border-radius: 12px;
   padding: 20px;
   min-height: 400px;
@@ -1237,20 +1250,20 @@ watch(subtitleContent, () => {
   align-items: flex-start;
   gap: 12px;
   padding: 12px;
-  background: #f8f9fa;
+  background: var(--card-inner-bg, #f8f9fa);
   border-radius: 8px;
-  border-left: 3px solid #667eea;
+  border-left: 3px solid #ec4899;
 }
 
 .preview-number {
   font-weight: bold;
-  color: #667eea;
+  color: #ec4899;
   min-width: 30px;
 }
 
 .preview-time {
   font-size: 12px;
-  color: #888;
+  color: var(--text-muted, #888);
   min-width: 100px;
   font-family: monospace;
 }
@@ -1259,6 +1272,7 @@ watch(subtitleContent, () => {
   flex: 1;
   font-size: 14px;
   line-height: 1.5;
+  color: var(--text-main);
 }
 
 .tamil-text {
@@ -1270,8 +1284,8 @@ watch(subtitleContent, () => {
   font-size: 12px;
   white-space: pre-wrap;
   word-wrap: break-word;
-  background: #1e1e2e;
-  color: #e0e0e0;
+  background: #0f172a;
+  color: #e2e8f0;
   padding: 16px;
   border-radius: 8px;
   margin: 0;
@@ -1290,20 +1304,20 @@ watch(subtitleContent, () => {
 }
 
 .empty-state p {
-  color: #999;
+  color: var(--text-sub, #999);
   margin-bottom: 8px;
 }
 
 .empty-state small {
-  color: #bbb;
+  color: var(--text-muted, #bbb);
   font-size: 12px;
 }
 
 .loading-spinner {
   width: 40px;
   height: 40px;
-  border: 3px solid #f0edff;
-  border-top-color: #6c47ff;
+  border: 3px solid rgba(236, 72, 153, 0.2);
+  border-top-color: #ec4899;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   margin: 0 auto 16px;
@@ -1314,7 +1328,7 @@ watch(subtitleContent, () => {
   justify-content: space-around;
   margin-top: 16px;
   padding-top: 16px;
-  border-top: 1px solid #e0e0e0;
+  border-top: 1px solid var(--card-inner-border, #e0e0e0);
 }
 
 .stat-item {
@@ -1325,25 +1339,25 @@ watch(subtitleContent, () => {
   display: block;
   font-size: 20px;
   font-weight: bold;
-  color: #667eea;
+  color: #ec4899;
 }
 
 .stat-label {
   font-size: 11px;
-  color: #888;
+  color: var(--text-muted, #888);
 }
 
 .tips-section {
   margin-top: 24px;
   padding: 16px;
-  background: #f8f9fa;
+  background: var(--card-inner-bg, #f8f9fa);
   border-radius: 10px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--card-inner-border, #e0e0e0);
 }
 
 .tips-section h4 {
   margin: 0 0 10px 0;
-  color: #666;
+  color: var(--text-main, #666);
   font-size: 13px;
 }
 
@@ -1353,7 +1367,7 @@ watch(subtitleContent, () => {
 }
 
 .tips-section li {
-  color: #888;
+  color: var(--text-muted, #888);
   font-size: 12px;
   margin: 4px 0;
 }

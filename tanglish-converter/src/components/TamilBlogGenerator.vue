@@ -435,10 +435,11 @@ const exportToMarkdown = () => {
 
 <style scoped>
 .blog-generator {
-  background: white;
-  border-radius: 16px;
-  padding: 24px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  background: var(--card-bg, #ffffff);
+  border-radius: 20px;
+  padding: 28px;
+  border: 1px solid var(--card-border, #e2e8f0);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
 }
 
 .generator-header {
@@ -447,13 +448,14 @@ const exportToMarkdown = () => {
 }
 
 .generator-header h2 {
-  font-size: 28px;
-  color: #1a1a2e;
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--text-main, #1a1a2e);
   margin-bottom: 8px;
 }
 
 .generator-header .description {
-  color: #666;
+  color: var(--text-sub, #666);
   font-size: 14px;
 }
 
@@ -465,8 +467,9 @@ const exportToMarkdown = () => {
 
 /* Left Column */
 .input-column {
-  background: #f8f9fa;
-  border-radius: 12px;
+  background: var(--card-inner-bg, #f8f9fa);
+  border: 1px solid var(--card-inner-border, #e2e8f0);
+  border-radius: 16px;
   padding: 24px;
 }
 
@@ -477,7 +480,7 @@ const exportToMarkdown = () => {
 .form-group label {
   display: block;
   font-weight: 600;
-  color: #333;
+  color: var(--text-main, #333);
   margin-bottom: 8px;
   font-size: 14px;
 }
@@ -485,16 +488,19 @@ const exportToMarkdown = () => {
 .topic-input {
   width: 100%;
   padding: 12px;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
+  border: 1px solid var(--input-border, #e0e0e0);
+  border-radius: 10px;
   font-size: 14px;
+  background: var(--input-bg, white);
+  color: var(--text-main, #0f172a);
+  box-sizing: border-box;
   transition: all 0.2s;
 }
 
 .topic-input:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2);
 }
 
 .tone-options {
@@ -508,21 +514,21 @@ const exportToMarkdown = () => {
   align-items: center;
   gap: 8px;
   padding: 12px;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  background: white;
+  border: 1px solid var(--card-inner-border, #e0e0e0);
+  border-radius: 10px;
+  background: var(--card-bg, white);
+  color: var(--text-main, #1e293b);
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .tone-btn:hover {
-  border-color: #667eea;
-  background: #f5f3ff;
+  border-color: #f59e0b;
 }
 
 .tone-btn.active {
-  border-color: #667eea;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-color: #f59e0b;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
   color: white;
 }
 
@@ -548,48 +554,52 @@ const exportToMarkdown = () => {
 
 .word-count-btn {
   padding: 8px 16px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--card-inner-border, #e0e0e0);
   border-radius: 20px;
-  background: white;
+  background: var(--card-bg, white);
+  color: var(--text-sub, #64748b);
   cursor: pointer;
   transition: all 0.2s;
   font-size: 13px;
 }
 
 .word-count-btn:hover {
-  border-color: #667eea;
-  background: #f5f3ff;
+  border-color: #f59e0b;
+  color: var(--text-main, #1e293b);
 }
 
 .word-count-btn.active {
-  background: #667eea;
+  background: #f59e0b;
   color: white;
-  border-color: #667eea;
+  border-color: #f59e0b;
 }
 
 .instructions-input {
   width: 100%;
   padding: 12px;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
+  border: 1px solid var(--input-border, #e0e0e0);
+  border-radius: 10px;
+  background: var(--input-bg, white);
+  color: var(--text-main, #0f172a);
   font-size: 13px;
   resize: vertical;
   font-family: inherit;
+  box-sizing: border-box;
 }
 
 .instructions-input:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: #f59e0b;
 }
 
 .generate-btn {
   width: 100%;
   padding: 14px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
   color: white;
   border: none;
-  border-radius: 8px;
-  font-size: 16px;
+  border-radius: 12px;
+  font-size: 15px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
@@ -597,7 +607,7 @@ const exportToMarkdown = () => {
 
 .generate-btn:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
 }
 
 .generate-btn:disabled {
@@ -611,28 +621,29 @@ const exportToMarkdown = () => {
 
 .progress-bar {
   height: 6px;
-  background: #e0e0e0;
+  background: var(--card-inner-border, #e0e0e0);
   border-radius: 3px;
   overflow: hidden;
 }
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #f59e0b 0%, #ec4899 100%);
   transition: width 0.3s;
 }
 
 .progress-text {
   font-size: 12px;
-  color: #666;
+  color: var(--text-muted, #666);
   margin-top: 8px;
   text-align: center;
 }
 
 /* Right Column */
 .output-column {
-  background: #f8f9fa;
-  border-radius: 12px;
+  background: var(--card-inner-bg, #f8f9fa);
+  border: 1px solid var(--card-inner-border, #e2e8f0);
+  border-radius: 16px;
   padding: 24px;
   display: flex;
   flex-direction: column;
@@ -654,8 +665,9 @@ const exportToMarkdown = () => {
 
 .tab-btn {
   padding: 8px 16px;
-  border: none;
-  background: white;
+  border: 1px solid var(--card-inner-border, #e2e8f0);
+  background: var(--card-bg, white);
+  color: var(--text-sub, #64748b);
   border-radius: 20px;
   cursor: pointer;
   font-size: 13px;
@@ -664,11 +676,12 @@ const exportToMarkdown = () => {
 }
 
 .tab-btn:hover {
-  background: #e0e0e0;
+  color: var(--text-main, #1e293b);
 }
 
 .tab-btn.active {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  border-color: #f59e0b;
   color: white;
 }
 
@@ -687,26 +700,28 @@ const exportToMarkdown = () => {
 }
 
 .copy-btn {
-  background: #e0e0e0;
-  color: #666;
+  background: var(--card-bg, white);
+  border: 1px solid var(--card-inner-border, #cbd5e1);
+  color: var(--text-main, #666);
 }
 
 .copy-btn:hover {
-  background: #ccc;
+  background: var(--toolbar-btn-hover, #ccc);
 }
 
 .export-btn {
-  background: #27ae60;
+  background: #10b981;
   color: white;
 }
 
 .export-btn:hover {
-  background: #219a52;
+  background: #059669;
 }
 
 .output-content {
   flex: 1;
-  background: white;
+  background: var(--card-bg, white);
+  border: 1px solid var(--card-inner-border, #e2e8f0);
   border-radius: 12px;
   padding: 20px;
   min-height: 500px;
@@ -727,9 +742,9 @@ const exportToMarkdown = () => {
   gap: 16px;
   padding-bottom: 16px;
   margin-bottom: 16px;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid var(--card-inner-border, #e0e0e0);
   font-size: 13px;
-  color: #666;
+  color: var(--text-muted, #666);
 }
 
 .blog-text {
@@ -737,6 +752,7 @@ const exportToMarkdown = () => {
   line-height: 1.8;
   white-space: pre-wrap;
   word-wrap: break-word;
+  color: var(--text-main, #0f172a);
 }
 
 .keywords-section {
@@ -749,7 +765,7 @@ const exportToMarkdown = () => {
 
 .keyword-category h4 {
   font-size: 14px;
-  color: #333;
+  color: var(--text-main, #333);
   margin-bottom: 12px;
 }
 
@@ -767,40 +783,47 @@ const exportToMarkdown = () => {
 }
 
 .keyword-tag.primary {
-  background: #e8f4fd;
-  color: #3498db;
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.3);
 }
 
 .keyword-tag.secondary {
-  background: #fef3e2;
-  color: #f39c12;
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.3);
 }
 
 .keyword-tag.longtail {
-  background: #e8f8f5;
-  color: #1abc9c;
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
 }
 
 .keyword-tag.lsi {
-  background: #f0edff;
-  color: #6c47ff;
+  background: rgba(168, 85, 247, 0.15);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.3);
 }
 
 .keyword-tag.tamil-primary {
-  background: #e8f4fd;
-  color: #3498db;
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.3);
   font-family: 'Noto Sans Tamil', sans-serif;
 }
 
 .keyword-tag.tamil-secondary {
-  background: #fef3e2;
-  color: #f39c12;
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.3);
   font-family: 'Noto Sans Tamil', sans-serif;
 }
 
 .keyword-tag.tamil-longtail {
-  background: #e8f8f5;
-  color: #1abc9c;
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
   font-family: 'Noto Sans Tamil', sans-serif;
 }
 
@@ -816,12 +839,12 @@ const exportToMarkdown = () => {
 }
 
 .empty-state p {
-  color: #999;
+  color: var(--text-sub, #999);
   margin-bottom: 8px;
 }
 
 .empty-state small {
-  color: #bbb;
+  color: var(--text-muted, #bbb);
   font-size: 12px;
 }
 
@@ -833,8 +856,8 @@ const exportToMarkdown = () => {
 .loading-spinner {
   width: 40px;
   height: 40px;
-  border: 3px solid #f0edff;
-  border-top-color: #6c47ff;
+  border: 3px solid rgba(245, 158, 11, 0.2);
+  border-top-color: #f59e0b;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   margin: 0 auto 16px;

@@ -1,15 +1,27 @@
 <template>
-  <div class="page-container">
-    <div class="page-header">
-      <button class="back-btn" @click="goBack">
-        ← Back to Home
-      </button>
-      <div class="header-content">
-        <h1>Audio to Text</h1>
-        <p>Record or upload Tamil audio to convert to text with English translation</p>
+  <div class="tool-page-container">
+    <div class="tool-page-header">
+      <router-link to="/" class="back-pill-btn">
+        <span class="back-arrow">←</span>
+        <span>Back to Home</span>
+      </router-link>
+
+      <div class="tool-header-content">
+        <div class="tool-badge-pill audio-badge">
+          <span class="badge-icon">🎙️</span>
+          <span>Speech Recognition</span>
+        </div>
+        <h1 class="tool-page-title">
+          <span class="title-primary">Audio to</span>
+          <span class="title-gradient">Text</span>
+        </h1>
+        <p class="tool-page-subtitle">
+          Record spoken Tamil live or upload audio files to convert into accurate Tamil text with instant English translation.
+        </p>
       </div>
     </div>
-    <div class="page-content">
+
+    <div class="tool-page-body">
       <TamilAudioToText @text-extracted="handleAudioText" />
     </div>
   </div>
@@ -21,10 +33,6 @@ import TamilAudioToText from '@/components/TamilAudioToText.vue'
 
 const router = useRouter()
 
-const goBack = () => {
-  router.push('/')
-}
-
 const handleAudioText = (text) => {
   if (text) {
     sessionStorage.setItem('usil_imported_text', text)
@@ -34,72 +42,111 @@ const handleAudioText = (text) => {
 </script>
 
 <style scoped>
-.page-container {
-  min-height: 100vh;
-  background: #f8f9fa;
-}
-
-.page-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 24px 32px;
-  color: white;
-  position: relative;
-}
-
-.back-btn {
-  position: absolute;
-  top: 24px;
-  left: 32px;
-  background: rgba(255, 255, 255, 0.2);
-  border: none;
-  color: white;
-  padding: 8px 16px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: all 0.2s;
-}
-
-.back-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
-}
-
-.header-content {
-  text-align: center;
-}
-
-.header-content h1 {
-  font-size: 32px;
-  margin-bottom: 8px;
-}
-
-.header-content p {
-  font-size: 16px;
-  opacity: 0.9;
-}
-
-.page-content {
+.tool-page-container {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 32px;
+  padding: 36px 24px 60px 24px;
+}
+
+.tool-page-header {
+  margin-bottom: 32px;
+}
+
+.back-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--toolbar-btn-bg);
+  border: 1px solid var(--toolbar-border);
+  color: var(--text-sub);
+  padding: 8px 16px;
+  border-radius: 20px;
+  text-decoration: none;
+  font-size: 13.5px;
+  font-weight: 600;
+  transition: all 0.2s;
+  margin-bottom: 20px;
+}
+
+.back-pill-btn:hover {
+  color: var(--text-main);
+  background: var(--toolbar-btn-hover);
+  transform: translateX(-2px);
+}
+
+.back-arrow {
+  font-size: 15px;
+}
+
+.tool-header-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tool-badge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  width: fit-content;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.audio-badge {
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #34d399;
+}
+
+:root.light .audio-badge,
+[data-theme="light"] .audio-badge {
+  background: #d1fae5;
+  border-color: #a7f3d0;
+  color: #065f46;
+}
+
+.tool-page-title {
+  font-size: 40px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  margin: 0;
+}
+
+.title-primary {
+  color: var(--text-main);
+  margin-right: 10px;
+}
+
+.title-gradient {
+  background: linear-gradient(135deg, #34d399, #6366f1);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.tool-page-subtitle {
+  font-size: 15.5px;
+  color: var(--text-sub);
+  margin: 0;
+  max-width: 650px;
+  line-height: 1.5;
+}
+
+.tool-page-body {
+  width: 100%;
 }
 
 @media (max-width: 768px) {
-  .page-header {
+  .tool-page-container {
     padding: 20px 16px;
   }
-  
-  .back-btn {
-    position: static;
-    margin-bottom: 16px;
-  }
-  
-  .header-content h1 {
-    font-size: 24px;
-  }
-  
-  .page-content {
-    padding: 16px;
+  .tool-page-title {
+    font-size: 30px;
   }
 }
 </style>

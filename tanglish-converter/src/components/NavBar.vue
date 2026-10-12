@@ -40,16 +40,25 @@
           <span class="credits-text">50 credits/day</span>
         </div>
 
-        <!-- Theme Toggle (Dark / Light) -->
-        <button 
-          class="theme-toggle-btn" 
-          @click="toggleTheme" 
-          :title="theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'"
-          aria-label="Toggle theme"
-        >
-          <span v-if="theme === 'dark'" class="theme-icon">☀️</span>
-          <span v-else class="theme-icon">🌙</span>
-        </button>
+        <!-- Theme Toggle (Lig / Dar) -->
+        <div class="theme-switch-pill" title="Switch Theme">
+          <button 
+            class="theme-segment" 
+            :class="{ active: theme === 'light' }" 
+            @click="setTheme('light')"
+            aria-label="Light mode"
+          >
+            Lig
+          </button>
+          <button 
+            class="theme-segment" 
+            :class="{ active: theme === 'dark' }" 
+            @click="setTheme('dark')"
+            aria-label="Dark mode"
+          >
+            Dar
+          </button>
+        </div>
 
         <!-- User Menu (Logged In) -->
         <div v-if="isAuthenticated" class="user-menu">
@@ -166,7 +175,7 @@ import AuthModal from '@/components/AuthModal.vue'
 
 const router = useRouter()
 const { user, isAuthenticated, logout } = useAuth()
-const { theme, toggleTheme } = useTheme()
+const { theme, toggleTheme, setTheme } = useTheme()
 
 const showAuthModal = ref(false)
 const showUserMenu = ref(false)
@@ -346,25 +355,40 @@ onBeforeUnmount(() => {
   font-size: 13px;
 }
 
-/* Theme Toggle Button */
-.theme-toggle-btn {
+/* Theme Switch Pill (Lig / Dar) */
+.theme-switch-pill {
+  display: inline-flex;
+  align-items: center;
   background: var(--toolbar-btn-bg);
   border: 1px solid var(--toolbar-border);
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  font-size: 16px;
-  color: var(--text-main);
-  transition: all 0.2s ease;
+  padding: 3px;
+  border-radius: 20px;
+  gap: 2px;
+  user-select: none;
 }
 
-.theme-toggle-btn:hover {
-  background: var(--toolbar-btn-hover);
-  transform: translateY(-1px);
+.theme-segment {
+  background: transparent;
+  border: none;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 14px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.theme-segment:hover {
+  color: var(--text-main);
+}
+
+.theme-segment.active {
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  color: white;
+  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.35);
 }
 
 /* Login Button */

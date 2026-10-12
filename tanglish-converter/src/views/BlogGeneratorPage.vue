@@ -1,15 +1,27 @@
 <template>
-  <div class="page-container">
-    <div class="page-header">
-      <button class="back-btn" @click="goBack">
-        ← Back to Home
-      </button>
-      <div class="header-content">
-        <h1>Tamil Blog Generator</h1>
-        <p>Generate SEO-optimized Tamil blog posts with AI</p>
+  <div class="tool-page-container">
+    <div class="tool-page-header">
+      <router-link to="/" class="back-pill-btn">
+        <span class="back-arrow">←</span>
+        <span>Back to Home</span>
+      </router-link>
+
+      <div class="tool-header-content">
+        <div class="tool-badge-pill blog-badge">
+          <span class="badge-icon">✍️</span>
+          <span>Tamil AI Writer</span>
+        </div>
+        <h1 class="tool-page-title">
+          <span class="title-primary">Tamil Blog</span>
+          <span class="title-gradient">Generator</span>
+        </h1>
+        <p class="tool-page-subtitle">
+          Generate SEO-optimized, culturally authentic Tamil blog posts and articles in seconds with intelligent structuring.
+        </p>
       </div>
     </div>
-    <div class="page-content">
+
+    <div class="tool-page-body">
       <TamilBlogGenerator @blog-generated="handleBlogGenerated" />
     </div>
   </div>
@@ -21,82 +33,117 @@ import TamilBlogGenerator from '@/components/TamilBlogGenerator.vue'
 
 const router = useRouter()
 
-const goBack = () => {
-  router.push('/')
-}
-
 const handleBlogGenerated = (data) => {
   console.log('Blog generated:', data)
 }
 </script>
 
 <style scoped>
-.page-container {
-  min-height: 100vh;
-  background: #f8f9fa;
-}
-
-.page-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 24px 32px;
-  color: white;
-  position: relative;
-}
-
-.back-btn {
-  position: absolute;
-  top: 24px;
-  left: 32px;
-  background: rgba(255, 255, 255, 0.2);
-  border: none;
-  color: white;
-  padding: 8px 16px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: all 0.2s;
-}
-
-.back-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
-}
-
-.header-content {
-  text-align: center;
-}
-
-.header-content h1 {
-  font-size: 32px;
-  margin-bottom: 8px;
-}
-
-.header-content p {
-  font-size: 16px;
-  opacity: 0.9;
-}
-
-.page-content {
-  max-width: 1400px;
+.tool-page-container {
+  max-width: 1300px;
   margin: 0 auto;
-  padding: 32px;
+  padding: 36px 24px 60px 24px;
+}
+
+.tool-page-header {
+  margin-bottom: 32px;
+}
+
+.back-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--toolbar-btn-bg);
+  border: 1px solid var(--toolbar-border);
+  color: var(--text-sub);
+  padding: 8px 16px;
+  border-radius: 20px;
+  text-decoration: none;
+  font-size: 13.5px;
+  font-weight: 600;
+  transition: all 0.2s;
+  margin-bottom: 20px;
+}
+
+.back-pill-btn:hover {
+  color: var(--text-main);
+  background: var(--toolbar-btn-hover);
+  transform: translateX(-2px);
+}
+
+.back-arrow {
+  font-size: 15px;
+}
+
+.tool-header-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tool-badge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  width: fit-content;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.blog-badge {
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: #fbbf24;
+}
+
+:root.light .blog-badge,
+[data-theme="light"] .blog-badge {
+  background: #fef3c7;
+  border-color: #fde68a;
+  color: #b45309;
+}
+
+.tool-page-title {
+  font-size: 40px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  margin: 0;
+}
+
+.title-primary {
+  color: var(--text-main);
+  margin-right: 10px;
+}
+
+.title-gradient {
+  background: linear-gradient(135deg, #f59e0b, #ec4899);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.tool-page-subtitle {
+  font-size: 15.5px;
+  color: var(--text-sub);
+  margin: 0;
+  max-width: 650px;
+  line-height: 1.5;
+}
+
+.tool-page-body {
+  width: 100%;
 }
 
 @media (max-width: 768px) {
-  .page-header {
+  .tool-page-container {
     padding: 20px 16px;
   }
-  
-  .back-btn {
-    position: static;
-    margin-bottom: 16px;
-  }
-  
-  .header-content h1 {
-    font-size: 24px;
-  }
-  
-  .page-content {
-    padding: 16px;
+  .tool-page-title {
+    font-size: 30px;
   }
 }
 </style>

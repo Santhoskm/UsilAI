@@ -297,11 +297,13 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .ocr-uploader-card {
-  background: white;
+  background: var(--card-bg, white);
   border-radius: 24px;
   padding: 32px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.06);
-  border: 1px solid #e2e8f0;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--card-border, #e2e8f0);
+  color: var(--text-main);
+  transition: all 0.25s ease;
 }
 
 .ocr-card-header {
@@ -320,10 +322,11 @@ onBeforeUnmount(() => {
 }
 
 .header-icon {
-  font-size: 32px;
-  width: 56px;
-  height: 56px;
-  background: #f1f5f9;
+  font-size: 28px;
+  width: 52px;
+  height: 52px;
+  background: var(--toolbar-btn-bg, #f1f5f9);
+  border: 1px solid var(--toolbar-border, #e2e8f0);
   border-radius: 16px;
   display: flex;
   align-items: center;
@@ -333,19 +336,20 @@ onBeforeUnmount(() => {
 .ocr-card-header h3 {
   font-size: 20px;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--text-main, #0f172a);
   margin: 0 0 4px 0;
 }
 
 .subtitle {
-  font-size: 13px;
-  color: #64748b;
+  font-size: 13.5px;
+  color: var(--text-sub, #64748b);
   margin: 0;
 }
 
 .engine-selector {
   display: flex;
-  background: #f1f5f9;
+  background: var(--toolbar-btn-bg, #f1f5f9);
+  border: 1px solid var(--toolbar-border, #e2e8f0);
   padding: 4px;
   border-radius: 100px;
   gap: 4px;
@@ -360,15 +364,15 @@ onBeforeUnmount(() => {
   background: transparent;
   font-size: 12px;
   font-weight: 600;
-  color: #64748b;
+  color: var(--text-muted, #64748b);
   border-radius: 100px;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .engine-btn.active {
-  background: white;
-  color: #0f172a;
+  background: var(--card-bg, white);
+  color: var(--text-main, #0f172a);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 }
 
@@ -387,11 +391,11 @@ onBeforeUnmount(() => {
 }
 
 .upload-dropzone {
-  border: 2px dashed #cbd5e1;
+  border: 2px dashed var(--toolbar-border, #cbd5e1);
   border-radius: 20px;
   padding: 50px 24px;
   text-align: center;
-  background: #f8fafc;
+  background: var(--card-inner-bg, #f8fafc);
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -399,7 +403,7 @@ onBeforeUnmount(() => {
 .upload-dropzone:hover,
 .upload-dropzone.drag-over {
   border-color: #6366f1;
-  background: #eef2ff;
+  background: var(--card-inner-bg);
   transform: translateY(-2px);
 }
 
@@ -411,22 +415,22 @@ onBeforeUnmount(() => {
 .dropzone-title {
   font-size: 16px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--text-main, #1e293b);
   margin-bottom: 6px;
 }
 
 .dropzone-hint {
   font-size: 13px;
-  color: #64748b;
+  color: var(--text-muted, #64748b);
 }
 
 /* Loading Card */
 .ocr-loading-card {
   padding: 48px 24px;
   text-align: center;
-  background: #f8fafc;
+  background: var(--card-inner-bg, #f8fafc);
   border-radius: 20px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--card-inner-border, #e2e8f0);
 }
 
 .loading-ring-wrapper {
@@ -442,7 +446,7 @@ onBeforeUnmount(() => {
 .loading-ring {
   width: 80px;
   height: 80px;
-  border: 4px solid #e2e8f0;
+  border: 4px solid var(--card-inner-border, #e2e8f0);
   border-top-color: #6366f1;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
@@ -462,7 +466,7 @@ onBeforeUnmount(() => {
 .loading-stage-text {
   font-size: 15px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--text-main, #1e293b);
   margin-bottom: 16px;
 }
 
@@ -470,7 +474,7 @@ onBeforeUnmount(() => {
   width: 100%;
   max-width: 400px;
   height: 8px;
-  background: #e2e8f0;
+  background: var(--card-inner-border, #e2e8f0);
   border-radius: 100px;
   margin: 0 auto;
   overflow: hidden;
@@ -493,7 +497,7 @@ onBeforeUnmount(() => {
   align-items: center;
   font-size: 14px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--text-main, #1e293b);
   margin-bottom: 12px;
 }
 
@@ -517,10 +521,10 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 12px;
-  background: #f8fafc;
+  background: var(--card-inner-bg, #f8fafc);
   padding: 10px;
   border-radius: 14px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--card-inner-border, #e2e8f0);
   position: relative;
 }
 
@@ -540,7 +544,7 @@ onBeforeUnmount(() => {
   display: block;
   font-size: 13px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--text-main, #1e293b);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -548,11 +552,11 @@ onBeforeUnmount(() => {
 
 .thumb-size {
   font-size: 11px;
-  color: #64748b;
+  color: var(--text-muted, #64748b);
 }
 
 .btn-thumb-remove {
-  background: #e2e8f0;
+  background: var(--card-inner-border, #e2e8f0);
   border: none;
   width: 22px;
   height: 22px;
@@ -561,7 +565,7 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: #64748b;
+  color: var(--text-muted, #64748b);
   font-size: 11px;
 }
 
@@ -591,9 +595,9 @@ onBeforeUnmount(() => {
 
 /* Result Box */
 .extracted-result-box {
-  background: #f8fafc;
+  background: var(--card-inner-bg, #f8fafc);
   border-radius: 20px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--card-inner-border, #e2e8f0);
   padding: 24px;
 }
 
@@ -615,15 +619,16 @@ onBeforeUnmount(() => {
 .badge-success {
   font-size: 12px;
   font-weight: 600;
-  background: #dcfce7;
-  color: #166534;
+  background: rgba(34, 197, 94, 0.15);
+  color: #10b981;
   padding: 4px 10px;
   border-radius: 100px;
+  border: 1px solid rgba(34, 197, 94, 0.3);
 }
 
 .meta-stat {
   font-size: 12px;
-  color: #64748b;
+  color: var(--text-muted, #64748b);
   font-weight: 500;
 }
 
@@ -635,9 +640,9 @@ onBeforeUnmount(() => {
 
 .btn-action-tool {
   padding: 8px 14px;
-  background: white;
-  border: 1px solid #cbd5e1;
-  color: #1e293b;
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--card-inner-border, #cbd5e1);
+  color: var(--text-main, #1e293b);
   border-radius: 10px;
   font-size: 13px;
   font-weight: 600;
@@ -645,10 +650,14 @@ onBeforeUnmount(() => {
   transition: all 0.2s;
 }
 
+.btn-action-tool:hover {
+  border-color: #6366f1;
+}
+
 .btn-action-tool.copied {
-  background: #dcfce7;
-  color: #166534;
-  border-color: #86efac;
+  background: rgba(34, 197, 94, 0.15);
+  color: #10b981;
+  border-color: rgba(34, 197, 94, 0.3);
 }
 
 .btn-action-primary {
@@ -672,9 +681,13 @@ onBeforeUnmount(() => {
   padding: 8px 12px;
   background: none;
   border: none;
-  color: #64748b;
+  color: var(--text-muted, #64748b);
   font-size: 13px;
   cursor: pointer;
+}
+
+.btn-action-ghost:hover {
+  color: var(--text-main, #1e293b);
 }
 
 .textarea-wrapper {
@@ -686,9 +699,9 @@ onBeforeUnmount(() => {
   padding: 16px;
   font-size: 16px;
   line-height: 1.8;
-  color: #0f172a;
-  background: white;
-  border: 1px solid #cbd5e1;
+  color: var(--text-main, #0f172a);
+  background: var(--input-bg, #ffffff);
+  border: 1px solid var(--input-border, #cbd5e1);
   border-radius: 14px;
   resize: vertical;
   font-family: inherit;
@@ -703,29 +716,29 @@ onBeforeUnmount(() => {
 
 .result-footer-hint {
   font-size: 12px;
-  color: #64748b;
+  color: var(--text-muted, #64748b);
 }
 
 .ocr-error-banner {
   margin-top: 16px;
-  background: #fef2f2;
-  color: #b91c1c;
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
   padding: 12px 16px;
   border-radius: 12px;
-  border: 1px solid #fee2e2;
+  border: 1px solid rgba(239, 68, 68, 0.2);
   font-size: 13px;
 }
 
 .ocr-footer-tips {
   margin-top: 24px;
   padding-top: 20px;
-  border-top: 1px solid #f1f5f9;
+  border-top: 1px solid var(--card-inner-border, #f1f5f9);
 }
 
 .tips-title {
   font-size: 13px;
   font-weight: 600;
-  color: #475569;
+  color: var(--text-sub, #475569);
   margin-bottom: 8px;
 }
 
@@ -736,12 +749,12 @@ onBeforeUnmount(() => {
 }
 
 .tip-chip {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: var(--card-inner-bg, #f8fafc);
+  border: 1px solid var(--card-inner-border, #e2e8f0);
   padding: 6px 12px;
   border-radius: 100px;
   font-size: 12px;
-  color: #64748b;
+  color: var(--text-muted, #64748b);
 }
 
 @media (max-width: 640px) {

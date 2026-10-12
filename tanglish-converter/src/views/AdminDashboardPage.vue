@@ -1093,8 +1093,8 @@ onMounted(async () => {
 /* Page Layout */
 .admin-page {
   min-height: 100vh;
-  background-color: #f1f5f9;
-  color: #1e293b;
+  background-color: var(--app-bg, #080d1a);
+  color: var(--text-main, #e2e8f0);
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   padding-bottom: 60px;
 }
@@ -1111,11 +1111,11 @@ onMounted(async () => {
 .login-card {
   width: 100%;
   max-width: 440px;
-  background: #ffffff;
+  background: var(--card-bg, #ffffff);
   border-radius: 20px;
   padding: 36px 32px;
-  box-shadow: 0 20px 25px -5px rgba(15, 23, 42, 0.1), 0 8px 10px -6px rgba(15, 23, 42, 0.1);
-  border: 1px solid #e2e8f0;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--card-border, #e2e8f0);
 }
 
 .login-card-header {
@@ -1126,7 +1126,7 @@ onMounted(async () => {
 .shield-icon-wrap {
   width: 56px;
   height: 56px;
-  background: #ede9fe;
+  background: rgba(99, 102, 241, 0.15);
   color: #6366f1;
   border-radius: 16px;
   display: inline-flex;
@@ -1138,14 +1138,14 @@ onMounted(async () => {
 .login-card-header h2 {
   font-size: 22px;
   font-weight: 800;
-  color: #0f172a;
+  color: var(--text-main, #0f172a);
   letter-spacing: -0.02em;
   margin-bottom: 8px;
 }
 
 .login-sub {
   font-size: 13px;
-  color: #64748b;
+  color: var(--text-muted, #64748b);
   line-height: 1.5;
 }
 
@@ -1446,8 +1446,8 @@ onMounted(async () => {
 
 /* Cards & Glass Design */
 .glass {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--card-border, #e2e8f0);
   border-radius: 14px;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
 }
@@ -1482,10 +1482,10 @@ onMounted(async () => {
   flex-shrink: 0;
 }
 
-.metric-icon-wrap.blue { background: #eff6ff; color: #2563eb; }
-.metric-icon-wrap.green { background: #f0fdf4; color: #16a34a; }
-.metric-icon-wrap.purple { background: #faf5ff; color: #9333ea; }
-.metric-icon-wrap.orange { background: #fff7ed; color: #ea580c; }
+.metric-icon-wrap.blue { background: rgba(59, 130, 246, 0.15); color: #60a5fa; }
+.metric-icon-wrap.green { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+.metric-icon-wrap.purple { background: rgba(168, 85, 247, 0.15); color: #c084fc; }
+.metric-icon-wrap.orange { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
 
 .metric-details {
   display: flex;
@@ -1494,7 +1494,7 @@ onMounted(async () => {
 
 .metric-label {
   font-size: 13px;
-  color: #64748b;
+  color: var(--text-muted, #64748b);
   font-weight: 500;
   margin-bottom: 4px;
 }
@@ -1502,13 +1502,13 @@ onMounted(async () => {
 .metric-value {
   font-size: 26px;
   font-weight: 800;
-  color: #0f172a;
+  color: var(--text-main, #0f172a);
   line-height: 1.1;
 }
 
 .metric-sub {
   font-size: 11px;
-  color: #94a3b8;
+  color: var(--text-muted, #94a3b8);
   margin-top: 4px;
 }
 
@@ -1534,26 +1534,26 @@ onMounted(async () => {
 .card-header h3 {
   font-size: 17px;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--text-main, #0f172a);
   margin-bottom: 4px;
 }
 
 .card-caption {
   font-size: 13px;
-  color: #64748b;
+  color: var(--text-muted, #64748b);
 }
 
 .mt-lg { margin-top: 28px; }
 .mb-sm { margin-bottom: 12px; }
 .pt-border {
   padding-top: 20px;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid var(--card-inner-border, #e2e8f0);
 }
 
 .pt-border h4 {
   font-size: 15px;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--text-main, #0f172a);
   margin-bottom: 6px;
 }
 
@@ -1582,13 +1582,13 @@ onMounted(async () => {
   justify-content: space-between;
   font-size: 13px;
   font-weight: 500;
-  color: #334155;
+  color: var(--text-main, #334155);
 }
 
 .bar-track {
   width: 100%;
   height: 8px;
-  background: #e2e8f0;
+  background: var(--card-inner-border, #e2e8f0);
   border-radius: 9999px;
   overflow: hidden;
 }
@@ -1617,10 +1617,10 @@ onMounted(async () => {
 
 .data-table th {
   padding: 12px 14px;
-  background: #f8fafc;
-  color: #475569;
+  background: var(--card-inner-bg, #f8fafc);
+  color: var(--text-sub, #475569);
   font-weight: 600;
-  border-bottom: 2px solid #e2e8f0;
+  border-bottom: 2px solid var(--card-inner-border, #e2e8f0);
   white-space: nowrap;
 }
 
@@ -1630,23 +1630,25 @@ onMounted(async () => {
 }
 
 .data-table th.sortable:hover {
-  background: #f1f5f9;
-  color: #1e293b;
+  background: var(--toolbar-btn-hover, #f1f5f9);
+  color: var(--text-main, #1e293b);
 }
 
 .data-table td {
   padding: 12px 14px;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--card-inner-border, #f1f5f9);
+  color: var(--text-main);
   vertical-align: middle;
 }
 
 .table-row:hover {
-  background-color: #f8fafc;
+  background-color: var(--card-inner-bg, #f8fafc);
 }
 
 .code-pill {
-  background: #e2e8f0;
-  color: #0f172a;
+  background: var(--card-inner-bg, #e2e8f0);
+  border: 1px solid var(--card-inner-border, transparent);
+  color: var(--text-main, #0f172a);
   padding: 3px 8px;
   border-radius: 6px;
   font-family: monospace;
@@ -1658,8 +1660,8 @@ onMounted(async () => {
 .font-lg { font-size: 16px; }
 
 .freq-badge {
-  background: #e0e7ff;
-  color: #3730a3;
+  background: rgba(99, 102, 241, 0.15);
+  color: #818cf8;
   padding: 3px 8px;
   border-radius: 9999px;
   font-size: 12px;
@@ -1667,8 +1669,8 @@ onMounted(async () => {
 }
 
 .prefix-tag {
-  background: #f1f5f9;
-  color: #64748b;
+  background: var(--card-inner-bg, #f1f5f9);
+  color: var(--text-muted, #64748b);
   padding: 2px 6px;
   border-radius: 4px;
   font-size: 11px;
@@ -1678,7 +1680,7 @@ onMounted(async () => {
 .freq-bar-wrap {
   width: 120px;
   height: 6px;
-  background: #f1f5f9;
+  background: var(--card-inner-border, #f1f5f9);
   border-radius: 4px;
   overflow: hidden;
 }
@@ -1694,7 +1696,7 @@ onMounted(async () => {
 .empty-state {
   text-align: center;
   padding: 36px !important;
-  color: #94a3b8;
+  color: var(--text-muted, #94a3b8);
 }
 
 /* Dictionary Toolbar */
@@ -1718,16 +1720,17 @@ onMounted(async () => {
   left: 12px;
   top: 50%;
   transform: translateY(-50%);
-  color: #94a3b8;
+  color: var(--text-muted, #94a3b8);
 }
 
 .search-input {
   width: 100%;
   padding: 10px 36px 10px 38px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--input-border, #cbd5e1);
   border-radius: 8px;
   font-size: 14px;
-  background: #ffffff;
+  background: var(--input-bg, #ffffff);
+  color: var(--text-main);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -1745,7 +1748,7 @@ onMounted(async () => {
   background: none;
   border: none;
   font-size: 18px;
-  color: #94a3b8;
+  color: var(--text-muted, #94a3b8);
   cursor: pointer;
 }
 

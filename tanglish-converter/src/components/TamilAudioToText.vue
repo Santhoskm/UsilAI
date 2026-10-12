@@ -887,10 +887,10 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .audio-to-text-container {
-  background: white;
-  border-radius: 16px;
+  background: var(--card-bg, #ffffff);
+  border-radius: 20px;
   padding: 28px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--card-border, #e2e8f0);
   box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
 }
 
@@ -901,7 +901,7 @@ onBeforeUnmount(() => {
   gap: 16px;
   margin-bottom: 24px;
   padding-bottom: 20px;
-  border-bottom: 1px solid #edf2f7;
+  border-bottom: 1px solid var(--card-inner-border, #edf2f7);
   flex-wrap: wrap;
 }
 
@@ -925,13 +925,13 @@ onBeforeUnmount(() => {
 
 .header-titles h3 {
   margin: 0 0 4px 0;
-  color: #0f172a;
+  color: var(--text-main, #0f172a);
   font-size: 20px;
   font-weight: 700;
 }
 
 .audio-description {
-  color: #64748b;
+  color: var(--text-sub, #64748b);
   font-size: 13.5px;
   margin: 0;
 }
@@ -940,13 +940,13 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: #f1f5f9;
+  background: var(--card-inner-bg, #f1f5f9);
   padding: 6px 14px;
   border-radius: 20px;
   font-size: 12.5px;
   font-weight: 600;
-  color: #334155;
-  border: 1px solid #e2e8f0;
+  color: var(--text-main, #334155);
+  border: 1px solid var(--card-inner-border, #e2e8f0);
 }
 
 .engine-indicator {
@@ -962,10 +962,10 @@ onBeforeUnmount(() => {
   display: flex;
   gap: 10px;
   margin-bottom: 24px;
-  background: #f8fafc;
+  background: var(--card-inner-bg, #f8fafc);
   padding: 6px;
   border-radius: 12px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--card-inner-border, #e2e8f0);
   width: fit-content;
 }
 
@@ -977,17 +977,22 @@ onBeforeUnmount(() => {
   border: none;
   border-radius: 8px;
   background: transparent;
-  color: #64748b;
+  color: var(--text-muted, #64748b);
   font-size: 13.5px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+.tab-btn:hover {
+  color: var(--text-main, #1e293b);
+}
+
 .tab-btn.active {
-  background: white;
-  color: #4f46e5;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  background: var(--card-bg, white);
+  color: #6366f1;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border: 1px solid var(--card-inner-border, rgba(0, 0, 0, 0.05));
 }
 
 /* Grid Layout */
@@ -1005,8 +1010,8 @@ onBeforeUnmount(() => {
 }
 
 .mic-status-card {
-  background: #f8fafc;
-  border: 2px dashed #cbd5e1;
+  background: var(--card-inner-bg, #f8fafc);
+  border: 2px dashed var(--card-inner-border, #cbd5e1);
   border-radius: 16px;
   padding: 32px 24px;
   text-align: center;
@@ -1019,7 +1024,7 @@ onBeforeUnmount(() => {
 
 .mic-status-card.is-recording {
   border-color: #ef4444;
-  background: #fef2f2;
+  background: rgba(239, 68, 68, 0.08);
 }
 
 .record-avatar-wrapper {
@@ -1032,8 +1037,8 @@ onBeforeUnmount(() => {
   width: 80px;
   height: 80px;
   border-radius: 50%;
-  background: white;
-  border: 3px solid #e2e8f0;
+  background: var(--card-bg, white);
+  border: 3px solid var(--card-inner-border, #e2e8f0);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1046,7 +1051,7 @@ onBeforeUnmount(() => {
 
 .record-avatar.recording {
   border-color: #ef4444;
-  background: #fee2e2;
+  background: rgba(239, 68, 68, 0.15);
 }
 
 .record-pulse-layer {
@@ -1069,12 +1074,12 @@ onBeforeUnmount(() => {
 .mic-status-title {
   font-size: 16px;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--text-main, #1e293b);
 }
 
 .mic-status-sub {
   font-size: 13px;
-  color: #64748b;
+  color: var(--text-muted, #64748b);
   margin-top: 4px;
 }
 
@@ -1148,9 +1153,9 @@ onBeforeUnmount(() => {
 }
 
 .secondary-btn {
-  background: #f1f5f9;
-  color: #334155;
-  border: 1px solid #cbd5e1;
+  background: var(--card-inner-bg, #f1f5f9);
+  color: var(--text-main, #334155);
+  border: 1px solid var(--card-inner-border, #cbd5e1);
   padding: 12px 18px;
   border-radius: 10px;
   font-weight: 600;
@@ -1160,12 +1165,12 @@ onBeforeUnmount(() => {
 }
 
 .secondary-btn:hover:not(:disabled) {
-  background: #e2e8f0;
+  background: var(--toolbar-btn-hover, #e2e8f0);
 }
 
 .feature-hints {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: var(--card-inner-bg, #f8fafc);
+  border: 1px solid var(--card-inner-border, #e2e8f0);
   border-radius: 12px;
   padding: 14px;
   display: flex;
@@ -1178,16 +1183,16 @@ onBeforeUnmount(() => {
   align-items: flex-start;
   gap: 8px;
   font-size: 12px;
-  color: #64748b;
+  color: var(--text-muted, #64748b);
   line-height: 1.4;
 }
 
 /* File Upload Area */
 .file-dropzone {
-  border: 2px dashed #cbd5e1;
+  border: 2px dashed var(--card-inner-border, #cbd5e1);
   border-radius: 16px;
   padding: 28px 20px;
-  background: #f8fafc;
+  background: var(--card-inner-bg, #f8fafc);
   text-align: center;
   cursor: pointer;
   transition: all 0.2s;
@@ -1195,7 +1200,7 @@ onBeforeUnmount(() => {
 
 .file-dropzone:hover {
   border-color: #6366f1;
-  background: #f5f3ff;
+  background: var(--card-inner-bg, #f5f3ff);
 }
 
 .dropzone-icon {
@@ -1206,19 +1211,19 @@ onBeforeUnmount(() => {
 .dropzone-title {
   font-size: 15px;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--text-main, #1e293b);
   margin-bottom: 4px;
 }
 
 .dropzone-subtitle {
   font-size: 12.5px;
-  color: #64748b;
+  color: var(--text-muted, #64748b);
   margin-bottom: 8px;
 }
 
 .dropzone-formats {
   font-size: 11px;
-  color: #94a3b8;
+  color: var(--text-muted, #94a3b8);
 }
 
 .selected-audio-preview {
@@ -1231,10 +1236,10 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 12px;
-  background: white;
+  background: var(--card-inner-bg, white);
   padding: 12px;
   border-radius: 10px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--card-inner-border, #e2e8f0);
 }
 
 .audio-badge-icon {
@@ -1249,20 +1254,20 @@ onBeforeUnmount(() => {
 .audio-file-name {
   font-size: 13.5px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--text-main, #1e293b);
   word-break: break-all;
 }
 
 .audio-file-size {
   font-size: 11.5px;
-  color: #64748b;
+  color: var(--text-muted, #64748b);
 }
 
 .clear-file-btn {
   background: transparent;
   border: none;
   font-size: 16px;
-  color: #94a3b8;
+  color: var(--text-muted, #94a3b8);
   cursor: pointer;
   padding: 4px;
 }
@@ -1288,8 +1293,8 @@ onBeforeUnmount(() => {
 }
 
 .whisper-accordion {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: var(--card-inner-bg, #f8fafc);
+  border: 1px solid var(--card-inner-border, #e2e8f0);
   border-radius: 12px;
   overflow: hidden;
 }
@@ -1301,20 +1306,20 @@ onBeforeUnmount(() => {
   align-items: center;
   font-size: 13px;
   font-weight: 600;
-  color: #334155;
+  color: var(--text-main, #334155);
   cursor: pointer;
   user-select: none;
 }
 
 .whisper-body {
   padding: 14px 16px;
-  border-top: 1px solid #e2e8f0;
-  background: white;
+  border-top: 1px solid var(--card-inner-border, #e2e8f0);
+  background: var(--card-bg, white);
 }
 
 .whisper-help-text {
   font-size: 12px;
-  color: #64748b;
+  color: var(--text-muted, #64748b);
   margin: 0 0 10px 0;
   line-height: 1.4;
 }
@@ -1327,29 +1332,31 @@ onBeforeUnmount(() => {
 .whisper-input {
   flex: 1;
   padding: 8px 12px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--input-border, #cbd5e1);
   border-radius: 8px;
   font-size: 12.5px;
+  background: var(--input-bg, white);
+  color: var(--text-main, #0f172a);
   outline: none;
 }
 
 .whisper-footnote {
   font-size: 11px;
-  color: #94a3b8;
+  color: var(--text-muted, #94a3b8);
   margin-top: 8px;
 }
 
 .whisper-footnote code {
-  background: #f1f5f9;
+  background: var(--card-inner-bg, #f1f5f9);
   padding: 2px 4px;
   border-radius: 4px;
-  color: #4f46e5;
+  color: #6366f1;
 }
 
 /* Progress and Errors */
 .processing-card {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: var(--card-inner-bg, #f8fafc);
+  border: 1px solid var(--card-inner-border, #e2e8f0);
   border-radius: 12px;
   padding: 16px;
   text-align: center;
@@ -1358,8 +1365,8 @@ onBeforeUnmount(() => {
 .spinner {
   width: 32px;
   height: 32px;
-  border: 3px solid #e2e8f0;
-  border-top-color: #4f46e5;
+  border: 3px solid var(--card-inner-border, #e2e8f0);
+  border-top-color: #6366f1;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   margin: 0 auto 10px;
@@ -1372,13 +1379,13 @@ onBeforeUnmount(() => {
 .processing-title {
   font-size: 13px;
   font-weight: 600;
-  color: #4f46e5;
+  color: #6366f1;
   margin-bottom: 10px;
 }
 
 .progress-bar-container {
   height: 6px;
-  background: #e2e8f0;
+  background: var(--card-inner-border, #e2e8f0);
   border-radius: 3px;
   overflow: hidden;
   margin-bottom: 6px;
@@ -1386,22 +1393,22 @@ onBeforeUnmount(() => {
 
 .progress-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #4f46e5, #8b5cf6);
+  background: linear-gradient(90deg, #6366f1, #8b5cf6);
   transition: width 0.3s;
 }
 
 .progress-percentage {
   font-size: 11.5px;
-  color: #64748b;
+  color: var(--text-muted, #64748b);
 }
 
 .error-banner {
   display: flex;
   align-items: center;
   gap: 10px;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  color: #dc2626;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  color: #ef4444;
   padding: 12px 14px;
   border-radius: 10px;
   font-size: 13px;
@@ -1448,19 +1455,19 @@ onBeforeUnmount(() => {
 .pill-btn {
   padding: 6px 14px;
   border-radius: 20px;
-  border: 1px solid #e2e8f0;
-  background: #f8fafc;
+  border: 1px solid var(--card-inner-border, #e2e8f0);
+  background: var(--card-inner-bg, #f8fafc);
   font-size: 12.5px;
   font-weight: 600;
-  color: #64748b;
+  color: var(--text-sub, #64748b);
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .pill-btn.active {
-  background: #4f46e5;
+  background: #6366f1;
   color: white;
-  border-color: #4f46e5;
+  border-color: #6366f1;
 }
 
 .toolbar-actions {
@@ -1471,8 +1478,9 @@ onBeforeUnmount(() => {
 .action-pill-btn {
   padding: 6px 12px;
   border-radius: 8px;
-  border: 1px solid #e2e8f0;
-  background: white;
+  border: 1px solid var(--card-inner-border, #e2e8f0);
+  background: var(--card-inner-bg, white);
+  color: var(--text-main, #1e293b);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
@@ -1480,28 +1488,28 @@ onBeforeUnmount(() => {
 }
 
 .translate-btn {
-  background: #ecfdf5;
-  color: #059669;
-  border-color: #a7f3d0;
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border-color: rgba(16, 185, 129, 0.3);
 }
 
 .translate-btn:hover {
-  background: #d1fae5;
+  background: rgba(16, 185, 129, 0.25);
 }
 
 .clear-btn {
-  color: #64748b;
+  color: var(--text-muted, #64748b);
 }
 
 .clear-btn:hover {
   color: #ef4444;
-  background: #fef2f2;
+  background: rgba(239, 68, 68, 0.1);
 }
 
 /* Transcript Cards */
 .transcript-card {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: var(--card-inner-bg, #f8fafc);
+  border: 1px solid var(--card-inner-border, #e2e8f0);
   border-radius: 14px;
   padding: 16px;
   display: flex;
@@ -1526,7 +1534,7 @@ onBeforeUnmount(() => {
 .card-title {
   font-size: 14px;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--text-main, #1e293b);
 }
 
 .live-dot {
@@ -1545,8 +1553,8 @@ onBeforeUnmount(() => {
 
 .stats-badge {
   font-size: 11.5px;
-  color: #64748b;
-  background: #e2e8f0;
+  color: var(--text-muted, #64748b);
+  background: var(--card-inner-border, #e2e8f0);
   padding: 3px 8px;
   border-radius: 12px;
   font-weight: 600;
@@ -1555,24 +1563,24 @@ onBeforeUnmount(() => {
 .icon-btn {
   padding: 4px 10px;
   border-radius: 6px;
-  border: 1px solid #cbd5e1;
-  background: white;
+  border: 1px solid var(--card-inner-border, #cbd5e1);
+  background: var(--card-bg, white);
   font-size: 12px;
   font-weight: 600;
-  color: #475569;
+  color: var(--text-sub, #475569);
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .icon-btn:hover {
-  background: #f1f5f9;
+  background: var(--toolbar-btn-hover, #f1f5f9);
 }
 
 .primary-icon-btn {
   padding: 4px 12px;
   border-radius: 6px;
   border: none;
-  background: #4f46e5;
+  background: #6366f1;
   color: white;
   font-size: 12px;
   font-weight: 600;
@@ -1581,7 +1589,7 @@ onBeforeUnmount(() => {
 }
 
 .primary-icon-btn:hover {
-  background: #4338ca;
+  background: #4f46e5;
 }
 
 .transcript-editor-wrapper {
@@ -1591,12 +1599,12 @@ onBeforeUnmount(() => {
 .transcript-textarea {
   width: 100%;
   padding: 14px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--input-border, #cbd5e1);
   border-radius: 10px;
-  background: white;
+  background: var(--input-bg, white);
   font-size: 15px;
   line-height: 1.6;
-  color: #0f172a;
+  color: var(--text-main, #0f172a);
   resize: vertical;
   outline: none;
   transition: border-color 0.2s;
@@ -1615,9 +1623,9 @@ onBeforeUnmount(() => {
 .live-interim-bubble {
   margin-top: 8px;
   padding: 8px 12px;
-  background: #e0e7ff;
+  background: rgba(99, 102, 241, 0.15);
   border-radius: 8px;
-  color: #3730a3;
+  color: #818cf8;
   font-size: 13.5px;
   font-style: italic;
   display: flex;
@@ -1629,7 +1637,7 @@ onBeforeUnmount(() => {
   font-weight: 700;
   font-size: 11.5px;
   text-transform: uppercase;
-  color: #4f46e5;
+  color: #6366f1;
 }
 
 .translation-loader {
@@ -1637,8 +1645,8 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 10px;
   padding: 24px;
-  background: white;
-  border: 1px dashed #cbd5e1;
+  background: var(--card-inner-bg, white);
+  border: 1px dashed var(--card-inner-border, #cbd5e1);
   border-radius: 10px;
   color: #6366f1;
   font-size: 13.5px;
@@ -1649,8 +1657,8 @@ onBeforeUnmount(() => {
 .mini-spinner {
   width: 20px;
   height: 20px;
-  border: 2px solid #e0e7ff;
-  border-top-color: #4f46e5;
+  border: 2px solid rgba(99, 102, 241, 0.2);
+  border-top-color: #6366f1;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -1659,8 +1667,8 @@ onBeforeUnmount(() => {
 .empty-state-card {
   text-align: center;
   padding: 60px 24px;
-  background: #f8fafc;
-  border: 2px dashed #e2e8f0;
+  background: var(--card-inner-bg, #f8fafc);
+  border: 2px dashed var(--card-inner-border, #e2e8f0);
   border-radius: 16px;
   margin-top: auto;
   margin-bottom: auto;
@@ -1674,14 +1682,14 @@ onBeforeUnmount(() => {
 
 .empty-state-card h4 {
   font-size: 17px;
-  color: #1e293b;
+  color: var(--text-main, #1e293b);
   margin: 0 0 6px 0;
   font-weight: 700;
 }
 
 .empty-state-card p {
   font-size: 13.5px;
-  color: #64748b;
+  color: var(--text-muted, #64748b);
   max-width: 420px;
   margin: 0 auto;
   line-height: 1.5;
