@@ -8,7 +8,7 @@ export function useClaudeGrammarChecker() {
 
     // ✅ FIXED: Uncommented and properly defined
     const API_KEY = import.meta.env.VITE_CLAUDE_API_KEY
-    const API_URL = '/api/claude/v1/messages'
+    const API_URL = 'https://api.anthropic.com/v1/messages'
 
     const checkGrammar = async (tanglishText) => {
         if (!tanglishText || tanglishText.trim().length === 0) {
@@ -85,7 +85,7 @@ If no errors found, return:
             console.log('Calling Claude API for grammar check...')
 
             const response = await axios.post(API_URL, {
-                model: 'claude-3-haiku-20240307',
+                model: 'claude-haiku-4-5-20251001',
                 max_tokens: 1024,
                 temperature: 0.3,
                 messages: [
@@ -98,7 +98,8 @@ If no errors found, return:
                 headers: {
                     'Content-Type': 'application/json',
                     'x-api-key': API_KEY,
-                    'anthropic-version': '2023-06-01'
+                    'anthropic-version': '2023-06-01',
+                    'anthropic-dangerous-direct-browser-access': 'true'
                 },
                 timeout: 30000
             })

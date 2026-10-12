@@ -1123,6 +1123,18 @@ onMounted(() => {
     }
   })
 
+  // Check for imported text from OCR or Audio tools
+  const importedText = sessionStorage.getItem('usil_imported_text')
+  if (importedText) {
+    sessionStorage.removeItem('usil_imported_text')
+    setTimeout(() => {
+      if (editor.value) {
+        const paragraphs = importedText.split('\n').filter(p => p.trim()).map(p => `<p>${p}</p>`).join('')
+        editor.value.commands.setContent(paragraphs || `<p>${importedText}</p>`)
+      }
+    }, 150)
+  }
+
   setTimeout(() => {
     if (editor.value) {
       editor.value.commands.focus()
@@ -1150,10 +1162,11 @@ onBeforeUnmount(() => {
   height: 100%;
   min-height: 500px;
   font-family: 'Inter', 'Segoe UI', 'Noto Sans Tamil', sans-serif;
-  background: #ffffff;
-  border-radius: 12px;
+  background: var(--card-bg, #ffffff);
+  border-radius: 14px;
   overflow: hidden;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: none;
+  border: 1px solid var(--card-border, #e0e0e0);
 }
 
 /* Toolbar */
@@ -1162,13 +1175,12 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 4px;
   padding: 8px 16px;
-  background: #ffffff;
-  border-bottom: 1px solid #e0e0e0;
+  background: var(--toolbar-bg, #ffffff);
+  border-bottom: 1px solid var(--toolbar-border, #e0e0e0);
   flex-wrap: wrap;
   position: sticky;
   top: 0;
   z-index: 100;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 .toolbar-group {
@@ -1180,7 +1192,7 @@ onBeforeUnmount(() => {
 .toolbar-divider {
   width: 1px;
   height: 24px;
-  background: #ddd;
+  background: var(--toolbar-border, #ddd);
   margin: 0 6px;
 }
 
@@ -1193,8 +1205,8 @@ onBeforeUnmount(() => {
   padding: 0 8px;
   border: none;
   border-radius: 6px;
-  background: transparent;
-  color: #444;
+  background: var(--toolbar-btn-bg, transparent);
+  color: var(--text-sub, #444);
   font-size: 13px;
   font-family: inherit;
   cursor: pointer;
@@ -1203,13 +1215,13 @@ onBeforeUnmount(() => {
 }
 
 .toolbar-btn:hover {
-  background: #f0f0f0;
-  color: #111;
+  background: var(--toolbar-btn-hover, #f0f0f0);
+  color: var(--text-main, #111);
 }
 
 .toolbar-btn.active {
-  background: #e8e0ff;
-  color: #6c47ff;
+  background: var(--toolbar-btn-active, #4f46e5);
+  color: #ffffff;
 }
 
 .toolbar-btn:disabled {
@@ -1217,14 +1229,12 @@ onBeforeUnmount(() => {
   cursor: not-allowed;
 }
 
-/* btn-convert, btn-clear, btn-ai, btn-voice ghost styles are defined below near voice section */
-
 .auto-convert {
   display: flex;
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  color: #666;
+  color: var(--text-sub, #666);
   cursor: pointer;
   margin-left: 8px;
   padding: 0 8px;
@@ -1242,7 +1252,7 @@ onBeforeUnmount(() => {
   display: flex;
   gap: 12px;
   font-size: 11px;
-  color: #999;
+  color: var(--text-muted, #999);
   font-weight: 500;
 }
 
@@ -1252,59 +1262,62 @@ onBeforeUnmount(() => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: #ffffff;
+  background: var(--card-inner-bg, #ffffff);
   overflow: hidden;
 }
 
 .editor-content {
   flex: 1;
   padding: 32px 40px;
-  font-size: 18px;
+  font-size: 17px;
   line-height: 1.8;
   overflow-y: auto;
+  color: var(--text-main, #111);
 }
 
 .editor-content :deep(.tiptap) {
   outline: none;
   min-height: 100%;
+  color: var(--text-main, #111);
 }
 
 .editor-content :deep(p) {
   margin: 0 0 0.8em 0;
+  color: var(--text-main, #111);
 }
 
 .editor-content :deep(h1) {
   font-size: 2em;
   font-weight: 700;
   margin: 0 0 0.5em 0;
-  color: #1a1a2e;
+  color: var(--text-main, #1a1a2e);
 }
 
 .editor-content :deep(h2) {
   font-size: 1.5em;
   font-weight: 600;
   margin: 0 0 0.5em 0;
-  color: #1a1a2e;
+  color: var(--text-main, #1a1a2e);
 }
 
 .editor-content :deep(h3) {
   font-size: 1.25em;
   font-weight: 600;
   margin: 0 0 0.5em 0;
-  color: #1a1a2e;
+  color: var(--text-main, #1a1a2e);
 }
 
 .editor-content :deep(blockquote) {
   border-left: 4px solid #6c47ff;
   padding-left: 16px;
   margin: 0.8em 0;
-  color: #555;
+  color: var(--text-sub, #555);
   font-style: italic;
 }
 
 .editor-content :deep(code) {
-  background: #f0edff;
-  color: #6c47ff;
+  background: var(--toolbar-btn-bg, #f0edff);
+  color: #a855f7;
   padding: 2px 6px;
   border-radius: 4px;
   font-size: 0.9em;
@@ -1323,19 +1336,19 @@ onBeforeUnmount(() => {
 
 .editor-content :deep(hr) {
   border: none;
-  border-top: 2px solid #eee;
+  border-top: 1px solid var(--card-border, #eee);
   margin: 1.5em 0;
 }
 
 .editor-content :deep(s) {
   text-decoration: line-through;
-  color: #999;
+  color: var(--text-muted, #999);
 }
 
 .editor-content :deep(.is-editor-empty:first-child::before) {
   content: attr(data-placeholder);
   float: left;
-  color: #bbb;
+  color: var(--text-muted, #bbb);
   pointer-events: none;
   height: 0;
   font-style: italic;

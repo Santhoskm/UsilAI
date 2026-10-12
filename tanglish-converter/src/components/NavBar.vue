@@ -2,204 +2,227 @@
   <nav class="nav-bar">
     <div class="nav-container">
       <!-- Logo -->
-      <a class="logo" href="/">
+      <router-link to="/" class="logo">
+        <div class="logo-mark">
+          <svg viewBox="0 0 32 32" fill="none" class="logo-svg">
+            <rect width="32" height="32" rx="10" fill="url(#logo-grad)"/>
+            <path d="M10 9V17C10 20.3137 12.6863 23 16 23C19.3137 23 22 20.3137 22 17V9" stroke="white" stroke-width="3" stroke-linecap="round"/>
+            <defs>
+              <linearGradient id="logo-grad" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#6366F1"/>
+                <stop offset="1" stop-color="#A855F7"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
         <span class="logo-text">Usil AI</span>
-      </a>
+      </router-link>
 
-      <!-- Desktop Navigation Links - Only show when logged in -->
-      <div class="nav-links" v-if="isAuthenticated">
-        <a href="/" class="nav-link">Home</a>
-        <a href="/editor" class="nav-link">Tanglish Editor</a>
-        <a href="/ocr" class="nav-link">OCR</a>
-        <a href="/audio" class="nav-link">Audio to Text</a>
-        <a href="/blog" class="nav-link">Blog Generator</a>
-        <a href="/subtitle" class="nav-link">Subtitle Generator</a>
-        <a href="/admin" class="nav-link admin-nav-link">Admin</a>
+      <!-- Desktop Navigation Links -->
+      <div class="nav-links">
+        <router-link to="/" class="nav-link" :class="{ active: $route.path === '/' || $route.path === '/editor' }">
+          <span>Editor</span>
+          <span class="active-indicator" v-if="$route.path === '/' || $route.path === '/editor'"></span>
+        </router-link>
+        <a href="#ai-tools" class="nav-link" @click.prevent="scrollToTools">
+          <span>AI Tools</span>
+        </a>
+        <a href="#about" class="nav-link" @click.prevent="openAboutModal">
+          <span>About</span>
+        </a>
       </div>
 
       <!-- Right Section -->
       <div class="nav-right">
-        <!-- Free Counter (only when logged in) -->
-        <div  class="free-counter">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"></path>
-          </svg>
-          <span class="counter-value">50</span>
-          <span class="counter-label">/day</span>
+        <!-- Daily Credits Badge -->
+        <div class="credits-badge" title="Daily free AI conversion credits">
+          <span class="credits-icon">⚡</span>
+          <span class="credits-text">50 credits/day</span>
         </div>
+
+        <!-- Theme Toggle (Dark / Light) -->
+        <button 
+          class="theme-toggle-btn" 
+          @click="toggleTheme" 
+          :title="theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'"
+          aria-label="Toggle theme"
+        >
+          <span v-if="theme === 'dark'" class="theme-icon">☀️</span>
+          <span v-else class="theme-icon">🌙</span>
+        </button>
 
         <!-- User Menu (Logged In) -->
         <div v-if="isAuthenticated" class="user-menu">
-          <button class="user-avatar" @click="toggleUserMenu">
-            <span class="avatar-initial">{{ userInitial }}</span>
+          <button class="user-avatar-btn" @click="toggleUserMenu" :title="user?.name || 'Account'">
+            <img v-if="user?.picture" :src="user.picture" alt="Profile" class="avatar-img" />
+            <span v-else class="avatar-initial">{{ userInitial }}</span>
           </button>
+
           <div v-if="showUserMenu" class="user-dropdown">
             <div class="user-info">
-              <div class="user-name">{{ user?.name }}</div>
+              <div class="user-name">{{ user?.name || 'Usil User' }}</div>
               <div class="user-email">{{ user?.email }}</div>
             </div>
-            <hr class="dropdown-divider">
-            <a href="/admin" class="dropdown-admin-btn" @click="showUserMenu = false">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="3"></circle>
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-              </svg>
-              Admin Console
-            </a>
-            <hr class="dropdown-divider">
-            <button @click="handleLogout" class="logout-btn">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                <polyline points="16 17 21 12 16 7"></polyline>
-                <line x1="21" y1="12" x2="9" y2="12"></line>
-              </svg>
-              Logout
+            <div class="dropdown-divider"></div>
+            <router-link to="/admin" class="dropdown-item" @click="showUserMenu = false">
+              <span class="dropdown-icon">⚙️</span>
+              <span>Admin Console</span>
+            </router-link>
+            <div class="dropdown-divider"></div>
+            <button @click="handleLogout" class="dropdown-item logout-action">
+              <span class="dropdown-icon">🚪</span>
+              <span>Logout</span>
             </button>
           </div>
         </div>
 
-        <!-- Auth Buttons (Logged Out) - Compact version -->
+        <!-- Google Log in Button (Logged Out) -->
         <div v-else class="auth-buttons">
           <button class="login-btn" @click="openLoginModal">
-            Log in
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="m9 18 6-6-6-6"/>
+            <svg class="google-g-icon" viewBox="0 0 24 24" width="16" height="16">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
             </svg>
+            <span>Log in</span>
+            <span class="chevron-icon">›</span>
           </button>
         </div>
 
-        <!-- Mobile Menu Button -->
-        <button class="mobile-menu-btn" @click="toggleMobileMenu">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="4" y1="6" x2="20" y2="6"></line>
-            <line x1="4" y1="12" x2="20" y2="12"></line>
-            <line x1="4" y1="18" x2="20" y2="18"></line>
-          </svg>
+        <!-- Mobile Menu Hamburger -->
+        <button class="mobile-toggle-btn" @click="mobileMenuOpen = !mobileMenuOpen" aria-label="Menu">
+          <span></span>
+          <span></span>
+          <span></span>
         </button>
       </div>
     </div>
 
-    <!-- Mobile Menu -->
-    <div v-if="mobileMenuOpen" class="mobile-menu">
-      <a href="/" class="mobile-nav-link" @click="closeMobileMenu">Home</a>
-      <a href="/editor" class="mobile-nav-link" @click="closeMobileMenu">Tanglish Editor</a>
-      <template v-if="isAuthenticated">
-        <a href="/ocr" class="mobile-nav-link" @click="closeMobileMenu">OCR</a>
-        <a href="/audio" class="mobile-nav-link" @click="closeMobileMenu">Audio to Text</a>
-        <a href="/blog" class="mobile-nav-link" @click="closeMobileMenu">Blog Generator</a>
-        <a href="/subtitle" class="mobile-nav-link" @click="closeMobileMenu">Subtitle Generator</a>
-        <a href="/admin" class="mobile-nav-link" @click="closeMobileMenu">Admin</a>
-        <hr class="mobile-divider">
-        <button class="mobile-logout-btn" @click="handleMobileLogout">Logout</button>
-      </template>
-      <template v-else>
-        <button class="mobile-login-btn" @click="handleMobileLogin">Login</button>
-      </template>
+    <!-- Mobile Navigation Drawer -->
+    <div v-if="mobileMenuOpen" class="mobile-drawer">
+      <router-link to="/" class="mobile-link" @click="mobileMenuOpen = false">Editor</router-link>
+      <a href="#ai-tools" class="mobile-link" @click="scrollToTools(); mobileMenuOpen = false">AI Tools</a>
+      <a href="#about" class="mobile-link" @click="openAboutModal(); mobileMenuOpen = false">About</a>
+      <div class="mobile-divider"></div>
+      <div v-if="!isAuthenticated" class="mobile-auth-wrapper">
+        <button class="login-btn mobile-full-btn" @click="openLoginModal">
+          <span>Sign in with Google</span>
+          <span>›</span>
+        </button>
+      </div>
+      <div v-else class="mobile-auth-wrapper">
+        <router-link to="/admin" class="mobile-link" @click="mobileMenuOpen = false">Admin Console</router-link>
+        <button @click="handleLogout" class="mobile-link logout-link">Logout</button>
+      </div>
     </div>
 
-    <!-- Auth Modal -->
+    <!-- Google Auth Modal -->
     <AuthModal 
       :isOpen="showAuthModal" 
       @close="closeAuthModal"
       @success="onLoginSuccess"
     />
+
+    <!-- About Usil AI Modal -->
+    <div v-if="showAboutModal" class="about-modal-overlay" @click.self="showAboutModal = false">
+      <div class="about-modal-card">
+        <button class="about-close-btn" @click="showAboutModal = false">×</button>
+        <div class="about-header">
+          <div class="about-icon">✨</div>
+          <h3>About Usil AI</h3>
+          <p class="about-tagline">Next-Generation Tamil Content & Language Platform</p>
+        </div>
+        <div class="about-content">
+          <p>
+            Usil AI empowers creators, students, and professionals to type naturally in Tanglish (Romanized Tamil) and transform it seamlessly into pure, grammatically polished Tamil script.
+          </p>
+          <div class="about-highlights">
+            <div class="highlight-item">
+              <strong>⚡ Tanglish to Tamil:</strong> Instant phonetic transliteration with Trie dictionary auto-corrections.
+            </div>
+            <div class="highlight-item">
+              <strong>📸 Tamil OCR:</strong> AI Vision extraction from scanned documents and printed newspapers.
+            </div>
+            <div class="highlight-item">
+              <strong>🎙️ Voice & Audio:</strong> Continuous Tamil speech-to-text recognition with English translation.
+            </div>
+            <div class="highlight-item">
+              <strong>✍️ SEO Blog Creation:</strong> AI Tamil article generation tailored for web publishing.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </nav>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { useRouter } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
-import AuthModal from './AuthModal.vue'
+import { useTheme } from '@/composables/useTheme'
+import AuthModal from '@/components/AuthModal.vue'
 
 const router = useRouter()
-const route = useRoute()
 const { user, isAuthenticated, logout } = useAuth()
+const { theme, toggleTheme } = useTheme()
 
 const showAuthModal = ref(false)
 const showUserMenu = ref(false)
+const showAboutModal = ref(false)
 const mobileMenuOpen = ref(false)
-const freeCount = ref(0)
 
 const userInitial = computed(() => {
-  if (user.value?.name) {
-    return user.value.name.charAt(0).toUpperCase()
-  }
-  if (user.value?.email) {
-    return user.value.email.charAt(0).toUpperCase()
-  }
-  return 'U'
+  if (!user.value?.name) return 'U'
+  return user.value.name.charAt(0).toUpperCase()
 })
-
-// Load free count when authenticated (static for now)
-const loadFreeCount = () => {
-  freeCount.value = 50
-}
 
 const openLoginModal = () => {
   showAuthModal.value = true
+  mobileMenuOpen.value = false
 }
 
 const closeAuthModal = () => {
   showAuthModal.value = false
 }
 
-const onLoginSuccess = async () => {
-  closeAuthModal()
-  closeMobileMenu()
-  
-  // Refresh the page to update all components
-  window.location.reload()
-}
-
-const handleLogout = async () => {
-  await logout()
-  closeMobileMenu()
-  showUserMenu.value = false
-  
-  // Refresh the page to clear all states and redirect to home
-  window.location.href = '/'
+const onLoginSuccess = () => {
+  showAuthModal.value = false
 }
 
 const toggleUserMenu = () => {
   showUserMenu.value = !showUserMenu.value
 }
 
-const toggleMobileMenu = () => {
-  mobileMenuOpen.value = !mobileMenuOpen.value
-}
-
-const closeMobileMenu = () => {
+const handleLogout = () => {
+  logout()
+  showUserMenu.value = false
   mobileMenuOpen.value = false
+  router.push('/')
 }
 
-const handleMobileLogout = async () => {
-  await logout()
-  closeMobileMenu()
-  window.location.href = '/'
+const scrollToTools = () => {
+  const el = document.getElementById('ai-tools')
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth' })
+  } else {
+    router.push({ path: '/', hash: '#ai-tools' })
+  }
 }
 
-const handleMobileLogin = () => {
-  closeMobileMenu()
-  openLoginModal()
+const openAboutModal = () => {
+  showAboutModal.value = true
 }
 
-// Close user menu when clicking outside
-const handleClickOutside = (event) => {
-  const userMenu = document.querySelector('.user-menu')
-  if (userMenu && !userMenu.contains(event.target)) {
+const handleClickOutside = (e) => {
+  if (showUserMenu.value && !e.target.closest('.user-menu')) {
     showUserMenu.value = false
   }
 }
 
-// Watch for authentication changes
-watch(isAuthenticated, (newVal) => {
-  freeCount.value = newVal ? 50 : 0
-})
-
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
-  loadFreeCount()
 })
 
 onBeforeUnmount(() => {
@@ -210,136 +233,174 @@ onBeforeUnmount(() => {
 <style scoped>
 .nav-bar {
   position: sticky;
-  top: 16px;
+  top: 0;
   z-index: 1000;
-  width: 100%;
-  padding: 0 16px;
-  box-sizing: border-box;
+  background: var(--nav-bg);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--nav-border);
+  transition: all 0.25s ease;
 }
 
 .nav-container {
-  max-width: 1200px;
+  max-width: 1320px;
   margin: 0 auto;
-  background: rgba(255, 255, 255, 0.98);
-  backdrop-filter: blur(24px);
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  border-radius: 100px;
-  padding: 8px 24px;
+  padding: 12px 24px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
-  transition: all 0.3s ease;
+  gap: 20px;
 }
 
 /* Logo */
 .logo {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   text-decoration: none;
+  user-select: none;
+}
+
+.logo-mark {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logo-svg {
+  width: 100%;
+  height: 100%;
+  border-radius: 10px;
+  filter: drop-shadow(0 2px 8px rgba(99, 102, 241, 0.35));
 }
 
 .logo-text {
   font-size: 20px;
   font-weight: 800;
-  background: linear-gradient(135deg, #1a1a2e 0%, #667eea 100%);
+  letter-spacing: -0.02em;
+  color: var(--text-main);
+  background: linear-gradient(135deg, var(--text-main) 60%, var(--accent-purple));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  background-clip: text;
-  white-space: nowrap;
 }
 
-/* Navigation Links - Only visible when logged in */
+/* Center Links */
 .nav-links {
   display: flex;
   align-items: center;
-  gap: 8px;
-  animation: fadeIn 0.3s ease;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateX(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+  gap: 28px;
 }
 
 .nav-link {
-  padding: 8px 16px;
-  font-size: 14px;
-  font-weight: 500;
-  color: #666;
+  position: relative;
   text-decoration: none;
-  border-radius: 100px;
-  transition: all 0.2s;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--text-sub);
+  padding: 6px 4px;
+  transition: color 0.2s ease;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
 }
 
-.nav-link:hover {
-  background: #f5f5f5;
-  color: #333;
+.nav-link:hover,
+.nav-link.active {
+  color: var(--text-main);
+}
+
+.active-indicator {
+  position: absolute;
+  bottom: -4px;
+  width: 20px;
+  height: 2.5px;
+  background: linear-gradient(90deg, #6366f1, #a855f7);
+  border-radius: 4px;
 }
 
 /* Right Section */
 .nav-right {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
 }
 
-.free-counter {
-  display: flex;
+/* Credits Badge */
+.credits-badge {
+  display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 12px;
-  background: rgba(102, 126, 234, 0.1);
-  border-radius: 100px;
-  color: #667eea;
+  background: var(--credits-bg);
+  border: 1px solid var(--credits-border);
+  padding: 6px 14px;
+  border-radius: 20px;
   font-size: 13px;
   font-weight: 600;
+  color: var(--credits-text);
+  user-select: none;
 }
 
-.counter-value {
-  font-size: 15px;
-  font-weight: 700;
+.credits-icon {
+  font-size: 13px;
 }
 
-.counter-label {
-  font-size: 10px;
-  font-weight: 400;
-  opacity: 0.7;
-}
-
-/* Auth Buttons - Compact */
-.auth-buttons {
+/* Theme Toggle Button */
+.theme-toggle-btn {
+  background: var(--toolbar-btn-bg);
+  border: 1px solid var(--toolbar-border);
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 16px;
+  color: var(--text-main);
+  transition: all 0.2s ease;
 }
 
+.theme-toggle-btn:hover {
+  background: var(--toolbar-btn-hover);
+  transform: translateY(-1px);
+}
+
+/* Login Button */
 .login-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 20px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
   color: white;
   border: none;
-  border-radius: 100px;
+  padding: 9px 18px;
+  border-radius: 10px;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
-  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.3);
+  transition: all 0.2s ease;
 }
 
 .login-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 6px 18px rgba(79, 70, 229, 0.4);
+  background: linear-gradient(135deg, #4338ca, #4f46e5);
+}
+
+.google-g-icon {
+  background: white;
+  border-radius: 50%;
+  padding: 2px;
+}
+
+.chevron-icon {
+  font-size: 17px;
+  line-height: 1;
+  font-weight: 400;
+  margin-left: 2px;
 }
 
 /* User Menu */
@@ -347,245 +408,248 @@ onBeforeUnmount(() => {
   position: relative;
 }
 
-.user-avatar {
-  width: 40px;
-  height: 40px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border: none;
-  border-radius: 50%;
+.user-avatar-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  border: 2px solid var(--accent-indigo);
+  background: var(--toolbar-btn-bg);
   cursor: pointer;
-  transition: all 0.2s;
+  padding: 0;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: transform 0.2s;
 }
 
-.user-avatar:hover {
+.user-avatar-btn:hover {
   transform: scale(1.05);
 }
 
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .avatar-initial {
-  font-size: 16px;
-  font-weight: 600;
-  color: white;
+  font-weight: 700;
+  color: var(--accent-indigo);
+  font-size: 15px;
 }
 
 .user-dropdown {
   position: absolute;
-  top: 100%;
+  top: calc(100% + 10px);
   right: 0;
-  margin-top: 12px;
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
-  min-width: 240px;
-  overflow: hidden;
-  animation: dropdownSlide 0.2s ease;
-}
-
-@keyframes dropdownSlide {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  width: 220px;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  padding: 8px;
+  z-index: 100;
+  animation: fadeIn 0.15s ease-out;
 }
 
 .user-info {
-  padding: 16px;
-  background: #f8f9fa;
+  padding: 10px 12px;
 }
 
 .user-name {
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 4px;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .user-email {
   font-size: 12px;
-  color: #888;
-  word-break: break-all;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
 }
 
 .dropdown-divider {
-  margin: 0;
-  border: none;
-  border-top: 1px solid #eee;
+  height: 1px;
+  background: var(--card-border);
+  margin: 6px 0;
 }
 
-.dropdown-admin-btn {
+.dropdown-item {
   display: flex;
   align-items: center;
   gap: 10px;
-  width: 100%;
-  padding: 12px 16px;
-  background: none;
-  border: none;
-  font-size: 14px;
-  color: #4f46e5;
-  font-weight: 600;
-  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 8px;
+  color: var(--text-sub);
   text-decoration: none;
-  box-sizing: border-box;
-  transition: background 0.2s;
-}
-
-.dropdown-admin-btn:hover {
-  background: #f5f3ff;
-}
-
-.admin-nav-link {
-  color: #4f46e5 !important;
-  font-weight: 700 !important;
-}
-
-.logout-btn {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  font-size: 13px;
+  font-weight: 500;
   width: 100%;
-  padding: 12px 16px;
-  background: none;
   border: none;
-  font-size: 14px;
-  color: #e74c3c;
+  background: transparent;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background 0.15s;
   text-align: left;
 }
 
-.logout-btn:hover {
-  background: #fee;
+.dropdown-item:hover {
+  background: var(--toolbar-btn-hover);
+  color: var(--text-main);
 }
 
-/* Mobile Menu */
-.mobile-menu-btn {
+.logout-action {
+  color: #ef4444;
+}
+
+.logout-action:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+/* Mobile Toggle */
+.mobile-toggle-btn {
   display: none;
-  background: none;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 24px;
+  height: 18px;
+  background: transparent;
   border: none;
   cursor: pointer;
-  padding: 8px;
-  color: #666;
+  padding: 0;
 }
 
-.mobile-menu {
-  display: none;
-  position: absolute;
-  top: 100%;
-  left: 16px;
-  right: 16px;
-  margin-top: 12px;
-  background: white;
-  border-radius: 20px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
-  padding: 12px;
+.mobile-toggle-btn span {
+  width: 100%;
+  height: 2px;
+  background: var(--text-main);
+  border-radius: 2px;
+}
+
+/* Mobile Drawer */
+.mobile-drawer {
+  display: flex;
   flex-direction: column;
-  gap: 8px;
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--nav-border);
+  padding: 16px 24px;
+  gap: 12px;
 }
 
-.mobile-nav-link {
-  padding: 12px 16px;
-  font-size: 15px;
-  color: #333;
+.mobile-link {
+  color: var(--text-main);
   text-decoration: none;
-  border-radius: 12px;
-  transition: background 0.2s;
-  display: block;
-}
-
-.mobile-nav-link:hover {
-  background: #f5f5f5;
-}
-
-.mobile-login-btn {
-  padding: 12px 16px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
-  border-radius: 12px;
   font-size: 15px;
   font-weight: 600;
-  cursor: pointer;
-  text-align: center;
-  margin-top: 8px;
-}
-
-.mobile-login-btn:hover {
-  opacity: 0.9;
+  padding: 8px 0;
 }
 
 .mobile-divider {
+  height: 1px;
+  background: var(--nav-border);
   margin: 8px 0;
-  border: none;
-  border-top: 1px solid #eee;
 }
 
-.mobile-logout-btn {
-  padding: 12px 16px;
-  background: none;
+.mobile-full-btn {
+  width: 100%;
+  justify-content: center;
+}
+
+/* About Modal */
+.about-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.about-modal-card {
+  position: relative;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 20px;
+  max-width: 520px;
+  width: 100%;
+  padding: 32px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+  animation: fadeIn 0.2s ease-out;
+}
+
+.about-close-btn {
+  position: absolute;
+  top: 18px;
+  right: 20px;
+  background: transparent;
   border: none;
-  font-size: 15px;
-  color: #e74c3c;
+  font-size: 24px;
+  color: var(--text-muted);
   cursor: pointer;
-  text-align: left;
+}
+
+.about-header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.about-icon {
+  font-size: 36px;
+  margin-bottom: 8px;
+}
+
+.about-header h3 {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.about-tagline {
+  font-size: 13.5px;
+  color: var(--text-sub);
+  margin-top: 4px;
+}
+
+.about-content {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-sub);
+}
+
+.about-highlights {
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--card-inner-bg);
+  border: 1px solid var(--card-inner-border);
+  padding: 16px;
   border-radius: 12px;
 }
 
-.mobile-logout-btn:hover {
-  background: #fee;
+.highlight-item strong {
+  color: var(--text-main);
 }
 
-/* Responsive */
-@media (max-width: 768px) {
+@media (max-width: 900px) {
   .nav-links {
     display: none;
   }
-  
-  .mobile-menu-btn {
-    display: block;
-  }
-  
-  .mobile-menu {
-    display: flex;
-  }
-  
-  .free-counter {
+  .credits-badge {
     display: none;
   }
-  
-  .nav-container {
-    padding: 8px 16px;
+  .mobile-toggle-btn {
+    display: flex;
   }
-  
-  .logo-text {
-    font-size: 18px;
-  }
-}
-
-@media (min-width: 769px) {
-  .mobile-menu {
-    display: none !important;
-  }
-}
-
-/* Compact mode for logged out state - navbar width reduces */
-.nav-container:has(.auth-buttons:only-child) {
-  max-width: 300px;
-}
-
-/* When not logged in, center the navbar */
-.nav-bar:has(.auth-buttons) .nav-container {
-  max-width: 400px;
-  justify-content: space-between;
-}
-
-/* When logged in, full width navbar */
-.nav-bar:has(.user-menu) .nav-container {
-  max-width: 1000px;
-  justify-content: space-between;
 }
 </style>

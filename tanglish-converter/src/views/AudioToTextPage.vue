@@ -26,8 +26,10 @@ const goBack = () => {
 }
 
 const handleAudioText = (text) => {
-  // Handle transcribed text if needed
-  console.log('Transcribed text:', text)
+  if (text) {
+    sessionStorage.setItem('usil_imported_text', text)
+    router.push('/')
+  }
 }
 </script>
 

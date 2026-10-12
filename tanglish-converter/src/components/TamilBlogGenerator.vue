@@ -346,7 +346,7 @@ Requirements:
 - Title should be compelling in Tamil`
 
     const response = await axios.post('https://api.anthropic.com/v1/messages', {
-      model: 'claude-3-sonnet-20241022',
+      model: 'claude-sonnet-4-5-20250929',
       max_tokens: 4000,
       temperature: 0.7,
       messages: [
@@ -359,7 +359,8 @@ Requirements:
       headers: {
         'Content-Type': 'application/json',
         'x-api-key': API_KEY,
-        'anthropic-version': '2023-06-01'
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
       },
       timeout: 60000
     })

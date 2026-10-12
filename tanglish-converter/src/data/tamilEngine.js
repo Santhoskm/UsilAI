@@ -3867,51 +3867,20 @@ export function transliterateWord(word) {
 export function transliterateSentence(sentence) {
     if (!sentence) return '';
 
-    // Tamil numeral map: ASCII digit → Tamil numeral (U+0BE6–U+0BEF)
-    const _tamilNumerals = { '0': '௦', '1': '௧', '2': '௨', '3': '௩', '4': '௪', '5': '௫', '6': '௬', '7': '௭', '8': '௮', '9': '௯' };
-
-    // Pre-process: convert Tamil punctuation markers
+    // Pre-process: convert Tamil punctuation markers if present
     let input = sentence
         .replace(/\|\|/g, '\u0964\u0964') // || → ॥ (double purnam)
         .replace(/\|/g, '\u0964');          // | → । (purnam)
 
-    const parts = input.split(/(\s+|[.,!?;:।॥\-])/);
-    let transliterated = parts.map(part => {
+    const parts = input.split(/(\s+|[.,!?;:।॥\-\(\)\[\]\{\}"'“”‘’])/);
+    const transliterated = parts.map(part => {
         if (/[a-zA-Z]/.test(part)) {
             return transliterateWord(part);
-        }
-        // Convert digits to Tamil numerals
-        if (/[0-9]/.test(part)) {
-            return part.replace(/[0-9]/g, d => _tamilNumerals[d]);
         }
         return part;
     }).join('');
 
-    // Apply sandhi rules between words
-    const finalWords = transliterated.split(/(\s+)/);
-    let result = '';
-    let prevWord = '';
-
-    for (let i = 0; i < finalWords.length; i++) {
-        const word = finalWords[i];
-        if (word.trim() && prevWord) {
-            const combined = applySandhiRules(prevWord, word);
-            if (combined !== prevWord + word) {
-                result = result.slice(0, -prevWord.length) + combined;
-                prevWord = combined;
-                continue;
-            }
-        }
-        result += word;
-        if (word.trim()) {
-            prevWord = word;
-        }
-    }
-
-    // Apply final grammar rules
-    result = applyGrammarRules(result);
-
-    return result;
+    return transliterated;
 }
 
 // ============ TYPING SUGGESTIONS ============
@@ -4661,15 +4630,16 @@ export async function aiDisambiguate(tanglishWord, surroundingTamil = '') {
             : `You are a Tamil transliteration expert. The user typed "${tanglishWord}" in Tanglish (Tamil in English letters). What is the single most correct Tamil word? Reply with ONLY the Tamil word, nothing else.`;
 
         const apiKey = import.meta.env.VITE_CLAUDE_API_KEY;
-        const response = await fetch('/api/claude/v1/messages', {
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'x-api-key': apiKey || '',
-                'anthropic-version': '2023-06-01'
+                'anthropic-version': '2023-06-01',
+                'anthropic-dangerous-direct-browser-access': 'true'
             },
             body: JSON.stringify({
-                model: 'claude-3-haiku-20240307',
+                model: 'claude-haiku-4-5-20251001',
                 max_tokens: 50,
                 messages: [{ role: 'user', content: prompt }]
             })

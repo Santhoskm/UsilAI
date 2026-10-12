@@ -3,6 +3,24 @@ import { useRouter } from 'vue-router'
 
 const STORAGE_KEY = 'usil_auth_user'
 
+// Helper to parse Google JWT credential safely
+function parseJwt(token) {
+    try {
+        const base64Url = token.split('.')[1]
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
+        const jsonPayload = decodeURIComponent(
+            atob(base64)
+                .split('')
+                .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+                .join('')
+        )
+        return JSON.parse(jsonPayload)
+    } catch (e) {
+        console.error('Error decoding Google JWT', e)
+        return null
+    }
+}
+
 export function useAuth() {
     const router = useRouter()
     const user = ref(null)
@@ -22,6 +40,38 @@ export function useAuth() {
             }
         }
         return false
+    }
+
+    // Google Sign-In Handler
+    const loginWithGoogle = async (credential) => {
+        isLoading.value = true
+        error.value = null
+
+        try {
+            const payload = parseJwt(credential)
+            if (!payload || !payload.email) {
+                throw new Error('Failed to retrieve user profile from Google')
+            }
+
+            const userData = {
+                id: payload.sub || Date.now().toString(),
+                email: payload.email,
+                name: payload.name || payload.email.split('@')[0],
+                picture: payload.picture || '',
+                role: 'user',
+                provider: 'google',
+                loginTime: new Date().toISOString()
+            }
+
+            user.value = userData
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(userData))
+            return { success: true, user: userData }
+        } catch (err) {
+            error.value = err.message || 'Google sign-in failed. Please try again.'
+            return { success: false, error: error.value }
+        } finally {
+            isLoading.value = false
+        }
     }
 
     // Login function
@@ -119,6 +169,7 @@ export function useAuth() {
         error,
         isAuthenticated,
         login,
+        loginWithGoogle,
         signup,
         logout,
         checkAuth

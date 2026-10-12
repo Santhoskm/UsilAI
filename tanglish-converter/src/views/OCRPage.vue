@@ -26,8 +26,9 @@ const goBack = () => {
 }
 
 const handleOCRText = (text) => {
-  // Handle extracted text if needed
-  console.log('Extracted text:', text)
+  if (text) {
+    sessionStorage.setItem('usil_imported_text', text)
+  }
 }
 </script>
 

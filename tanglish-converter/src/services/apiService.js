@@ -41,15 +41,49 @@ export async function fetchSuggestions(phrase, limit = 10, fuzzy = false) {
 
         if (!response.ok) {
             console.warn(`[API] Suggestions request failed: ${response.status}`)
-            return []
+            return await fetchGoogleInputDirect(lowerQuery, limit)
         }
 
         const data = await response.json()
-        return data.suggestions || []
+        const backendResults = data.suggestions || []
+        if (backendResults.length > 0) {
+            return backendResults
+        }
+        return await fetchGoogleInputDirect(lowerQuery, limit)
     } catch (err) {
-        console.warn('[API] Backend unreachable, using local engine:', err.message)
-        return []
+        // Fallback directly to Google Input Tools API (CORS enabled for all origins)
+        return await fetchGoogleInputDirect(lowerQuery, limit)
     }
+}
+
+/**
+ * Fetch candidates directly from Google Input Tools API (online transliteration)
+ * Endpoint has Access-Control-Allow-Origin: * so it works directly from the browser.
+ */
+export async function fetchGoogleInputDirect(tanglish, limit = 5) {
+    if (!tanglish) return []
+    const word = tanglish.trim().split(/\s+/).pop()?.toLowerCase()
+    if (!word || !/^[a-zA-Z]+$/.test(word)) return []
+
+    try {
+        const url = `https://inputtools.google.com/request?text=${encodeURIComponent(word)}&itc=ta-t-i0-und&num=${limit}&cp=0&cs=1&ie=utf-8&oe=utf-8&app=demopage`
+        const res = await fetch(url)
+        if (res.ok) {
+            const data = await res.json()
+            if (data && data[0] === 'SUCCESS' && data[1] && data[1][0] && data[1][0][1]) {
+                const candidates = data[1][0][1]
+                return candidates.slice(0, limit).map((tamil, idx) => ({
+                    tanglish: word,
+                    tamil: tamil,
+                    frequency: 1000 - idx * 10,
+                    source: 'google_online'
+                }))
+            }
+        }
+    } catch (e) {
+        // Fallback silently if offline
+    }
+    return []
 }
 
 
