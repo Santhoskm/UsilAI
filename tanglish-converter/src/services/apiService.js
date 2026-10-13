@@ -16,20 +16,56 @@ export const API_BASE = (typeof import.meta !== 'undefined' && import.meta.env &
  * @param {boolean} fuzzy - Enable fuzzy/typo-tolerant search
  * @returns {Promise<Array>} - [{tanglish, tamil, frequency}, ...]
  */
+// In-memory cache for ultra-fast (0ms) transliteration candidate retrieval
+const googleInputCache = new Map();
+let lastBackendFailureTime = 0;
+
+/**
+ * Synchronously get cached Google candidates if already fetched previously
+ */
+export function getCachedGoogleInput(tanglish) {
+    if (!tanglish) return null;
+    const word = tanglish.trim().split(/\s+/).pop()?.toLowerCase();
+    return (word && googleInputCache.has(word)) ? googleInputCache.get(word) : null;
+}
+
+/**
+ * Get word suggestions from Google Input Tools or backend
+ * Supercharged for instant responsiveness:
+ * 1. Returns from memory cache immediately if exists.
+ * 2. Fetches Google Input Tools concurrently.
+ * 3. Does not block or stall when backend is slow or offline.
+ * @param {string} phrase - Tanglish text to search
+ * @param {number} limit - Max suggestions to return (default 10)
+ * @param {boolean} fuzzy - Enable fuzzy search
+ * @returns {Promise<Array>} - [{tanglish, tamil, frequency}, ...]
+ */
 export async function fetchSuggestions(phrase, limit = 10, fuzzy = false) {
     if (!phrase || phrase.length < 1) return []
-    const lowerQuery = phrase.toLowerCase();
+    const lowerQuery = phrase.toLowerCase().trim()
+    const word = lowerQuery.split(/\s+/).pop()
 
-    // Get the user's session correction cache
-    let sessionCacheStr = '{}';
-    try {
-        const cacheStr = localStorage.getItem('usil_cache');
-        if (cacheStr) {
-            sessionCacheStr = cacheStr;
-        }
-    } catch (e) { }
+    // 1. Instant Cache Hit (0ms)
+    if (word && googleInputCache.has(word)) {
+        return googleInputCache.get(word)
+    }
 
+    // 2. Launch Google Input Tools immediately in parallel
+    const googlePromise = fetchGoogleInputDirect(lowerQuery, limit)
+
+    // If backend was unreachable recently, return Google results directly without wasting time
+    const now = Date.now()
+    if (now - lastBackendFailureTime < 30000) {
+        return await googlePromise
+    }
+
+    // 3. Race backend with Google using a tight 250ms timeout
     try {
+        let sessionCacheStr = '{}'
+        try {
+            sessionCacheStr = localStorage.getItem('usil_cache') || '{}'
+        } catch (_) {}
+
         const params = new URLSearchParams({
             phrase: lowerQuery,
             limit: limit.toString(),
@@ -37,51 +73,79 @@ export async function fetchSuggestions(phrase, limit = 10, fuzzy = false) {
             session_cache: sessionCacheStr
         })
 
-        const response = await fetch(`${API_BASE}/suggestions/?${params}`)
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 250)
 
-        if (!response.ok) {
-            console.warn(`[API] Suggestions request failed: ${response.status}`)
-            return await fetchGoogleInputDirect(lowerQuery, limit)
-        }
+        const backendPromise = fetch(`${API_BASE}/suggestions/?${params}`, { signal: controller.signal })
+            .then(async (response) => {
+                clearTimeout(timeoutId)
+                if (!response.ok) throw new Error(`HTTP ${response.status}`)
+                const data = await response.json()
+                return data.suggestions || []
+            })
+            .catch(() => {
+                clearTimeout(timeoutId)
+                lastBackendFailureTime = Date.now()
+                return null
+            })
 
-        const data = await response.json()
-        const backendResults = data.suggestions || []
-        if (backendResults.length > 0) {
+        // Wait for whichever is faster or has valid candidates
+        const [backendResults, googleResults] = await Promise.all([backendPromise, googlePromise])
+        if (backendResults && backendResults.length > 0) {
             return backendResults
         }
-        return await fetchGoogleInputDirect(lowerQuery, limit)
+        return googleResults || []
     } catch (err) {
-        // Fallback directly to Google Input Tools API (CORS enabled for all origins)
-        return await fetchGoogleInputDirect(lowerQuery, limit)
+        lastBackendFailureTime = Date.now()
+        return await googlePromise
     }
 }
 
 /**
  * Fetch candidates directly from Google Input Tools API (online transliteration)
- * Endpoint has Access-Control-Allow-Origin: * so it works directly from the browser.
+ * Accelerated with in-memory caching and 1.8s timeout
  */
 export async function fetchGoogleInputDirect(tanglish, limit = 5) {
     if (!tanglish) return []
     const word = tanglish.trim().split(/\s+/).pop()?.toLowerCase()
     if (!word || !/^[a-zA-Z]+$/.test(word)) return []
 
+    // 1. Check in-memory cache
+    if (googleInputCache.has(word)) {
+        return googleInputCache.get(word)
+    }
+
     try {
         const url = `https://inputtools.google.com/request?text=${encodeURIComponent(word)}&itc=ta-t-i0-und&num=${limit}&cp=0&cs=1&ie=utf-8&oe=utf-8&app=demopage`
-        const res = await fetch(url)
+        const controller = new AbortController()
+        const timer = setTimeout(() => controller.abort(), 1800)
+        
+        const res = await fetch(url, { signal: controller.signal })
+        clearTimeout(timer)
+
         if (res.ok) {
             const data = await res.json()
             if (data && data[0] === 'SUCCESS' && data[1] && data[1][0] && data[1][0][1]) {
                 const candidates = data[1][0][1]
-                return candidates.slice(0, limit).map((tamil, idx) => ({
+                const results = candidates.slice(0, limit).map((tamil, idx) => ({
                     tanglish: word,
                     tamil: tamil,
                     frequency: 1000 - idx * 10,
                     source: 'google_online'
                 }))
+
+                // Cache the candidate list (LRU eviction past 1500 words)
+                if (googleInputCache.size > 1500) {
+                    const firstKey = googleInputCache.keys().next().value
+                    googleInputCache.delete(firstKey)
+                }
+                googleInputCache.set(word, results)
+
+                return results
             }
         }
     } catch (e) {
-        // Fallback silently if offline
+        // Fallback silently if offline or aborted
     }
     return []
 }

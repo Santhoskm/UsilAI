@@ -12,7 +12,7 @@ import {
     getCurrentContext,
     resetContext
 } from '@/data/tamilEngine'
-import { fetchSuggestions, enqueueUsage, saveSessionCorrection } from '@/services/apiService'
+import { fetchSuggestions, getCachedGoogleInput, enqueueUsage, saveSessionCorrection } from '@/services/apiService'
 
 export function useTanglishConverter() {
     const suggestions = ref([])
@@ -31,6 +31,12 @@ export function useTanglishConverter() {
         const learned = getLearnedCorrection(lower)
         if (learned) return learned
 
+        // Check instant Google cached word first
+        const cachedGoogle = getCachedGoogleInput(lower)
+        if (cachedGoogle && cachedGoogle.length > 0 && cachedGoogle[0].tamil) {
+            return cachedGoogle[0].tamil
+        }
+
         // Use context-aware conversion if surrounding text is provided
         if (surroundingText) {
             return transliterateWithContext(lower, surroundingText)
@@ -47,8 +53,8 @@ export function useTanglishConverter() {
 
     /**
      * getSuggestions — SYNCHRONOUS (returns array immediately)
-     * Uses the local tamilEngine for instant results.
-     * Also fires a background fetch to the backend DB and merges if results arrive.
+     * Uses the local tamilEngine for instant results, combined with cached Google candidates.
+     * Also fires a fast non-blocking background fetch and merges immediately when results arrive.
      */
     const getSuggestions = (partialWord, surroundingText = '') => {
         if (!partialWord || partialWord.length < 1) return []
@@ -66,6 +72,16 @@ export function useTanglishConverter() {
             localSuggestions = getContextAwareSuggestions(normalizedWord, surroundingText)
         } else {
             localSuggestions = getTypingSuggestions(normalizedWord, 5)
+        }
+
+        // Check if we already have cached Google suggestions for this exact word (0ms latency!)
+        const cachedGoogle = getCachedGoogleInput(normalizedWord)
+        if (cachedGoogle && cachedGoogle.length > 0) {
+            const seen = new Set(cachedGoogle.map(c => c.tamil))
+            localSuggestions = [
+                ...cachedGoogle,
+                ...localSuggestions.filter(s => !seen.has(s.tamil))
+            ]
         }
 
         // 2. Fire background fetch to backend (async, non-blocking)

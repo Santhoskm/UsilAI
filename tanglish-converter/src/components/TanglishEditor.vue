@@ -190,10 +190,7 @@
       <div class="toolbar-divider"></div>
 
       <div class="toolbar-group">
-        <button @click="convertAll" class="toolbar-btn btn-convert" title="Convert All Tanglish to Tamil">
-          Convert All
-        </button>
-        <button @click="clearEditor" class="toolbar-btn btn-clear" title="Clear All">
+        <button @click="clearEditor" class="toolbar-btn btn-clear" title="Clear Editor Content">
           Clear
         </button>
         <button 
@@ -204,21 +201,43 @@
         >
           AI Help {{ aiHelpEnabled ? 'ON' : 'OFF' }}
         </button>
-        <button
-  @click="toggleVoiceTyping"
-  class="toolbar-btn btn-voice"
-  :class="{ active: isVoiceActive, 'voice-error': voiceError }"
-  :title="isVoiceActive ? 'Stop voice typing' : 'Start voice typing (speak in Tanglish)'"
->
-  <span v-if="!isVoiceActive"> Voice Typing</span>
-  <span v-else class="voice-live">
-    <span class="mic-pulse"></span> Listening...
-  </span>
-</button>
-        <label class="auto-convert">
-          <input type="checkbox" v-model="autoConvert" />
-          Auto Convert
-        </label>
+
+        <!-- Download / Export Dropdown -->
+        <div class="download-dropdown-wrapper" ref="downloadDropdownRef">
+          <button 
+            @click="showDownloadDropdown = !showDownloadDropdown" 
+            class="toolbar-btn btn-download"
+            title="Download / Export Content"
+          >
+            <span class="download-icon">📥</span>
+            <span>Download</span>
+            <span class="font-caret">▾</span>
+          </button>
+          
+          <div v-if="showDownloadDropdown" class="download-dropdown-menu">
+            <button @click="downloadAsPDF" class="download-menu-item">
+              <span class="item-icon">📄</span>
+              <div class="item-info">
+                <span class="item-title">PDF Document (.pdf)</span>
+                <span class="item-desc">Print / Save as PDF</span>
+              </div>
+            </button>
+            <button @click="downloadAsDocx" class="download-menu-item">
+              <span class="item-icon">📝</span>
+              <div class="item-info">
+                <span class="item-title">Word Document (.doc)</span>
+                <span class="item-desc">Microsoft Word / Docs format</span>
+              </div>
+            </button>
+            <button @click="downloadAsTxt" class="download-menu-item">
+              <span class="item-icon">📋</span>
+              <div class="item-info">
+                <span class="item-title">Plain Text (.txt)</span>
+                <span class="item-desc">Standard text file</span>
+              </div>
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- Font Selector -->
@@ -248,21 +267,6 @@
         <span>{{ charCount }} chars</span>
       </div>
     </div>
-
-    <!-- Voice Status Bar -->
-<div v-if="isVoiceActive || voiceError" class="voice-status-bar" :class="{ error: voiceError }">
-  <div v-if="!voiceError" class="voice-status-inner">
-    <span class="voice-waves">
-      <span></span><span></span><span></span><span></span><span></span>
-    </span>
-    <span>Speak now in Tanglish — words will auto-convert to Tamil</span>
-    <span v-if="voiceInterim" class="voice-interim">{{ voiceInterim }}</span>
-  </div>
-  <div v-else class="voice-error-inner">
-    ⚠️ {{ voiceError }}
-    <button @click="voiceError = ''" class="dismiss-error">✕</button>
-  </div>
-</div>
 
     <!-- Editor Area -->
     <div class="editor-wrapper" ref="editorWrapper">
@@ -401,6 +405,10 @@ const wordCount = ref(0)
 const charCount = ref(0)
 const lastProcessedWord = ref('')
 const lastProcessedPosition = ref(-1)
+
+// Download / Export dropdown state
+const showDownloadDropdown = ref(false)
+const downloadDropdownRef = ref(null)
 
 // Watch for Deep Learning suggestions from the backend API
 watch(aiSuggestions, (newSuggestions) => {
@@ -813,20 +821,155 @@ const handlePaste = (view, event) => {
   return true  // ← CRITICAL: prevents TipTap default paste (stops double paste)
 }
 
-// Convert all text in editor
-const convertAll = () => {
+// ── DOWNLOAD & EXPORT FUNCTIONS ──────────────────────────
+const downloadAsPDF = () => {
+  showDownloadDropdown.value = false
   if (!editor.value) return
-  const text = editor.value.getText()
-  const converted = convertSentence(text)
-  
-  const html = converted.split('\n').map(para => {
-    if (para.trim()) {
-      return `<p>${para}</p>`
-    }
-    return '<p><br></p>'
-  }).join('')
-  
-  editor.value.commands.setContent(html)
+  const htmlContent = editor.value.getHTML()
+  const plainText = editor.value.getText()
+  if (!plainText.trim()) {
+    alert('Please write some content before downloading.')
+    return
+  }
+
+  // Create a dedicated hidden print iframe for pristine PDF output
+  const printIframe = document.createElement('iframe')
+  printIframe.style.position = 'fixed'
+  printIframe.style.right = '0'
+  printIframe.style.bottom = '0'
+  printIframe.style.width = '0'
+  printIframe.style.height = '0'
+  printIframe.style.border = 'none'
+  document.body.appendChild(printIframe)
+
+  const doc = printIframe.contentWindow.document
+  doc.open()
+  doc.write(`
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Usil AI Tamil Document</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Catamaran:wght@400;600;700&family=Noto+Sans+Tamil:wght@400;500;700&display=swap" rel="stylesheet">
+        <style>
+          @page {
+            margin: 20mm;
+            size: A4;
+          }
+          body {
+            font-family: ${selectedFont.value.value || "'Noto Sans Tamil', sans-serif"};
+            font-size: ${currentFontSize.value || 16}px;
+            line-height: 1.8;
+            color: #0f172a;
+            padding: 24px;
+            background: white;
+          }
+          h1, h2, h3 { color: #1e293b; margin-top: 1em; margin-bottom: 0.5em; }
+          blockquote { border-left: 3px solid #6366f1; margin: 1em 0; padding-left: 1em; color: #475569; font-style: italic; }
+          code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; font-family: monospace; }
+          .doc-footer {
+            margin-top: 40px;
+            padding-top: 12px;
+            border-top: 1px solid #e2e8f0;
+            font-size: 11px;
+            color: #94a3b8;
+            display: flex;
+            justify-content: space-between;
+          }
+        </style>
+      </head>
+      <body>
+        <div>${htmlContent}</div>
+        <div class="doc-footer">
+          <span>Created with Usil AI (Tanglish to Tamil)</span>
+          <span>${new Date().toLocaleDateString()}</span>
+        </div>
+      </body>
+    </html>
+  `)
+  doc.close()
+
+  setTimeout(() => {
+    printIframe.contentWindow.focus()
+    printIframe.contentWindow.print()
+    setTimeout(() => {
+      if (document.body.contains(printIframe)) {
+        document.body.removeChild(printIframe)
+      }
+    }, 2500)
+  }, 400)
+}
+
+const downloadAsDocx = () => {
+  showDownloadDropdown.value = false
+  if (!editor.value) return
+  const htmlContent = editor.value.getHTML()
+  const plainText = editor.value.getText()
+  if (!plainText.trim()) {
+    alert('Please write some content before downloading.')
+    return
+  }
+
+  const wordHtml = `
+    <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+      <head>
+        <meta charset='utf-8'>
+        <title>Usil AI Tamil Document</title>
+        <!--[if gte mso 9]>
+        <xml>
+        <w:WordDocument>
+          <w:View>Print</w:View>
+          <w:Zoom>100</w:Zoom>
+          <w:DoNotOptimizeForBrowser/>
+        </w:WordDocument>
+        </xml>
+        <![endif]-->
+        <style>
+          body {
+            font-family: 'Noto Sans Tamil', 'Catamaran', 'Arial Unicode MS', Tahoma, sans-serif;
+            font-size: 14pt;
+            line-height: 1.6;
+            color: #000000;
+          }
+          h1 { font-size: 22pt; font-weight: bold; }
+          h2 { font-size: 18pt; font-weight: bold; }
+          h3 { font-size: 16pt; font-weight: bold; }
+          p { margin-bottom: 10pt; }
+        </style>
+      </head>
+      <body>
+        ${htmlContent}
+      </body>
+    </html>
+  `
+
+  const blob = new Blob(['\\ufeff' + wordHtml], { type: 'application/msword;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `Usil_Tamil_Document_${Date.now()}.doc`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+const downloadAsTxt = () => {
+  showDownloadDropdown.value = false
+  if (!editor.value) return
+  const plainText = editor.value.getText()
+  if (!plainText.trim()) {
+    alert('Please write some content before downloading.')
+    return
+  }
+
+  const blob = new Blob(['\\ufeff' + plainText], { type: 'text/plain;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `Usil_Tamil_${Date.now()}.txt`
+  a.click()
+  URL.revokeObjectURL(url)
 }
 
 // Clear editor content
@@ -1113,13 +1256,16 @@ onMounted(() => {
   // Preload common dictionary chunks in background — makes first lookup instant
   preloadCommonChunks()
 
-  // Close font dropdown when clicking outside
+  // Close dropdowns when clicking outside
   document.addEventListener('mousedown', (e) => {
     if (fontSelectorRef.value && !fontSelectorRef.value.contains(e.target)) {
       showFontDropdown.value = false
     }
     if (fontSizeRef.value && !fontSizeRef.value.contains(e.target)) {
       showFontSizeDropdown.value = false
+    }
+    if (downloadDropdownRef.value && !downloadDropdownRef.value.contains(e.target)) {
+      showDownloadDropdown.value = false
     }
   })
 
@@ -1229,22 +1375,92 @@ onBeforeUnmount(() => {
   cursor: not-allowed;
 }
 
-.auto-convert {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: var(--text-sub, #666);
-  cursor: pointer;
-  margin-left: 8px;
-  padding: 0 8px;
+/* Download Dropdown */
+.download-dropdown-wrapper {
+  position: relative;
+  display: inline-block;
 }
 
-.auto-convert input[type="checkbox"] {
-  accent-color: #6c47ff;
-  width: 16px;
-  height: 16px;
+.btn-download {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6) !important;
+  color: #ffffff !important;
+  border: none !important;
+  font-weight: 600 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 6px 14px !important;
+  border-radius: 8px !important;
   cursor: pointer;
+  transition: all 0.2s ease !important;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.25);
+}
+
+.btn-download:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.38);
+  background: linear-gradient(135deg, #4f46e5, #7c3aed) !important;
+}
+
+.download-icon {
+  font-size: 14px;
+}
+
+.download-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--card-inner-border, #e2e8f0);
+  border-radius: 12px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  min-width: 220px;
+  z-index: 1000;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.download-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+  color: var(--text-main, #1e293b);
+}
+
+.download-menu-item:hover {
+  background: var(--card-inner-bg, #f1f5f9);
+}
+
+.item-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.item-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main, #1e293b);
+}
+
+.item-desc {
+  font-size: 11px;
+  color: var(--text-muted, #64748b);
 }
 
 .toolbar-stats {
