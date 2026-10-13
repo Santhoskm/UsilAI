@@ -209,28 +209,50 @@
             class="toolbar-btn btn-download"
             title="Download / Export Content"
           >
-            <span class="download-icon">📥</span>
-            <span>Download</span>
+            <svg class="download-svg-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2.5V15.5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+              <path d="M5.5 10.5L12 16.5L18.5 10.5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M3.5 21H20.5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+            </svg>
+            <span class="download-btn-text">Download</span>
             <span class="font-caret">▾</span>
           </button>
           
           <div v-if="showDownloadDropdown" class="download-dropdown-menu">
             <button @click="downloadAsPDF" class="download-menu-item">
-              <span class="item-icon">📄</span>
+              <div class="item-icon-badge">
+                <svg class="format-download-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 2.5V15.5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+                  <path d="M5.5 10.5L12 16.5L18.5 10.5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M3.5 21H20.5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+                </svg>
+              </div>
               <div class="item-info">
                 <span class="item-title">PDF Document (.pdf)</span>
                 <span class="item-desc">Print / Save as PDF</span>
               </div>
             </button>
             <button @click="downloadAsDocx" class="download-menu-item">
-              <span class="item-icon">📝</span>
+              <div class="item-icon-badge">
+                <svg class="format-download-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 2.5V15.5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+                  <path d="M5.5 10.5L12 16.5L18.5 10.5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M3.5 21H20.5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+                </svg>
+              </div>
               <div class="item-info">
                 <span class="item-title">Word Document (.doc)</span>
                 <span class="item-desc">Microsoft Word / Docs format</span>
               </div>
             </button>
             <button @click="downloadAsTxt" class="download-menu-item">
-              <span class="item-icon">📋</span>
+              <div class="item-icon-badge">
+                <svg class="format-download-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 2.5V15.5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+                  <path d="M5.5 10.5L12 16.5L18.5 10.5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M3.5 21H20.5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+                </svg>
+              </div>
               <div class="item-info">
                 <span class="item-title">Plain Text (.txt)</span>
                 <span class="item-desc">Standard text file</span>
@@ -1382,28 +1404,43 @@ onBeforeUnmount(() => {
 }
 
 .btn-download {
-  background: linear-gradient(135deg, #6366f1, #8b5cf6) !important;
-  color: #ffffff !important;
-  border: none !important;
+  background: var(--toolbar-btn-bg, #f8fafc) !important;
+  color: var(--text-main, #1e293b) !important;
+  border: 1px solid var(--toolbar-border, #e2e8f0) !important;
   font-weight: 600 !important;
   display: inline-flex !important;
   align-items: center !important;
-  gap: 6px !important;
-  padding: 6px 14px !important;
+  gap: 7px !important;
+  padding: 5px 12px !important;
   border-radius: 8px !important;
   cursor: pointer;
-  transition: all 0.2s ease !important;
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.25);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .btn-download:hover {
+  background: var(--toolbar-btn-hover, #f1f5f9) !important;
+  border-color: #5b92f7 !important;
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.38);
-  background: linear-gradient(135deg, #4f46e5, #7c3aed) !important;
+  box-shadow: 0 3px 8px rgba(91, 146, 247, 0.22);
 }
 
-.download-icon {
-  font-size: 14px;
+.download-svg-icon {
+  width: 17px;
+  height: 17px;
+  color: #5b92f7;
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.btn-download:hover .download-svg-icon {
+  transform: translateY(1px);
+}
+
+.download-btn-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main, #1e293b);
 }
 
 .download-dropdown-menu {
@@ -1414,20 +1451,20 @@ onBeforeUnmount(() => {
   border: 1px solid var(--card-inner-border, #e2e8f0);
   border-radius: 12px;
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-  min-width: 220px;
+  min-width: 230px;
   z-index: 1000;
   padding: 6px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
 }
 
 .download-menu-item {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   width: 100%;
-  padding: 10px 12px;
+  padding: 8px 12px;
   background: transparent;
   border: none;
   border-radius: 8px;
@@ -1441,9 +1478,29 @@ onBeforeUnmount(() => {
   background: var(--card-inner-bg, #f1f5f9);
 }
 
-.item-icon {
-  font-size: 18px;
+.item-icon-badge {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(91, 146, 247, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
+  color: #5b92f7;
+  transition: all 0.2s ease;
+}
+
+.download-menu-item:hover .item-icon-badge {
+  background: #5b92f7;
+  color: #ffffff;
+  transform: scale(1.04);
+}
+
+.format-download-svg {
+  width: 17px;
+  height: 17px;
+  color: inherit;
 }
 
 .item-info {
