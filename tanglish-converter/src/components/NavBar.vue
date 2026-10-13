@@ -40,23 +40,37 @@
           <span class="credits-text">50 credits/day</span>
         </div>
 
-        <!-- Theme Toggle (Lig / Dar) -->
+        <!-- Theme Toggle (Light / Dark) -->
         <div class="theme-switch-pill" title="Switch Theme">
           <button 
             class="theme-segment" 
             :class="{ active: theme === 'light' }" 
             @click="setTheme('light')"
             aria-label="Light mode"
+            title="Light Theme"
           >
-            Lig
+            <svg class="theme-icon-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="12" cy="12" r="4.3" fill="currentColor"/>
+              <line x1="12" y1="2.2" x2="12" y2="5.5" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"/>
+              <line x1="12" y1="18.5" x2="12" y2="21.8" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"/>
+              <line x1="2.2" y1="12" x2="5.5" y2="12" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"/>
+              <line x1="18.5" y1="12" x2="21.8" y2="12" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"/>
+              <line x1="5.1" y1="5.1" x2="7.4" y2="7.4" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"/>
+              <line x1="16.6" y1="16.6" x2="18.9" y2="18.9" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"/>
+              <line x1="5.1" y1="18.9" x2="7.4" y2="16.6" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"/>
+              <line x1="16.6" y1="7.4" x2="18.9" y2="5.1" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"/>
+            </svg>
           </button>
           <button 
             class="theme-segment" 
             :class="{ active: theme === 'dark' }" 
             @click="setTheme('dark')"
             aria-label="Dark mode"
+            title="Dark Theme"
           >
-            Dar
+            <svg class="theme-icon-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" fill="currentColor"/>
+            </svg>
           </button>
         </div>
 
@@ -355,7 +369,7 @@ onBeforeUnmount(() => {
   font-size: 13px;
 }
 
-/* Theme Switch Pill (Lig / Dar) */
+/* Theme Switch Pill */
 .theme-switch-pill {
   display: inline-flex;
   align-items: center;
@@ -363,22 +377,23 @@ onBeforeUnmount(() => {
   border: 1px solid var(--toolbar-border);
   padding: 3px;
   border-radius: 20px;
-  gap: 2px;
+  gap: 3px;
   user-select: none;
 }
 
 .theme-segment {
   background: transparent;
   border: none;
-  font-size: 11.5px;
-  font-weight: 700;
-  padding: 4px 10px;
+  width: 32px;
+  height: 28px;
+  padding: 0;
   border-radius: 14px;
   color: var(--text-muted);
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
 }
 
 .theme-segment:hover {
@@ -387,8 +402,14 @@ onBeforeUnmount(() => {
 
 .theme-segment.active {
   background: linear-gradient(135deg, #4f46e5, #6366f1);
-  color: white;
+  color: #ffffff;
   box-shadow: 0 2px 8px rgba(79, 70, 229, 0.35);
+}
+
+.theme-icon-svg {
+  width: 16px;
+  height: 16px;
+  display: block;
 }
 
 /* Login Button */
