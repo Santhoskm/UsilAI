@@ -3,6 +3,11 @@ import { useRouter } from 'vue-router'
 
 const STORAGE_KEY = 'usil_auth_user'
 
+// Module-level singleton reactive state shared across all components
+const user = ref(null)
+const isLoading = ref(false)
+const error = ref(null)
+
 // Helper to parse Google JWT credential safely
 function parseJwt(token) {
     try {
@@ -21,26 +26,44 @@ function parseJwt(token) {
     }
 }
 
-export function useAuth() {
-    const router = useRouter()
-    const user = ref(null)
-    const isLoading = ref(false)
-    const error = ref(null)
-
-    // Check if user is logged in from localStorage
-    const checkAuth = () => {
-        const savedUser = localStorage.getItem(STORAGE_KEY)
-        if (savedUser) {
-            try {
-                user.value = JSON.parse(savedUser)
-                return true
-            } catch (e) {
-                localStorage.removeItem(STORAGE_KEY)
-                return false
-            }
+// Synchronously check and restore auth from localStorage
+const checkAuth = () => {
+    if (typeof window === 'undefined') return false
+    const savedUser = localStorage.getItem(STORAGE_KEY)
+    if (savedUser) {
+        try {
+            user.value = JSON.parse(savedUser)
+            return true
+        } catch (e) {
+            localStorage.removeItem(STORAGE_KEY)
+            user.value = null
+            return false
         }
-        return false
     }
+    user.value = null
+    return false
+}
+
+// Run initial check immediately
+checkAuth()
+
+// Sync auth state across browser tabs
+if (typeof window !== 'undefined') {
+    window.addEventListener('storage', (e) => {
+        if (e.key === STORAGE_KEY) {
+            checkAuth()
+        }
+    })
+}
+
+// Shared computed authentication flag
+const isAuthenticated = computed(() => user.value !== null)
+
+export function useAuth() {
+    let router = null
+    try {
+        router = useRouter()
+    } catch (_) {}
 
     // Google Sign-In Handler
     const loginWithGoogle = async (credential) => {
@@ -154,14 +177,12 @@ export function useAuth() {
     const logout = () => {
         user.value = null
         localStorage.removeItem(STORAGE_KEY)
-        router.push('/')
+        if (router) {
+            router.push('/')
+        } else if (typeof window !== 'undefined' && window.location.pathname !== '/') {
+            window.location.href = '/'
+        }
     }
-
-    // Check if user is authenticated
-    const isAuthenticated = computed(() => user.value !== null)
-
-    // Initialize auth check on mount
-    checkAuth()
 
     return {
         user,
