@@ -2394,12 +2394,13 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   gap: 12px;
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.25);
+  background: var(--credits-bg, rgba(99, 102, 241, 0.12));
+  border: 1px solid var(--credits-border, rgba(99, 102, 241, 0.28));
   padding: 6px 14px;
   border-radius: 8px;
   margin: 10px 16px 4px;
   width: fit-content;
+  backdrop-filter: blur(8px);
   animation: slideDown 0.2s ease;
 }
 
@@ -2411,7 +2412,9 @@ onBeforeUnmount(() => {
 .banner-msg {
   font-size: 13px;
   font-weight: 600;
-  color: #ef4444;
+  color: var(--credits-text, #6366f1);
+  display: inline-flex;
+  align-items: center;
 }
 
 .banner-login-btn {
