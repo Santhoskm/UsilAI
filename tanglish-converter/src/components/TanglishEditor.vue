@@ -292,14 +292,11 @@
 
     <!-- Editor Area -->
     <div class="editor-wrapper" ref="editorWrapper">
-      <!-- Free Credits Limit Reached Alert -->
+      <!-- Free Credits Limit Reached Alert: minimal per user request -->
       <div v-if="!isAuthenticated && isOutOfCredits" class="credit-exhausted-banner">
-        <div class="banner-left">
-          <span class="banner-badge">⚡ 50 Words Limit Reached</span>
-          <span class="banner-msg">You have used your free 50 words today. Sign in with Google to get 500+ credits and continue typing!</span>
-        </div>
+        <span class="banner-msg">Reached limit</span>
         <button class="banner-login-btn" @click="openCreditModal">
-          Sign In with Google
+          Sign in
         </button>
       </div>
 
@@ -2392,74 +2389,46 @@ onBeforeUnmount(() => {
   }
 }
 
-/* Credit Limit Exhausted Banner */
+/* Credit Limit Exhausted Banner - Minimal */
 .credit-exhausted-banner {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(249, 115, 22, 0.12));
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  padding: 12px 18px;
-  border-radius: 12px;
-  margin: 12px 16px;
-  animation: slideDown 0.3s ease;
+  gap: 12px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  padding: 6px 14px;
+  border-radius: 8px;
+  margin: 10px 16px 4px;
+  width: fit-content;
+  animation: slideDown 0.2s ease;
 }
 
 @keyframes slideDown {
-  from { opacity: 0; transform: translateY(-8px); }
+  from { opacity: 0; transform: translateY(-4px); }
   to { opacity: 1; transform: translateY(0); }
-}
-
-.banner-left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.banner-badge {
-  background: #ef4444;
-  color: #ffffff;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  padding: 3px 8px;
-  border-radius: 6px;
-  letter-spacing: 0.04em;
-  white-space: nowrap;
 }
 
 .banner-msg {
   font-size: 13px;
-  font-weight: 500;
-  color: var(--text-main, #1e293b);
+  font-weight: 600;
+  color: #ef4444;
 }
 
 .banner-login-btn {
   background: linear-gradient(135deg, #4f46e5, #6366f1);
   color: #ffffff;
   border: none;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
-  padding: 7px 16px;
-  border-radius: 8px;
+  padding: 5px 14px;
+  border-radius: 6px;
   cursor: pointer;
-  white-space: nowrap;
-  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.3);
   transition: all 0.2s ease;
 }
 
 .banner-login-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.45);
-}
-
-@media (max-width: 640px) {
-  .credit-exhausted-banner {
-    flex-direction: column;
-    align-items: flex-start;
-  }
+  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.35);
 }
 
 </style>

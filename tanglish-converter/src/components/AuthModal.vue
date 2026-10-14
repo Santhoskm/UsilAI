@@ -31,8 +31,8 @@
           ⚠️ {{ error }}
         </div>
 
-        <!-- Benefits Card -->
-        <div class="features-unlocked-card">
+        <!-- Benefits Card (Hidden when minimal / limit reached) -->
+        <div v-if="!minimal" class="features-unlocked-card">
           <div class="card-caption">All features unlocked with Google:</div>
           <ul class="features-list">
             <li>
@@ -56,7 +56,7 @@
           </ul>
         </div>
 
-        <div class="modal-footer-note">
+        <div v-if="!minimal" class="modal-footer-note">
           🔒 Fast, secure 1-click login powered by Google Identity
         </div>
       </div>
@@ -81,6 +81,10 @@ const props = defineProps({
   subtitle: {
     type: String,
     default: 'Continue with your Google account to access OCR, Audio transcription, and all AI features.'
+  },
+  minimal: {
+    type: Boolean,
+    default: false
   }
 })
 
