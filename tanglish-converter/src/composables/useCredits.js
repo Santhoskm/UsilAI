@@ -23,19 +23,23 @@ function initCredits() {
     const storedDate = localStorage.getItem(`${STORAGE_PREFIX}date`)
 
     if (storedDate !== today) {
-        // New day: reset daily usage
+        // New day: automatically refill credits to full (50 for guest, 500 for user)
         localStorage.setItem(`${STORAGE_PREFIX}date`, today)
         localStorage.setItem(`${STORAGE_PREFIX}anon_used`, '0')
         anonWordsUsed.value = 0
+        userWordsUsed.value = 0
+        if (user.value?.id) {
+            localStorage.setItem(`${STORAGE_PREFIX}user_${user.value.id}_used`, '0')
+        }
     } else {
         const storedAnon = parseInt(localStorage.getItem(`${STORAGE_PREFIX}anon_used`) || '0', 10)
         anonWordsUsed.value = isNaN(storedAnon) ? 0 : storedAnon
-    }
 
-    // Initialize user words if logged in
-    if (user.value?.id) {
-        const storedUser = parseInt(localStorage.getItem(`${STORAGE_PREFIX}user_${user.value.id}_used`) || '0', 10)
-        userWordsUsed.value = isNaN(storedUser) ? 0 : storedUser
+        // Initialize user words if logged in
+        if (user.value?.id) {
+            const storedUser = parseInt(localStorage.getItem(`${STORAGE_PREFIX}user_${user.value.id}_used`) || '0', 10)
+            userWordsUsed.value = isNaN(storedUser) ? 0 : storedUser
+        }
     }
 }
 
@@ -60,6 +64,9 @@ const isOutOfCredits = computed(() => {
 })
 
 export function useCredits() {
+    // Re-verify date & refill if day rolled over
+    initCredits()
+
     // Re-check if user ID changes
     if (user.value?.id) {
         const storedUser = parseInt(localStorage.getItem(`${STORAGE_PREFIX}user_${user.value.id}_used`) || '0', 10)
