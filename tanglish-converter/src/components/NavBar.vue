@@ -18,19 +18,7 @@
         <span class="logo-text">Usil AI</span>
       </router-link>
 
-      <!-- Desktop Navigation Links -->
-      <div class="nav-links">
-        <router-link to="/" class="nav-link" :class="{ active: $route.path === '/' || $route.path === '/editor' }">
-          <span>Editor</span>
-          <span class="active-indicator" v-if="$route.path === '/' || $route.path === '/editor'"></span>
-        </router-link>
-        <a href="#ai-tools" class="nav-link" @click.prevent="scrollToTools">
-          <span>AI Tools</span>
-        </a>
-        <a href="#about" class="nav-link" @click.prevent="openAboutModal">
-          <span>About</span>
-        </a>
-      </div>
+
 
       <!-- Right Section -->
       <div class="nav-right">
@@ -124,10 +112,7 @@
 
     <!-- Mobile Navigation Drawer -->
     <div v-if="mobileMenuOpen" class="mobile-drawer">
-      <router-link to="/" class="mobile-link" @click="mobileMenuOpen = false">Editor</router-link>
-      <a href="#ai-tools" class="mobile-link" @click="scrollToTools(); mobileMenuOpen = false">AI Tools</a>
-      <a href="#about" class="mobile-link" @click="openAboutModal(); mobileMenuOpen = false">About</a>
-      <div class="mobile-divider"></div>
+
       <div v-if="!isAuthenticated" class="mobile-auth-wrapper">
         <button class="login-btn mobile-full-btn" @click="openLoginModal">
           <span>Sign in with Google</span>
