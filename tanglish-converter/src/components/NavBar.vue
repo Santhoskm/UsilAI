@@ -27,10 +27,10 @@
           class="credits-badge" 
           @click="!isAuthenticated && openLoginModal()"
           :class="{ 'clickable': !isAuthenticated }"
-          :title="isAuthenticated ? 'Logged-in user: ' + creditsLeft + ' credits remaining' : '50 free words. Click to sign in for 500+ credits!'"
+          :title="isAuthenticated ? 'Logged-in user: ' + creditsLeft + ' credits remaining' : '50 free words per day. Click to sign in for 500+ credits!'"
         >
           <span class="credits-icon">⚡</span>
-          <span class="credits-text">{{ creditsLeft }} credits</span>
+          <span class="credits-text">{{ creditsLeft }} credits / day</span>
         </div>
 
         <!-- Theme Toggle (Light / Dark) -->
@@ -360,6 +360,7 @@ onBeforeUnmount(() => {
   font-weight: 600;
   color: var(--credits-text);
   user-select: none;
+  white-space: nowrap;
 }
 
 .credits-badge.clickable {

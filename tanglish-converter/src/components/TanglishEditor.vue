@@ -304,8 +304,8 @@
 
 
 
-      <!-- Suggestions Popup -->
-      <div v-show="showSuggestions && suggestionsList.length > 0"
+      <!-- Suggestions Popup (Disabled once credits limit reached) -->
+      <div v-show="showSuggestions && suggestionsList.length > 0 && (!isOutOfCredits || isAuthenticated)"
            class="suggestions-popup"
            :style="popupStyle">
         <div v-for="(suggestion, idx) in suggestionsList"
@@ -446,6 +446,11 @@ const downloadDropdownRef = ref(null)
 
 // Watch for Deep Learning suggestions from the backend API
 watch(aiSuggestions, (newSuggestions) => {
+  if (!isAuthenticated.value && isOutOfCredits.value) {
+    showSuggestions.value = false
+    suggestionsList.value = []
+    return
+  }
   if (newSuggestions && newSuggestions.length > 0) {
     suggestionsList.value = newSuggestions
     if (!showSuggestions.value) {
@@ -455,6 +460,14 @@ watch(aiSuggestions, (newSuggestions) => {
         updatePopupPosition(editor.value.view)
       }
     }
+  }
+})
+
+// Immediately hide suggestions if credit limit is reached
+watch(isOutOfCredits, (out) => {
+  if (out && !isAuthenticated.value) {
+    showSuggestions.value = false
+    suggestionsList.value = []
   }
 })
 
@@ -685,9 +698,19 @@ const handleTyping = (view, from, to, text) => {
     suggestionsList.value = []
     showSuggestions.value = false
 
+    // Once credit limit is reached, do not fetch or show suggestions
+    if (!isAuthenticated.value && isOutOfCredits.value) {
+        return false
+    }
+
     // Update suggestions AFTER TipTap commits the new character
     setTimeout(() => {
         if (!editor.value) return
+        if (!isAuthenticated.value && isOutOfCredits.value) {
+            showSuggestions.value = false
+            suggestionsList.value = []
+            return
+        }
         const { state: newState } = editor.value
         const { $from: new$from } = newState.selection
         const newCursorPos = new$from.pos
@@ -765,7 +788,16 @@ const handleKeyDown = (view, event) => {
       // Clear immediately before the timeout so stale list never flashes
       suggestionsList.value = []
       showSuggestions.value = false
+      if (!isAuthenticated.value && isOutOfCredits.value) {
+        return false
+      }
       setTimeout(() => {
+        if (!editor.value) return
+        if (!isAuthenticated.value && isOutOfCredits.value) {
+          showSuggestions.value = false
+          suggestionsList.value = []
+          return
+        }
         const { state } = view
         const { selection } = state
         const { $from } = selection
