@@ -16,9 +16,9 @@
         </div>
 
         <div class="modal-header">
-          <h2 class="modal-title">Sign in to Usil AI</h2>
+          <h2 class="modal-title">{{ title || 'Sign in to Usil AI' }}</h2>
           <p class="modal-subtitle">
-            Continue with your Google account to access OCR, Audio transcription, and all AI features.
+            {{ subtitle || 'Continue with your Google account to access OCR, Audio transcription, and all AI features.' }}
           </p>
         </div>
 
@@ -73,6 +73,14 @@ const props = defineProps({
   isOpen: {
     type: Boolean,
     default: false
+  },
+  title: {
+    type: String,
+    default: 'Sign in to Usil AI'
+  },
+  subtitle: {
+    type: String,
+    default: 'Continue with your Google account to access OCR, Audio transcription, and all AI features.'
   }
 })
 

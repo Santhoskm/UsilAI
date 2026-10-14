@@ -292,6 +292,17 @@
 
     <!-- Editor Area -->
     <div class="editor-wrapper" ref="editorWrapper">
+      <!-- Free Credits Limit Reached Alert -->
+      <div v-if="!isAuthenticated && isOutOfCredits" class="credit-exhausted-banner">
+        <div class="banner-left">
+          <span class="banner-badge">⚡ 50 Words Limit Reached</span>
+          <span class="banner-msg">You have used your free 50 words today. Sign in with Google to get 500+ credits and continue typing!</span>
+        </div>
+        <button class="banner-login-btn" @click="openCreditModal">
+          Sign In with Google
+        </button>
+      </div>
+
       <editor-content :editor="editor" class="editor-content" :style="{ fontFamily: selectedFont.value, fontSize: currentFontSize + 'px' }" />
 
 
@@ -410,7 +421,11 @@ import TextAlign from '@tiptap/extension-text-align'
 import { useTanglishConverter } from '@/composables/useTanglishConverter'
 import { preloadCommonChunks } from '@/data/tamilEngine'
 import { useClaudeGrammarChecker } from '@/composables/useClaudeGrammarChecker'
+import { useAuth } from '@/composables/useAuth'
+import { useCredits } from '@/composables/useCredits'
 
+const { isAuthenticated } = useAuth()
+const { creditsLeft, isOutOfCredits, consumeCredit, openCreditModal } = useCredits()
 const { suggestions: aiSuggestions, convertWord, convertSentence, getSuggestions, learnCorrection, recordUsage } = useTanglishConverter()
 const { checkGrammar, isChecking: aiChecking, error: aiError, correctionResult } = useClaudeGrammarChecker()
 
@@ -616,6 +631,12 @@ const handleTyping = (view, from, to, text) => {
     )
     
     if (shouldConvert && currentWordObj.word && currentWordObj.word.length > 0) {
+        // Enforce credit consumption (1 word = 1 credit)
+        if (!consumeCredit(1)) {
+            showSuggestions.value = false
+            return false
+        }
+
         // Priority 1: Pick top suggestion from active suggestions popup if available
         let converted = ''
         const topCandidate = suggestionsList.value && suggestionsList.value[0]
@@ -792,6 +813,11 @@ const selectSuggestion = (suggestion, index = -1, addSpace = false) => {
   const currentWordObj = getCurrentWord(textBefore, cursorPos)
   
   if (currentWordObj.word) {
+    if (!consumeCredit(1)) {
+      showSuggestions.value = false
+      return
+    }
+
     replaceWord(view, currentWordObj.start, currentWordObj.end, suggestion.tamil, addSpace)
     
     if (index > 0) {
@@ -2363,6 +2389,76 @@ onBeforeUnmount(() => {
     max-width: 380px;
     right: 20px;
     bottom: 20px;
+  }
+}
+
+/* Credit Limit Exhausted Banner */
+.credit-exhausted-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(249, 115, 22, 0.12));
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  padding: 12px 18px;
+  border-radius: 12px;
+  margin: 12px 16px;
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.banner-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.banner-badge {
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 6px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.banner-msg {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-main, #1e293b);
+}
+
+.banner-login-btn {
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  color: #ffffff;
+  border: none;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 7px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.3);
+  transition: all 0.2s ease;
+}
+
+.banner-login-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.45);
+}
+
+@media (max-width: 640px) {
+  .credit-exhausted-banner {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }
 
