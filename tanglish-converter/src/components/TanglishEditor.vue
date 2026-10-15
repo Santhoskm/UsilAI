@@ -197,9 +197,13 @@
           @click="toggleAIHelp" 
           class="toolbar-btn btn-ai"
           :class="{ active: aiHelpEnabled }"
-          :title="aiHelpEnabled ? 'Grammar Checker: ON - Click to turn OFF' : 'Grammar Checker: OFF - Click to turn ON'"
+          title="AI Grammar Checker"
         >
-          Grammar Checker {{ aiHelpEnabled ? 'ON' : 'OFF' }}
+          <svg class="grammar-sparkle-svg" width="14" height="14" viewBox="0 0 24 24" fill="none">
+            <path d="M12 2L14.4 8.6L21 11L14.4 13.4L12 20L9.6 13.4L3 11L9.6 8.6L12 2Z" fill="currentColor"/>
+            <circle cx="18.5" cy="5.5" r="2.2" fill="currentColor"/>
+          </svg>
+          <span>Grammar Checker</span>
         </button>
 
         <!-- Download / Export Dropdown -->
@@ -359,7 +363,7 @@
             </button>
           </div>
           <p class="mode-timing-hint">
-            {{ isOutOfCredits ? 'Limit of 30 grammar checks reached (refills in ' + formattedTimeUntilRefill + ')' : (autoCheckMode ? 'Checks automatically 3s after typing (1 credit/check)' : '1 check = 1 credit • ' + creditsLeft + ' of 30 left (refills in ' + formattedTimeUntilRefill + ')') }}
+            {{ autoCheckMode ? 'Checks automatically 3s after you stop typing' : 'Click "Check Grammar" below to scan text' }}
           </p>
         </div>
 
@@ -373,8 +377,8 @@
             :class="{ 'limit-reached': isOutOfCredits }"
           >
             <span v-if="aiChecking">Analyzing document...</span>
-            <span v-else-if="isOutOfCredits">Limit Reached (Refills in {{ formattedTimeUntilRefill }})</span>
-            <span v-else>Check Grammar ({{ creditsLeft }} credits left)</span>
+            <span v-else-if="isOutOfCredits">Limit Reached</span>
+            <span v-else>Check Grammar</span>
           </button>
         </div>
 
@@ -382,7 +386,7 @@
         <div class="issues-status-bar">
           <div class="issue-count-label">
             <span v-if="aiChecking" class="issues-spinner-circle"></span>
-            <span>{{ aiChecking ? 'Checking text...' : (isOutOfCredits ? '0 credits left' : (activeIssues.length === 1 ? '1 issue' : (activeIssues.length > 0 ? activeIssues.length + ' issues' : 'No issues found'))) }}</span>
+            <span>{{ aiChecking ? 'Checking text...' : (activeIssues.length === 1 ? '1 issue' : (activeIssues.length > 0 ? activeIssues.length + ' issues' : 'No issues found')) }}</span>
           </div>
           <div v-if="activeIssues.length > 0" class="bulk-actions-group">
             <button type="button" class="btn-fix-all" @click="applyAllIssues">Fix all</button>
@@ -2565,18 +2569,42 @@ onBeforeUnmount(() => {
 }
 
 .toolbar-btn.btn-ai {
-  min-width: 145px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   white-space: nowrap;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.10), rgba(168, 85, 247, 0.08)) !important;
+  border: 1px solid rgba(99, 102, 241, 0.35) !important;
+  color: var(--accent-indigo, #6366f1) !important;
+  font-weight: 600 !important;
+  border-radius: 8px !important;
+  padding: 6px 14px !important;
+  box-shadow: 0 1px 3px rgba(99, 102, 241, 0.08);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
+
 .toolbar-btn.btn-ai:hover {
-  background: rgba(99, 102, 241, 0.10);
-  color: #6366f1;
-  border-color: #6366f1;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.18), rgba(168, 85, 247, 0.15)) !important;
+  border-color: rgba(99, 102, 241, 0.6) !important;
+  color: #4f46e5 !important;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(99, 102, 241, 0.16);
 }
+
 .toolbar-btn.btn-ai.active {
-  background: var(--btn-primary-bg, #4f46e5);
-  color: #ffffff;
-  border-color: var(--btn-primary-bg, #4f46e5);
+  background: linear-gradient(135deg, #6366f1, #8b5cf6) !important;
+  border-color: transparent !important;
+  color: #ffffff !important;
+  box-shadow: 0 3px 10px rgba(99, 102, 241, 0.32);
+}
+
+.grammar-sparkle-svg {
+  flex-shrink: 0;
+  transition: transform 0.22s ease;
+}
+
+.toolbar-btn.btn-ai:hover .grammar-sparkle-svg {
+  transform: scale(1.18) rotate(6deg);
 }
 
 .toolbar-btn.btn-voice {
