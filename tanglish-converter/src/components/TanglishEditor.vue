@@ -197,9 +197,9 @@
           @click="toggleAIHelp" 
           class="toolbar-btn btn-ai"
           :class="{ active: aiHelpEnabled }"
-          :title="aiHelpEnabled ? 'AI Help: ON - Click to turn OFF' : 'AI Help: OFF - Click to turn ON'"
+          :title="aiHelpEnabled ? 'Grammar Checker: ON - Click to turn OFF' : 'Grammar Checker: OFF - Click to turn ON'"
         >
-          AI Help {{ aiHelpEnabled ? 'ON' : 'OFF' }}
+          Grammar Checker {{ aiHelpEnabled ? 'ON' : 'OFF' }}
         </button>
 
         <!-- Download / Export Dropdown -->
@@ -318,11 +318,11 @@
         </div>
       </div>
 
-      <!-- Floating AI Assistant Panel - Only shows when AI Help is ON -->
+      <!-- Floating Grammar Checker Panel - Shows when Grammar Checker is ON -->
       <div v-if="aiHelpEnabled" class="ai-assistant-panel" :style="aiPanelStyle">
         <div class="ai-panel-header" @mousedown="startDrag">
-          <span class="ai-icon">🤖</span>
-          <span class="ai-title">AI Grammar Assistant</span>
+          <span class="ai-icon">✨</span>
+          <span class="ai-title">Grammar Checker</span>
           <button class="ai-close" @click="toggleAIHelp">×</button>
         </div>
         
@@ -471,10 +471,10 @@ watch(isOutOfCredits, (out) => {
   }
 })
 
-// AI Assistant State
+// Grammar Checker State
 const aiHelpEnabled = ref(false)
 const aiInputText = ref('')
-const aiPlaceholder = ref('Type Tanglish text here for grammar correction...')
+const aiPlaceholder = ref('Type Tanglish or Tamil text here for grammar check...')
 const aiResponse = ref(null)
 
 // ── VOICE TYPING STATE ──────────────────────────────────────────
@@ -2094,7 +2094,8 @@ onBeforeUnmount(() => {
 }
 
 .toolbar-btn.btn-ai {
-  min-width: 90px;
+  min-width: 145px;
+  white-space: nowrap;
 }
 .toolbar-btn.btn-ai:hover {
   background: rgba(241, 196, 15, 0.10);
