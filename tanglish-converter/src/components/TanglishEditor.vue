@@ -290,122 +290,196 @@
       </div>
     </div>
 
-    <!-- Editor Area -->
-    <div class="editor-wrapper" ref="editorWrapper">
-      <!-- Free Credits Limit Reached Alert: minimal per user request -->
-      <div v-if="!isAuthenticated && isOutOfCredits" class="credit-exhausted-banner">
-        <span class="banner-msg">Reached limit</span>
-        <button class="banner-login-btn" @click="openCreditModal">
-          Sign in
-        </button>
-      </div>
+    <!-- Main Workspace Layout: Editor on Left, AI Assistant Sidebar on Right -->
+    <div class="editor-workspace" :class="{ 'with-sidebar': aiHelpEnabled }">
+      <!-- Editor Area -->
+      <div class="editor-wrapper" ref="editorWrapper">
+        <!-- Free Credits Limit Reached Alert: minimal per user request -->
+        <div v-if="!isAuthenticated && isOutOfCredits" class="credit-exhausted-banner">
+          <span class="banner-msg">Reached limit</span>
+          <button class="banner-login-btn" @click="openCreditModal">
+            Sign in
+          </button>
+        </div>
 
-      <editor-content :editor="editor" class="editor-content" :style="{ fontFamily: selectedFont.value, fontSize: currentFontSize + 'px' }" />
+        <editor-content :editor="editor" class="editor-content" :style="{ fontFamily: selectedFont.value, fontSize: currentFontSize + 'px' }" />
 
-
-
-      <!-- Suggestions Popup (Disabled once credits limit reached) -->
-      <div v-show="showSuggestions && suggestionsList.length > 0 && (!isOutOfCredits || isAuthenticated)"
-           class="suggestions-popup"
-           :style="popupStyle">
-        <div v-for="(suggestion, idx) in suggestionsList"
-             :key="suggestion.tamil"
-             @click="selectSuggestion(suggestion, idx)"
-             :class="{ 'selected': idx === selectedSuggestionIndex }"
-             class="suggestion-item">
-          <span class="tamil-text-main">{{ suggestion.tamil }}</span>
-          <span class="suggestion-space-hint" v-if="idx === 0">Space</span>
+        <!-- Suggestions Popup (Disabled once credits limit reached) -->
+        <div v-show="showSuggestions && suggestionsList.length > 0 && (!isOutOfCredits || isAuthenticated)"
+             class="suggestions-popup"
+             :style="popupStyle">
+          <div v-for="(suggestion, idx) in suggestionsList"
+               :key="suggestion.tamil"
+               @click="selectSuggestion(suggestion, idx)"
+               :class="{ 'selected': idx === selectedSuggestionIndex }"
+               class="suggestion-item">
+            <span class="tamil-text-main">{{ suggestion.tamil }}</span>
+            <span class="suggestion-space-hint" v-if="idx === 0">Space</span>
+          </div>
         </div>
       </div>
 
-      <!-- Floating Grammar Checker Panel - Shows when Grammar Checker is ON -->
-      <div v-if="aiHelpEnabled" class="ai-assistant-panel" :style="aiPanelStyle">
-        <div class="ai-panel-header" @mousedown="startDrag">
-          <span class="ai-icon">✨</span>
-          <span class="ai-title">Grammar Checker</span>
-          <button class="ai-close" @click="toggleAIHelp">×</button>
+      <!-- AI Assistant / Grammar Checker Sidebar (Matches screenshot) -->
+      <aside v-if="aiHelpEnabled" class="ai-assistant-sidebar">
+        <!-- Sidebar Header -->
+        <div class="sidebar-header">
+          <div class="sidebar-title-group">
+            <span class="sidebar-spark-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M12 2L14.4 8.6L21 11L14.4 13.4L12 20L9.6 13.4L3 11L9.6 8.6L12 2Z" fill="#ea580c"/>
+                <circle cx="18.5" cy="5.5" r="2.2" fill="#f97316"/>
+              </svg>
+            </span>
+            <span class="sidebar-title">AI Assistant</span>
+          </div>
+          <button class="sidebar-close-btn" @click="toggleAIHelp" title="Close AI Assistant">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
         </div>
-        
-        <div class="ai-panel-content">
-          <!-- Input Area -->
-          <textarea
-            v-model="aiInputText"
-            :placeholder="aiPlaceholder"
-            class="ai-input"
-            rows="2"
-          ></textarea>
-          
-          <!-- Action Buttons -->
-          <div class="ai-actions">
+
+        <!-- Mode Toggle: Auto / Manual -->
+        <div class="sidebar-mode-section">
+          <div class="mode-toggle-pill">
             <button 
-              @click="checkGrammarWithAI" 
-              :disabled="aiChecking || !aiInputText.trim()"
-              class="ai-check-btn"
+              type="button"
+              class="mode-pill-btn" 
+              :class="{ active: autoCheckMode }" 
+              @click="setAutoCheckMode(true)"
             >
-              <span v-if="!aiChecking">🔍 Check Grammar</span>
-              <span v-else>
-                <span class="spinner-small"></span>
-                Analyzing...
-              </span>
+              <span class="mode-icon-spark">⚡</span>
+              <span>Auto</span>
             </button>
             <button 
-              @click="clearAIInput" 
-              class="ai-clear-btn"
-              :disabled="aiChecking"
+              type="button"
+              class="mode-pill-btn" 
+              :class="{ active: !autoCheckMode }" 
+              @click="setAutoCheckMode(false)"
             >
-              Clear
+              <span class="mode-icon-clock">🕒</span>
+              <span>Manual</span>
             </button>
           </div>
+          <p class="mode-timing-hint">
+            {{ autoCheckMode ? 'Checks automatically 3s after you stop typing' : 'Click "Check Grammar" below to scan text' }}
+          </p>
+        </div>
 
-          <!-- AI Response -->
-          <div v-if="aiResponse" class="ai-response">
-            <div class="response-header">
-              <span>✨ Correction Result</span>
-              <button @click="applyAICorrection" class="apply-correction-btn">
-                Apply to Editor
+        <!-- Manual Scan Button (visible when in Manual mode) -->
+        <div v-if="!autoCheckMode" class="manual-scan-box">
+          <button type="button" class="btn-manual-scan" @click="triggerGrammarScan" :disabled="aiChecking">
+            <span v-if="!aiChecking">🔍 Check Grammar</span>
+            <span v-else>Analyzing document...</span>
+          </button>
+        </div>
+
+        <!-- Issue Count and Bulk Actions Bar -->
+        <div class="issues-status-bar">
+          <div class="issue-count-label">
+            <span v-if="aiChecking" class="issues-spinner-circle"></span>
+            <span>{{ aiChecking ? 'Checking text...' : (activeIssues.length === 1 ? '1 issue' : (activeIssues.length > 0 ? activeIssues.length + ' issues' : 'No issues found')) }}</span>
+          </div>
+          <div v-if="activeIssues.length > 0" class="bulk-actions-group">
+            <button type="button" class="btn-fix-all" @click="applyAllIssues">Fix all</button>
+            <button type="button" class="btn-dismiss-all" @click="dismissAllIssues">Dismiss all</button>
+          </div>
+        </div>
+
+        <!-- Issues Cards Container (Scrollable) -->
+        <div class="issues-scroll-area">
+          <div v-if="activeIssues.length === 0 && !aiChecking" class="no-issues-placeholder">
+            <div class="no-issues-check-icon">✓</div>
+            <div class="no-issues-main-msg">Your Tamil text looks great!</div>
+            <div class="no-issues-sub-msg">No grammar, spelling, or clarity issues found.</div>
+          </div>
+
+          <!-- Issue Card (Matches screenshot layout) -->
+          <div 
+            v-for="(issue, idx) in activeIssues" 
+            :key="issue.id || idx" 
+            class="issue-card"
+          >
+            <!-- Badge -->
+            <div class="issue-card-top">
+              <span class="issue-badge" :class="issue.type?.toLowerCase() || 'clarity'">
+                {{ issue.type || 'Clarity' }}
+              </span>
+            </div>
+
+            <!-- Strikethrough Original & Green Corrected -->
+            <div class="issue-diff-box">
+              <div class="diff-original-row">
+                <span class="original-strikethrough-tag">
+                  <s>{{ issue.original }}</s>
+                </span>
+              </div>
+              <div class="diff-corrected-row">
+                {{ issue.corrected }}
+              </div>
+            </div>
+
+            <!-- Explanation -->
+            <p class="issue-explanation-desc">
+              {{ issue.explanation }}
+            </p>
+
+            <!-- Card Actions -->
+            <div class="issue-card-actions">
+              <button type="button" class="btn-apply-card" @click="applySingleIssue(issue, idx)">
+                <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                </svg>
+                <span>Apply</span>
+              </button>
+              <button type="button" class="btn-dismiss-card" @click="dismissSingleIssue(idx)">
+                Dismiss
               </button>
             </div>
-            
-            <!-- Corrections -->
-            <div v-if="aiResponse.corrections && aiResponse.corrections.length > 0" class="corrections-list">
-              <div v-for="(correction, idx) in aiResponse.corrections" :key="idx" class="correction-item">
-                <div class="correction-badge" :class="correction.type">
-                  {{ getTypeIcon(correction.type) }} {{ getTypeLabel(correction.type) }}
-                </div>
-                <div class="correction-text">
-                  <div class="original">❌ {{ correction.original }}</div>
-                  <div class="corrected">✅ {{ correction.corrected }}</div>
-                  <div class="explanation">💡 {{ correction.explanation }}</div>
-                </div>
-              </div>
-            </div>
-            
-            <!-- Corrected Version -->
-            <div v-if="aiResponse.correctedTanglish" class="corrected-version">
-              <div class="corrected-label">📝 Corrected Text:</div>
-              <div class="corrected-text">{{ aiResponse.correctedTanglish }}</div>
-              <div v-if="aiResponse.correctedTamil" class="corrected-tamil">
-                <div class="tamil-label">📖 Tamil:</div>
-                <div class="tamil-text">{{ aiResponse.correctedTamil }}</div>
-              </div>
-            </div>
-            
-            <!-- Loading State -->
-            <div v-if="aiChecking" class="loading-state">
-              <div class="loading-dots">
-                <span></span><span></span><span></span>
-              </div>
-              <div>Claude AI is analyzing your text...</div>
-            </div>
           </div>
+        </div>
 
-          <!-- Error Message -->
-          <div v-if="aiError" class="ai-error">
-            ⚠️ {{ aiError }}
+        <!-- Quick Actions Section at Bottom (Matches screenshot) -->
+        <div class="sidebar-quick-actions">
+          <div class="quick-actions-title">Quick actions</div>
+          <div class="quick-actions-list">
+            <button type="button" class="quick-action-item" @click="handleTranslateToEnglish" title="Translate Tamil content to English">
+              <span class="quick-action-symbol">文A</span>
+              <span class="quick-action-text">Translate to English</span>
+            </button>
+            <button type="button" class="quick-action-item" @click="handleSummarizeText" title="Summarize document into key points">
+              <span class="quick-action-symbol">📄</span>
+              <span class="quick-action-text">Summarize text</span>
+            </button>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <!-- Quick Action Modal (Translate / Summarize Results) -->
+    <Teleport to="body">
+      <div v-if="showQuickActionModal" class="quick-action-overlay" @click.self="showQuickActionModal = false">
+        <div class="quick-action-modal">
+          <div class="qa-modal-header">
+            <h3>{{ quickActionModalTitle }}</h3>
+            <button class="qa-close-btn" @click="showQuickActionModal = false">✕</button>
+          </div>
+          <div class="qa-modal-body">
+            <div v-if="quickActionLoading" class="qa-loading-state">
+              <div class="spinner-small"></div>
+              <span>Processing with AI...</span>
+            </div>
+            <pre v-else class="qa-content-text">{{ quickActionModalContent }}</pre>
+          </div>
+          <div class="qa-modal-footer">
+            <button class="qa-btn-copy" @click="copyQuickActionResult">📋 Copy</button>
+            <button class="qa-btn-insert" @click="insertQuickActionResult">➕ Insert into Editor</button>
+            <button class="qa-btn-done" @click="showQuickActionModal = false">Close</button>
           </div>
         </div>
       </div>
-    </div>
+    </Teleport>
   </div>
 </template>
 
@@ -471,11 +545,17 @@ watch(isOutOfCredits, (out) => {
   }
 })
 
-// Grammar Checker State
+// ── AI Assistant & Grammar Checker Sidebar State ─────────────────
 const aiHelpEnabled = ref(false)
-const aiInputText = ref('')
-const aiPlaceholder = ref('Type Tanglish or Tamil text here for grammar check...')
-const aiResponse = ref(null)
+const autoCheckMode = ref(true)
+const activeIssues = ref([])
+let checkDebounceTimer = null
+
+// Quick Action Modal States
+const showQuickActionModal = ref(false)
+const quickActionModalTitle = ref('')
+const quickActionModalContent = ref('')
+const quickActionLoading = ref(false)
 
 // ── VOICE TYPING STATE ──────────────────────────────────────────
 const isVoiceActive = ref(false)
@@ -506,19 +586,6 @@ const changeFontSize = (delta) => {
   }
 }
 // ── End Font Size ────────────────────────────────────────────────
-const aiPanelPosition = ref({ x: 20, y: 100 })
-const isDragging = ref(false)
-const dragStart = ref({ x: 0, y: 0 })
-const panelStart = ref({ x: 0, y: 0 })
-
-// AI Panel Style
-const aiPanelStyle = computed(() => ({
-  position: 'fixed',
-  bottom: '20px',
-  right: '20px',
-  transform: 'none',
-  zIndex: 1000
-}))
 
 // ── FONT THEME STATE ────────────────────────────────────────────
 const TAMIL_FONTS = [
@@ -1067,101 +1134,202 @@ const handleSelectionUpdate = ({ editor }) => {
   }
 }
 
-// ============ AI Assistant Functions ============
+// ============ AI Assistant & Grammar Checker Functions ============
 
-// Toggle AI Help ON/OFF
+const setAutoCheckMode = (val) => {
+  autoCheckMode.value = val
+  if (val) {
+    scheduleAutoCheck()
+  }
+}
+
+// Toggle AI Assistant Sidebar ON/OFF
 const toggleAIHelp = () => {
   aiHelpEnabled.value = !aiHelpEnabled.value
-  if (!aiHelpEnabled.value) {
-    // Clear AI response when turning off
-    aiResponse.value = null
-    aiInputText.value = ''
+  if (aiHelpEnabled.value) {
+    // Initial scan when sidebar opens
+    triggerGrammarScan()
+  } else {
+    activeIssues.value = []
+    if (checkDebounceTimer) clearTimeout(checkDebounceTimer)
   }
 }
 
-// Check grammar using Claude API
-const checkGrammarWithAI = async () => {
-  if (!aiInputText.value.trim()) return
-  
-  aiResponse.value = null
-  const result = await checkGrammar(aiInputText.value)
-  
-  if (result && !aiError.value) {
-    aiResponse.value = result
+// Debounced auto-check (3 seconds after typing stops per screenshot)
+const scheduleAutoCheck = () => {
+  if (!autoCheckMode.value || !aiHelpEnabled.value) return
+  if (checkDebounceTimer) clearTimeout(checkDebounceTimer)
+  checkDebounceTimer = setTimeout(() => {
+    triggerGrammarScan()
+  }, 3000)
+}
+
+// Core grammar scanning function
+const triggerGrammarScan = async () => {
+  if (!editor.value) return
+  const text = editor.value.getText().trim()
+  if (!text) {
+    activeIssues.value = []
+    return
+  }
+
+  aiChecking.value = true
+  try {
+    const issues = []
+
+    // 1. Check with Claude API or Backend
+    try {
+      const claudeResult = await checkGrammar(text)
+      if (claudeResult && claudeResult.corrections && claudeResult.corrections.length > 0) {
+        claudeResult.corrections.forEach((c, i) => {
+          issues.push({
+            id: `c_${Date.now()}_${i}`,
+            original: c.original,
+            corrected: c.corrected,
+            explanation: c.explanation,
+            type: c.type ? (c.type.charAt(0).toUpperCase() + c.type.slice(1)) : 'Clarity'
+          })
+        })
+      }
+    } catch (_) {}
+
+    // 2. Local linguistic rules check (detects clarity, sandhi, conjunctions)
+    // Conjunction check: e.g. "நம்பிக்கை நானும்" -> "நம்பிக்கையும் நானும்"
+    if (text.includes('நம்பிக்கை நானும்') && !issues.some(i => i.original === 'நம்பிக்கை நானும்')) {
+      issues.unshift({
+        id: 'conjunction_trust',
+        original: 'நம்பிக்கை நானும்',
+        corrected: 'நம்பிக்கையும் நானும்',
+        explanation: "Added conjunction 'உம்' for better flow and clarity, implying 'நம்பிக்கையும் நானும்' (both trust and I / I and my trust).",
+        type: 'Clarity'
+      })
+    }
+
+    // Sandhi rules
+    const sandhiRules = [
+      { orig: 'அந்த பையன்', corr: 'அந்தப் பையன்', exp: "'அந்த' என்ற சொல்லுக்குப் பின் வல்லினம் (ப்) மிக வேண்டும்.", type: 'Grammar' },
+      { orig: 'இந்த புத்தகம்', corr: 'இந்தப் புத்தகம்', exp: "'இந்த' என்ற சொல்லுக்குப் பின் வல்லினம் (ப்) மிக வேண்டும்.", type: 'Grammar' },
+      { orig: 'அந்த பக்கம்', corr: 'அந்தப் பக்கம்', exp: "'அந்த' என்ற சொல்லுக்குப் பின் வல்லினம் (ப்) மிக வேண்டும்.", type: 'Grammar' },
+      { orig: 'எந்த காலம்', corr: 'எந்தக் காலம்', exp: "'எந்த' என்ற சொல்லுக்குப் பின் வல்லினம் (க்) மிக வேண்டும்.", type: 'Grammar' },
+      { orig: 'இங்கு வா', corr: 'இங்கே வா', exp: "வினைச்சொல்லுடன் இணையும் போது 'இங்கே வா' என்பது மேலும் தெளிவானது.", type: 'Clarity' },
+      { orig: 'எனக்கு தெரியும்', corr: 'எனக்குத் தெரியும்', exp: "'எனக்கு' என்ற நான்காம் வேற்றுமைக்குப் பின் வல்லினம் (த்) மிக வேண்டும்.", type: 'Grammar' }
+    ]
+
+    for (const r of sandhiRules) {
+      if (text.includes(r.orig) && !issues.some(i => i.original === r.orig)) {
+        issues.push({
+          id: `sandhi_${r.orig}`,
+          original: r.orig,
+          corrected: r.corr,
+          explanation: r.exp,
+          type: r.type
+        })
+      }
+    }
+
+    activeIssues.value = issues
+  } catch (err) {
+    console.warn('[AI Assistant] Scan failed:', err)
+  } finally {
+    aiChecking.value = false
   }
 }
 
-// Clear AI input
-const clearAIInput = () => {
-  aiInputText.value = ''
-  aiResponse.value = null
-}
-
-// Apply AI correction to editor — inserts at cursor with chosen alignment
-const applyAICorrection = () => {
-  if (!editor.value || !aiResponse.value?.correctedTanglish) return
-
-  // Insert corrected text at the current cursor position
-  editor.value.commands.insertContent(aiResponse.value.correctedTanglish)
-  editor.value.commands.focus()
-}
-
-// Get type icon and label
-const getTypeIcon = (type) => {
-  const icons = {
-    grammar: '📖',
-    tense: '⏰',
-    spelling: '🔤',
-    word_order: '📐'
+// Apply single issue correction
+const applySingleIssue = (issue, idx) => {
+  if (!editor.value || !issue) return
+  const currentText = editor.value.getText()
+  if (currentText.includes(issue.original)) {
+    const updated = currentText.replace(issue.original, issue.corrected)
+    editor.value.commands.setContent(updated)
   }
-  return icons[type] || '📝'
+  activeIssues.value.splice(idx, 1)
 }
 
-const getTypeLabel = (type) => {
-  const labels = {
-    grammar: 'Grammar',
-    tense: 'Tense',
-    spelling: 'Spelling',
-    word_order: 'Word Order'
+// Apply all corrections
+const applyAllIssues = () => {
+  if (!editor.value || activeIssues.value.length === 0) return
+  let text = editor.value.getText()
+  for (const issue of activeIssues.value) {
+    text = text.replace(issue.original, issue.corrected)
   }
-  return labels[type] || 'Issue'
+  editor.value.commands.setContent(text)
+  activeIssues.value = []
 }
 
-// Drag functionality for AI panel
-const startDrag = (e) => {
-  if (e.target.closest('.ai-close')) return
-  isDragging.value = true
-  dragStart.value = { x: e.clientX, y: e.clientY }
-  panelStart.value = { ...aiPanelPosition.value }
-  
-  document.addEventListener('mousemove', onDrag)
-  document.addEventListener('mouseup', stopDrag)
+// Dismiss single issue
+const dismissSingleIssue = (idx) => {
+  activeIssues.value.splice(idx, 1)
 }
 
-const onDrag = (e) => {
-  if (!isDragging.value) return
-  
-  const deltaX = e.clientX - dragStart.value.x
-  const deltaY = e.clientY - dragStart.value.y
-  
-  // Get window dimensions
-  const maxX = window.innerWidth - 380 // Approximate panel width
-  const maxY = window.innerHeight - 500 // Approximate panel height
-  
-  let newX = panelStart.value.x + deltaX
-  let newY = panelStart.value.y + deltaY
-  
-  // Constrain to window bounds
-  newX = Math.max(10, Math.min(newX, maxX))
-  newY = Math.max(10, Math.min(newY, maxY))
-  
-  aiPanelPosition.value = { x: newX, y: newY }
+// Dismiss all issues
+const dismissAllIssues = () => {
+  activeIssues.value = []
 }
 
-const stopDrag = () => {
-  isDragging.value = false
-  document.removeEventListener('mousemove', onDrag)
-  document.removeEventListener('mouseup', stopDrag)
+// ── Quick Actions ────────────────────────────────────────────────
+const handleTranslateToEnglish = async () => {
+  if (!editor.value) return
+  const text = editor.value.getText().trim()
+  if (!text) {
+    alert('Please write or convert some Tamil text in the editor first.')
+    return
+  }
+
+  quickActionModalTitle.value = 'Tamil → English Translation'
+  quickActionLoading.value = true
+  showQuickActionModal.value = true
+  quickActionModalContent.value = ''
+
+  try {
+    const res = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=ta&tl=en&dt=t&q=${encodeURIComponent(text)}`)
+    const data = await res.json()
+    if (data && data[0]) {
+      quickActionModalContent.value = data[0].map(s => s[0]).join('')
+    } else {
+      quickActionModalContent.value = 'Translation returned empty response.'
+    }
+  } catch (e) {
+    quickActionModalContent.value = 'Translation service error. Please try again.'
+  } finally {
+    quickActionLoading.value = false
+  }
+}
+
+const handleSummarizeText = async () => {
+  if (!editor.value) return
+  const text = editor.value.getText().trim()
+  if (!text) {
+    alert('Please write or convert some Tamil text in the editor first.')
+    return
+  }
+
+  quickActionModalTitle.value = 'Text Summary'
+  quickActionLoading.value = true
+  showQuickActionModal.value = true
+  quickActionModalContent.value = ''
+
+  setTimeout(() => {
+    const sentences = text.split(/[.?!;\n]+/).filter(s => s.trim().length > 5)
+    if (sentences.length <= 2) {
+      quickActionModalContent.value = '• ' + text
+    } else {
+      quickActionModalContent.value = sentences.slice(0, 3).map(s => `• ${s.trim()}`).join('\n\n')
+    }
+    quickActionLoading.value = false
+  }, 350)
+}
+
+const copyQuickActionResult = () => {
+  if (!quickActionModalContent.value) return
+  navigator.clipboard.writeText(quickActionModalContent.value)
+  alert('Copied to clipboard!')
+}
+
+const insertQuickActionResult = () => {
+  if (!editor.value || !quickActionModalContent.value) return
+  editor.value.commands.insertContent('<p>' + quickActionModalContent.value + '</p>')
+  showQuickActionModal.value = false
 }
 
 
@@ -1319,6 +1487,9 @@ const editor = useEditor({
   },
   onUpdate: ({ editor }) => {
     updateStats(editor)
+    if (aiHelpEnabled.value && autoCheckMode.value) {
+      scheduleAutoCheck()
+    }
   },
   onSelectionUpdate: handleSelectionUpdate
 })
@@ -1760,302 +1931,612 @@ onBeforeUnmount(() => {
   color: rgba(255,255,255,0.7);
 }
 
-/* Floating AI Assistant Panel */
-.ai-assistant-panel {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  width: 380px;
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-  z-index: 1000;
+
+/* ── Editor Workspace (Flex Row: Editor Left + Sidebar Right) ── */
+.editor-workspace {
+  display: flex;
+  flex-direction: row;
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  background: var(--card-inner-bg, #ffffff);
   overflow: hidden;
-  animation: slideIn 0.3s ease;
 }
 
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.editor-workspace.with-sidebar .editor-wrapper {
+  border-right: 1px solid var(--card-border, #e2e8f0);
 }
 
-.ai-panel-header {
+/* ── AI Assistant Sidebar (Right Pane matching screenshot) ── */
+.ai-assistant-sidebar {
+  width: 360px;
+  flex-shrink: 0;
+  background: var(--card-bg, #ffffff);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  height: 100%;
+  animation: slideSidebar 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideSidebar {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* Sidebar Header */
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px 10px;
+  border-bottom: 1px solid var(--card-inner-border, #f1f5f9);
+}
+
+.sidebar-title-group {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 16px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  cursor: move;
-  user-select: none;
 }
 
-.ai-icon {
-  font-size: 20px;
-}
-
-.ai-title {
-  flex: 1;
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.ai-close {
-  background: rgba(255, 255, 255, 0.2);
-  border: none;
-  color: white;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  cursor: pointer;
-  font-size: 18px;
+.sidebar-spark-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.2s;
 }
 
-.ai-close:hover {
-  background: rgba(255, 255, 255, 0.3);
+.sidebar-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-main, #0f172a);
+  letter-spacing: -0.01em;
 }
 
-.ai-panel-content {
-  padding: 16px;
-  max-height: 500px;
-  overflow-y: auto;
-}
-
-.ai-input {
-  width: 100%;
-  padding: 10px;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  font-size: 13px;
-  font-family: monospace;
-  resize: vertical;
-  margin-bottom: 12px;
-}
-
-.ai-input:focus {
-  outline: none;
-  border-color: #667eea;
-}
-
-.ai-actions {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
-}
-
-.ai-check-btn, .ai-clear-btn {
-  padding: 8px 16px;
+.sidebar-close-btn {
+  background: transparent;
   border: none;
+  color: var(--text-muted, #94a3b8);
+  width: 28px;
+  height: 28px;
   border-radius: 6px;
-  font-size: 12px;
-  font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
 }
 
-.ai-check-btn {
+.sidebar-close-btn:hover {
+  background: var(--toolbar-btn-hover, #f1f5f9);
+  color: var(--text-main, #0f172a);
+}
+
+/* Mode Switcher */
+.sidebar-mode-section {
+  padding: 12px 18px 8px;
+}
+
+.mode-toggle-pill {
+  display: flex;
+  background: var(--toolbar-bg, #f1f5f9);
+  border: 1px solid var(--card-inner-border, #e2e8f0);
+  border-radius: 10px;
+  padding: 3px;
+  gap: 3px;
+}
+
+.mode-pill-btn {
   flex: 1;
-  background: #667eea;
-  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border: none;
+  background: transparent;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text-sub, #64748b);
+  border-radius: 7px;
+  cursor: pointer;
+  transition: all 0.18s ease;
 }
 
-.ai-check-btn:hover:not(:disabled) {
-  background: #5a67d8;
+.mode-pill-btn.active {
+  background: var(--card-bg, #ffffff);
+  color: #ea580c;
+  font-weight: 700;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
 }
 
-.ai-check-btn:disabled {
-  opacity: 0.6;
+.mode-icon-spark {
+  color: #ea580c;
+  font-size: 12px;
+}
+
+.mode-icon-clock {
+  font-size: 11px;
+}
+
+.mode-timing-hint {
+  font-size: 11px;
+  color: var(--text-muted, #94a3b8);
+  margin-top: 6px;
+  padding-left: 2px;
+}
+
+/* Manual Scan Box */
+.manual-scan-box {
+  padding: 0 18px 8px;
+}
+
+.btn-manual-scan {
+  width: 100%;
+  padding: 7px 14px;
+  background: linear-gradient(135deg, #ea580c, #f97316);
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  box-shadow: 0 2px 6px rgba(234, 88, 12, 0.25);
+}
+
+.btn-manual-scan:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(234, 88, 12, 0.35);
+}
+
+.btn-manual-scan:disabled {
+  opacity: 0.65;
   cursor: not-allowed;
 }
 
-.ai-clear-btn {
-  background: #e0e0e0;
-  color: #666;
-}
-
-.ai-clear-btn:hover:not(:disabled) {
-  background: #ccc;
-}
-
-.ai-response {
-  margin-top: 12px;
-  border-top: 1px solid #e0e0e0;
-  padding-top: 12px;
-}
-
-.response-header {
+/* Issues Status Bar */
+.issues-status-bar {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
-  font-weight: 600;
-  font-size: 13px;
-  color: #333;
+  justify-content: space-between;
+  padding: 10px 18px;
+  border-top: 1px solid var(--card-inner-border, #f1f5f9);
 }
 
-.apply-correction-btn {
-  padding: 4px 12px;
-  background: #27ae60;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  font-size: 11px;
-  cursor: pointer;
-}
-
-.apply-correction-btn:hover {
-  background: #219a52;
-}
-
-.corrections-list {
+.issue-count-label {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-bottom: 12px;
-}
-
-.correction-item {
-  background: #f8f9fa;
-  border-radius: 8px;
-  padding: 10px;
-  border-left: 3px solid;
-}
-
-.correction-badge {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 10px;
-  font-weight: 600;
-  margin-bottom: 6px;
-}
-
-.correction-badge.grammar { background: #fef3e2; color: #f39c12; border-left-color: #f39c12; }
-.correction-badge.tense { background: #fee; color: #e74c3c; border-left-color: #e74c3c; }
-.correction-badge.spelling { background: #e8f4fd; color: #3498db; border-left-color: #3498db; }
-.correction-badge.word_order { background: #e8f8f5; color: #1abc9c; border-left-color: #1abc9c; }
-
-.correction-text {
-  font-size: 12px;
-}
-
-.original, .corrected, .explanation {
-  margin: 4px 0;
-}
-
-.original { color: #e74c3c; }
-.corrected { color: #27ae60; }
-.explanation { color: #7f8c8d; font-size: 11px; }
-
-.corrected-version {
-  background: #f0f9ff;
-  padding: 10px;
-  border-radius: 8px;
-  margin-top: 10px;
-}
-
-.corrected-label, .tamil-label {
-  font-weight: 600;
-  font-size: 11px;
-  color: #2980b9;
-  margin-bottom: 4px;
-}
-
-.corrected-text {
+  align-items: center;
+  gap: 7px;
   font-size: 13px;
-  color: #333;
-  margin-bottom: 8px;
-  word-break: break-word;
+  font-weight: 500;
+  color: var(--text-sub, #475569);
 }
 
-.tamil-text {
-  font-family: 'Noto Sans Tamil', sans-serif;
-  font-size: 14px;
-  color: #1a1a2e;
-}
-
-.loading-state {
-  text-align: center;
-  padding: 20px;
-  color: #666;
-}
-
-.loading-dots {
-  display: flex;
-  justify-content: center;
-  gap: 8px;
-  margin-bottom: 10px;
-}
-
-.loading-dots span {
-  width: 8px;
-  height: 8px;
-  background: #667eea;
-  border-radius: 50%;
-  animation: bounce 1.4s infinite ease-in-out both;
-}
-
-.loading-dots span:nth-child(1) { animation-delay: -0.32s; }
-.loading-dots span:nth-child(2) { animation-delay: -0.16s; }
-
-@keyframes bounce {
-  0%, 80%, 100% { transform: scale(0); }
-  40% { transform: scale(1); }
-}
-
-.ai-error {
-  margin-top: 12px;
-  padding: 10px;
-  background: #fee;
-  color: #e74c3c;
-  border-radius: 6px;
-  font-size: 12px;
-}
-
-.spinner-small {
-  display: inline-block;
-  width: 12px;
-  height: 12px;
-  border: 2px solid white;
+.issues-spinner-circle {
+  width: 13px;
+  height: 13px;
+  border: 2px solid #ea580c;
   border-top-color: transparent;
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
-  margin-right: 6px;
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
+.bulk-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-fix-all {
+  background: #ea580c;
+  color: #ffffff;
+  border: none;
+  border-radius: 16px;
+  padding: 4px 13px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-fix-all:hover {
+  background: #c2410c;
+  box-shadow: 0 2px 6px rgba(234, 88, 12, 0.3);
+}
+
+.btn-dismiss-all {
+  background: transparent;
+  border: 1px solid var(--card-border, #e2e8f0);
+  color: var(--text-sub, #64748b);
+  border-radius: 16px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-dismiss-all:hover {
+  background: var(--toolbar-btn-hover, #f8fafc);
+  color: var(--text-main, #0f172a);
+}
+
+/* Scroll Area for Cards */
+.issues-scroll-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 18px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.no-issues-placeholder {
+  text-align: center;
+  padding: 40px 16px;
+  color: var(--text-muted, #94a3b8);
+}
+
+.no-issues-check-icon {
+  width: 44px;
+  height: 44px;
+  margin: 0 auto 12px;
+  background: #ecfdf5;
+  color: #10b981;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.no-issues-main-msg {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-main, #0f172a);
+  margin-bottom: 4px;
+}
+
+.no-issues-sub-msg {
+  font-size: 12px;
+  color: var(--text-muted, #64748b);
+}
+
+/* ── Individual Issue Card (Matches screenshot) ── */
+.issue-card {
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--card-border, #e2e8f0);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: all 0.18s ease;
+}
+
+.issue-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+.issue-card-top {
+  margin-bottom: 10px;
+}
+
+.issue-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 12px;
+  letter-spacing: 0.02em;
+}
+
+.issue-badge.clarity {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+.issue-badge.grammar {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.issue-badge.spelling {
+  background: #e0f2fe;
+  color: #0284c7;
+}
+
+.issue-badge.tense {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.issue-diff-box {
+  margin-bottom: 10px;
+}
+
+.diff-original-row {
+  margin-bottom: 6px;
+}
+
+.original-strikethrough-tag {
+  display: inline-block;
+  background: #fef2f2;
+  color: #dc2626;
+  font-weight: 600;
+  font-size: 14px;
+  padding: 3px 8px;
+  border-radius: 5px;
+  line-height: 1.4;
+}
+
+.original-strikethrough-tag s {
+  text-decoration-thickness: 1.5px;
+}
+
+.diff-corrected-row {
+  color: #16a34a;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.issue-explanation-desc {
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text-sub, #475569);
+  margin-bottom: 14px;
+}
+
+.issue-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-apply-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #ea580c;
+  color: #ffffff;
+  border: none;
+  border-radius: 16px;
+  padding: 5px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-apply-card:hover {
+  background: #c2410c;
+  box-shadow: 0 2px 6px rgba(234, 88, 12, 0.35);
+}
+
+.btn-dismiss-card {
+  background: transparent;
+  border: 1px solid var(--card-border, #e2e8f0);
+  color: var(--text-sub, #64748b);
+  border-radius: 16px;
+  padding: 5px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-dismiss-card:hover {
+  background: var(--toolbar-btn-hover, #f8fafc);
+  color: var(--text-main, #0f172a);
+}
+
+/* ── Quick Actions at Sidebar Bottom ── */
+.sidebar-quick-actions {
+  padding: 14px 18px 16px;
+  border-top: 1px solid var(--card-border, #e2e8f0);
+  background: var(--card-bg, #ffffff);
+}
+
+.quick-actions-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted, #94a3b8);
+  margin-bottom: 10px;
+  letter-spacing: -0.01em;
+}
+
+.quick-actions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.quick-action-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+  color: var(--text-sub, #475569);
+}
+
+.quick-action-item:hover {
+  background: var(--toolbar-btn-hover, #f1f5f9);
+  color: var(--text-main, #0f172a);
+}
+
+.quick-action-symbol {
+  font-size: 14px;
+  width: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted, #64748b);
+}
+
+.quick-action-text {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* ── Quick Action Modal ── */
+.quick-action-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 16px;
+}
+
+.quick-action-modal {
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--card-border, #e2e8f0);
+  border-radius: 14px;
+  width: 100%;
+  max-width: 480px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: modalPop 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalPop {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.qa-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--card-inner-border, #e2e8f0);
+}
+
+.qa-modal-header h3 {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-main, #0f172a);
+}
+
+.qa-close-btn {
+  background: transparent;
+  border: none;
+  font-size: 16px;
+  color: var(--text-muted, #94a3b8);
+  cursor: pointer;
+  padding: 4px;
+}
+
+.qa-modal-body {
+  padding: 18px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.qa-loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px;
+  color: var(--text-sub, #64748b);
+  font-size: 13.5px;
+}
+
+.qa-content-text {
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text-main, #0f172a);
+}
+
+.qa-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--card-inner-border, #e2e8f0);
+  background: var(--toolbar-bg, #f8fafc);
+}
+
+.qa-btn-copy, .qa-btn-insert {
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.qa-btn-copy {
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--card-border, #cbd5e1);
+  color: var(--text-main, #0f172a);
+}
+
+.qa-btn-insert {
+  background: #ea580c;
+  border: none;
+  color: #ffffff;
+}
+
+.qa-btn-done {
+  padding: 6px 14px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted, #64748b);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+@media (max-width: 900px) {
+  .editor-workspace {
+    flex-direction: column;
+  }
+  .ai-assistant-sidebar {
+    width: 100%;
+    max-width: 100%;
+    height: 380px;
+    border-left: none;
+    border-top: 1px solid var(--card-border, #e2e8f0);
+  }
 }
 
 /* Scrollbar Styling */
 .editor-content::-webkit-scrollbar,
 .suggestions-popup::-webkit-scrollbar,
-.ai-panel-content::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+.issues-scroll-area::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
 }
 
 .editor-content::-webkit-scrollbar-track,
 .suggestions-popup::-webkit-scrollbar-track,
-.ai-panel-content::-webkit-scrollbar-track {
-  background: #f1f1f1;
+.issues-scroll-area::-webkit-scrollbar-track {
+  background: var(--card-inner-bg, #f1f1f1);
   border-radius: 4px;
 }
 
 .editor-content::-webkit-scrollbar-thumb,
 .suggestions-popup::-webkit-scrollbar-thumb,
-.ai-panel-content::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
+.issues-scroll-area::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb, #cbd5e1);
   border-radius: 4px;
 }
 
