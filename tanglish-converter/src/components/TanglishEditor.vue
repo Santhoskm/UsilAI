@@ -326,8 +326,14 @@
           <div class="sidebar-title-group">
             <span class="sidebar-spark-icon">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                <path d="M12 2L14.4 8.6L21 11L14.4 13.4L12 20L9.6 13.4L3 11L9.6 8.6L12 2Z" fill="#ea580c"/>
-                <circle cx="18.5" cy="5.5" r="2.2" fill="#f97316"/>
+                <path d="M12 2L14.4 8.6L21 11L14.4 13.4L12 20L9.6 13.4L3 11L9.6 8.6L12 2Z" fill="url(#ai-sparkle-grad)"/>
+                <circle cx="18.5" cy="5.5" r="2.2" fill="#8B5CF6"/>
+                <defs>
+                  <linearGradient id="ai-sparkle-grad" x1="3" y1="2" x2="21" y2="20" gradientUnits="userSpaceOnUse">
+                    <stop stop-color="#6366F1"/>
+                    <stop offset="1" stop-color="#A855F7"/>
+                  </linearGradient>
+                </defs>
               </svg>
             </span>
             <span class="sidebar-title">AI Assistant</span>
@@ -349,7 +355,6 @@
               :class="{ active: autoCheckMode }" 
               @click="setAutoCheckMode(true)"
             >
-              <span class="mode-icon-spark">⚡</span>
               <span>Auto</span>
             </button>
             <button 
@@ -358,7 +363,6 @@
               :class="{ active: !autoCheckMode }" 
               @click="setAutoCheckMode(false)"
             >
-              <span class="mode-icon-clock">🕒</span>
               <span>Manual</span>
             </button>
           </div>
@@ -370,7 +374,7 @@
         <!-- Manual Scan Button (visible when in Manual mode) -->
         <div v-if="!autoCheckMode" class="manual-scan-box">
           <button type="button" class="btn-manual-scan" @click="triggerGrammarScan" :disabled="aiChecking">
-            <span v-if="!aiChecking">🔍 Check Grammar</span>
+            <span v-if="!aiChecking">Check Grammar</span>
             <span v-else>Analyzing document...</span>
           </button>
         </div>
@@ -428,10 +432,7 @@
             <!-- Card Actions -->
             <div class="issue-card-actions">
               <button type="button" class="btn-apply-card" @click="applySingleIssue(issue, idx)">
-                <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor">
-                  <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
-                </svg>
-                <span>Apply</span>
+                Apply
               </button>
               <button type="button" class="btn-dismiss-card" @click="dismissSingleIssue(idx)">
                 Dismiss
@@ -547,7 +548,7 @@ watch(isOutOfCredits, (out) => {
 
 // ── AI Assistant & Grammar Checker Sidebar State ─────────────────
 const aiHelpEnabled = ref(false)
-const autoCheckMode = ref(true)
+const autoCheckMode = ref(false)
 const activeIssues = ref([])
 let checkDebounceTimer = null
 
@@ -2030,11 +2031,10 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
   padding: 7px 12px;
   border: none;
   background: transparent;
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--text-sub, #64748b);
   border-radius: 7px;
@@ -2044,18 +2044,9 @@ onBeforeUnmount(() => {
 
 .mode-pill-btn.active {
   background: var(--card-bg, #ffffff);
-  color: #ea580c;
+  color: var(--accent-indigo, #6366f1);
   font-weight: 700;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
-}
-
-.mode-icon-spark {
-  color: #ea580c;
-  font-size: 12px;
-}
-
-.mode-icon-clock {
-  font-size: 11px;
 }
 
 .mode-timing-hint {
@@ -2072,21 +2063,21 @@ onBeforeUnmount(() => {
 
 .btn-manual-scan {
   width: 100%;
-  padding: 7px 14px;
-  background: linear-gradient(135deg, #ea580c, #f97316);
+  padding: 8px 14px;
+  background: linear-gradient(135deg, var(--accent-indigo, #6366f1), var(--accent-purple, #8b5cf6));
   color: #ffffff;
   border: none;
   border-radius: 8px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.18s ease;
-  box-shadow: 0 2px 6px rgba(234, 88, 12, 0.25);
+  box-shadow: 0 2px 6px rgba(99, 102, 241, 0.25);
 }
 
 .btn-manual-scan:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 4px 10px rgba(234, 88, 12, 0.35);
+  box-shadow: 0 4px 10px rgba(99, 102, 241, 0.35);
 }
 
 .btn-manual-scan:disabled {
@@ -2115,7 +2106,7 @@ onBeforeUnmount(() => {
 .issues-spinner-circle {
   width: 13px;
   height: 13px;
-  border: 2px solid #ea580c;
+  border: 2px solid var(--accent-indigo, #6366f1);
   border-top-color: transparent;
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
@@ -2128,11 +2119,11 @@ onBeforeUnmount(() => {
 }
 
 .btn-fix-all {
-  background: #ea580c;
+  background: var(--btn-primary-bg, #4f46e5);
   color: #ffffff;
   border: none;
   border-radius: 16px;
-  padding: 4px 13px;
+  padding: 4px 14px;
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
@@ -2140,8 +2131,8 @@ onBeforeUnmount(() => {
 }
 
 .btn-fix-all:hover {
-  background: #c2410c;
-  box-shadow: 0 2px 6px rgba(234, 88, 12, 0.3);
+  background: var(--btn-primary-hover, #4338ca);
+  box-shadow: 0 2px 6px rgba(79, 70, 229, 0.3);
 }
 
 .btn-dismiss-all {
@@ -2297,12 +2288,12 @@ onBeforeUnmount(() => {
 .btn-apply-card {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  background: #ea580c;
+  justify-content: center;
+  background: var(--btn-primary-bg, #4f46e5);
   color: #ffffff;
   border: none;
   border-radius: 16px;
-  padding: 5px 16px;
+  padding: 5px 18px;
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
@@ -2310,8 +2301,8 @@ onBeforeUnmount(() => {
 }
 
 .btn-apply-card:hover {
-  background: #c2410c;
-  box-shadow: 0 2px 6px rgba(234, 88, 12, 0.35);
+  background: var(--btn-primary-hover, #4338ca);
+  box-shadow: 0 2px 6px rgba(79, 70, 229, 0.35);
 }
 
 .btn-dismiss-card {
@@ -2579,14 +2570,14 @@ onBeforeUnmount(() => {
   white-space: nowrap;
 }
 .toolbar-btn.btn-ai:hover {
-  background: rgba(241, 196, 15, 0.10);
-  color: #c9991a;
-  border-color: #f1c40f;
+  background: rgba(99, 102, 241, 0.10);
+  color: #6366f1;
+  border-color: #6366f1;
 }
 .toolbar-btn.btn-ai.active {
-  background: rgba(241, 196, 15, 0.15);
-  color: #b8860b;
-  border-color: #e0b800;
+  background: var(--btn-primary-bg, #4f46e5);
+  color: #ffffff;
+  border-color: var(--btn-primary-bg, #4f46e5);
 }
 
 .toolbar-btn.btn-voice {
