@@ -294,18 +294,10 @@
     <div class="editor-workspace" :class="{ 'with-sidebar': aiHelpEnabled }">
       <!-- Editor Area -->
       <div class="editor-wrapper" ref="editorWrapper">
-        <!-- Free Credits Limit Reached Alert: minimal per user request -->
-        <div v-if="!isAuthenticated && isOutOfCredits" class="credit-exhausted-banner">
-          <span class="banner-msg">Reached limit</span>
-          <button class="banner-login-btn" @click="openCreditModal">
-            Sign in
-          </button>
-        </div>
-
         <editor-content :editor="editor" class="editor-content" :style="{ fontFamily: selectedFont.value, fontSize: currentFontSize + 'px' }" />
 
-        <!-- Suggestions Popup (Disabled once credits limit reached) -->
-        <div v-show="showSuggestions && suggestionsList.length > 0 && (!isOutOfCredits || isAuthenticated)"
+        <!-- Suggestions Popup -->
+        <div v-show="showSuggestions && suggestionsList.length > 0"
              class="suggestions-popup"
              :style="popupStyle">
           <div v-for="(suggestion, idx) in suggestionsList"
@@ -367,15 +359,22 @@
             </button>
           </div>
           <p class="mode-timing-hint">
-            {{ autoCheckMode ? 'Checks automatically 3s after you stop typing' : 'Click "Check Grammar" below to scan text' }}
+            {{ isOutOfCredits ? 'Daily limit of 30 grammar checks reached (refills tomorrow)' : (autoCheckMode ? 'Checks automatically 3s after typing (1 credit/check)' : '1 check = 1 credit • ' + creditsLeft + ' of 30 left today') }}
           </p>
         </div>
 
         <!-- Manual Scan Button (visible when in Manual mode) -->
         <div v-if="!autoCheckMode" class="manual-scan-box">
-          <button type="button" class="btn-manual-scan" @click="triggerGrammarScan" :disabled="aiChecking">
-            <span v-if="!aiChecking">Check Grammar</span>
-            <span v-else>Analyzing document...</span>
+          <button 
+            type="button" 
+            class="btn-manual-scan" 
+            @click="triggerGrammarScan" 
+            :disabled="aiChecking || isOutOfCredits"
+            :class="{ 'limit-reached': isOutOfCredits }"
+          >
+            <span v-if="aiChecking">Analyzing document...</span>
+            <span v-else-if="isOutOfCredits">Daily Limit Reached (0/30 credits)</span>
+            <span v-else>Check Grammar ({{ creditsLeft }} credits left)</span>
           </button>
         </div>
 
@@ -383,7 +382,7 @@
         <div class="issues-status-bar">
           <div class="issue-count-label">
             <span v-if="aiChecking" class="issues-spinner-circle"></span>
-            <span>{{ aiChecking ? 'Checking text...' : (activeIssues.length === 1 ? '1 issue' : (activeIssues.length > 0 ? activeIssues.length + ' issues' : 'No issues found')) }}</span>
+            <span>{{ aiChecking ? 'Checking text...' : (isOutOfCredits ? '0 credits left' : (activeIssues.length === 1 ? '1 issue' : (activeIssues.length > 0 ? activeIssues.length + ' issues' : 'No issues found'))) }}</span>
           </div>
           <div v-if="activeIssues.length > 0" class="bulk-actions-group">
             <button type="button" class="btn-fix-all" @click="applyAllIssues">Fix all</button>
@@ -393,7 +392,12 @@
 
         <!-- Issues Cards Container (Scrollable) -->
         <div class="issues-scroll-area">
-          <div v-if="activeIssues.length === 0 && !aiChecking" class="no-issues-placeholder">
+          <div v-if="isOutOfCredits && activeIssues.length === 0" class="credit-limit-sidebar-card">
+            <div class="limit-card-icon">⚡</div>
+            <div class="limit-card-title">Daily Limit Reached</div>
+            <div class="limit-card-desc">You have used all 30 grammar checks for today. Your 30 credits will refill tomorrow!</div>
+          </div>
+          <div v-else-if="activeIssues.length === 0 && !aiChecking" class="no-issues-placeholder">
             <div class="no-issues-check-icon">✓</div>
             <div class="no-issues-main-msg">Your Tamil text looks great!</div>
             <div class="no-issues-sub-msg">No grammar, spelling, or clarity issues found.</div>
@@ -521,11 +525,6 @@ const downloadDropdownRef = ref(null)
 
 // Watch for Deep Learning suggestions from the backend API
 watch(aiSuggestions, (newSuggestions) => {
-  if (!isAuthenticated.value && isOutOfCredits.value) {
-    showSuggestions.value = false
-    suggestionsList.value = []
-    return
-  }
   if (newSuggestions && newSuggestions.length > 0) {
     suggestionsList.value = newSuggestions
     if (!showSuggestions.value) {
@@ -535,14 +534,6 @@ watch(aiSuggestions, (newSuggestions) => {
         updatePopupPosition(editor.value.view)
       }
     }
-  }
-})
-
-// Immediately hide suggestions if credit limit is reached
-watch(isOutOfCredits, (out) => {
-  if (out && !isAuthenticated.value) {
-    showSuggestions.value = false
-    suggestionsList.value = []
   }
 })
 
@@ -709,12 +700,6 @@ const handleTyping = (view, from, to, text) => {
     )
     
     if (shouldConvert && currentWordObj.word && currentWordObj.word.length > 0) {
-        // Enforce credit consumption (1 word = 1 credit)
-        if (!consumeCredit(1)) {
-            showSuggestions.value = false
-            return false
-        }
-
         // Priority 1: Pick top suggestion from active suggestions popup if available
         let converted = ''
         const topCandidate = suggestionsList.value && suggestionsList.value[0]
@@ -766,19 +751,9 @@ const handleTyping = (view, from, to, text) => {
     suggestionsList.value = []
     showSuggestions.value = false
 
-    // Once credit limit is reached, do not fetch or show suggestions
-    if (!isAuthenticated.value && isOutOfCredits.value) {
-        return false
-    }
-
     // Update suggestions AFTER TipTap commits the new character
     setTimeout(() => {
         if (!editor.value) return
-        if (!isAuthenticated.value && isOutOfCredits.value) {
-            showSuggestions.value = false
-            suggestionsList.value = []
-            return
-        }
         const { state: newState } = editor.value
         const { $from: new$from } = newState.selection
         const newCursorPos = new$from.pos
@@ -856,16 +831,8 @@ const handleKeyDown = (view, event) => {
       // Clear immediately before the timeout so stale list never flashes
       suggestionsList.value = []
       showSuggestions.value = false
-      if (!isAuthenticated.value && isOutOfCredits.value) {
-        return false
-      }
       setTimeout(() => {
         if (!editor.value) return
-        if (!isAuthenticated.value && isOutOfCredits.value) {
-          showSuggestions.value = false
-          suggestionsList.value = []
-          return
-        }
         const { state } = view
         const { selection } = state
         const { $from } = selection
@@ -910,11 +877,6 @@ const selectSuggestion = (suggestion, index = -1, addSpace = false) => {
   const currentWordObj = getCurrentWord(textBefore, cursorPos)
   
   if (currentWordObj.word) {
-    if (!consumeCredit(1)) {
-      showSuggestions.value = false
-      return
-    }
-
     replaceWord(view, currentWordObj.start, currentWordObj.end, suggestion.tamil, addSpace)
     
     if (index > 0) {
@@ -1148,8 +1110,10 @@ const setAutoCheckMode = (val) => {
 const toggleAIHelp = () => {
   aiHelpEnabled.value = !aiHelpEnabled.value
   if (aiHelpEnabled.value) {
-    // Initial scan when sidebar opens
-    triggerGrammarScan()
+    // Initial scan when sidebar opens if credits available
+    if (!isOutOfCredits.value) {
+      triggerGrammarScan()
+    }
   } else {
     activeIssues.value = []
     if (checkDebounceTimer) clearTimeout(checkDebounceTimer)
@@ -1165,12 +1129,20 @@ const scheduleAutoCheck = () => {
   }, 3000)
 }
 
-// Core grammar scanning function
+// Core grammar scanning function (1 check = 1 credit, 30 credits/day)
 const triggerGrammarScan = async () => {
   if (!editor.value) return
   const text = editor.value.getText().trim()
   if (!text) {
     activeIssues.value = []
+    return
+  }
+
+  // Enforce grammar check credit limit
+  if (isOutOfCredits.value) {
+    return
+  }
+  if (!consumeCredit(1)) {
     return
   }
 
@@ -2192,6 +2164,33 @@ onBeforeUnmount(() => {
 .no-issues-sub-msg {
   font-size: 12px;
   color: var(--text-muted, #64748b);
+}
+
+.credit-limit-sidebar-card {
+  text-align: center;
+  padding: 32px 18px;
+  background: var(--card-inner-bg, #f8fafc);
+  border: 1px dashed var(--credits-border, rgba(99, 102, 241, 0.3));
+  border-radius: 12px;
+  margin: 10px 0;
+}
+
+.limit-card-icon {
+  font-size: 26px;
+  margin-bottom: 8px;
+}
+
+.limit-card-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-main, #0f172a);
+  margin-bottom: 6px;
+}
+
+.limit-card-desc {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-sub, #64748b);
 }
 
 /* ── Individual Issue Card (Matches screenshot) ── */

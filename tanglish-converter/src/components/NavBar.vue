@@ -27,7 +27,7 @@
           class="credits-badge" 
           @click="!isAuthenticated && openLoginModal()"
           :class="{ 'clickable': !isAuthenticated }"
-          :title="isAuthenticated ? 'Logged-in user: ' + creditsLeft + ' credits remaining' : '50 free words per day. Click to sign in for 500+ credits!'"
+          :title="creditsLeft + ' of 30 daily grammar checks remaining (refills every day)'"
         >
           <span class="credits-icon">⚡</span>
           <span class="credits-text">{{ creditsLeft }} credits / day</span>
