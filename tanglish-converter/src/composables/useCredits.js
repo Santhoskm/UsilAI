@@ -1,106 +1,104 @@
 import { ref, computed } from 'vue'
-import { useAuth } from './useAuth'
 
+export const TOTAL_CREDITS = 30
 export const DAILY_LIMIT = 30
+export const REFILL_HOURS = 16
+const REFILL_MS = REFILL_HOURS * 60 * 60 * 1000 // 16 hours in milliseconds
 const STORAGE_PREFIX = 'usil_credits_'
 
-function getTodayString() {
-    const d = new Date()
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
-// Global reactive state for grammar checks used
-const anonChecksUsed = ref(0)
-const userChecksUsed = ref(0)
+// Global shared reactive state (persists and carries over with or without login)
+const sharedCreditsUsed = ref(0)
+const refillTimestamp = ref(0)
 const showCreditLimitModal = ref(false)
-
-const { user, isAuthenticated } = useAuth()
 
 function initCredits() {
     if (typeof window === 'undefined') return
-    const today = getTodayString()
-    const storedDate = localStorage.getItem(`${STORAGE_PREFIX}date`)
+    const now = Date.now()
 
-    if (storedDate !== today) {
-        // New day: automatically refill credits to full (30 per day)
-        localStorage.setItem(`${STORAGE_PREFIX}date`, today)
-        localStorage.setItem(`${STORAGE_PREFIX}anon_used`, '0')
-        anonChecksUsed.value = 0
-        userChecksUsed.value = 0
-        if (user.value?.id) {
-            localStorage.setItem(`${STORAGE_PREFIX}user_${user.value.id}_used`, '0')
-        }
-    } else {
-        const storedAnon = parseInt(localStorage.getItem(`${STORAGE_PREFIX}anon_used`) || '0', 10)
-        anonChecksUsed.value = isNaN(storedAnon) ? 0 : storedAnon
+    let storedRefill = parseInt(localStorage.getItem(`${STORAGE_PREFIX}refill_at`) || '0', 10)
+    let storedUsed = parseInt(localStorage.getItem(`${STORAGE_PREFIX}used`) || '0', 10)
 
-        // Initialize user checks if logged in
-        if (user.value?.id) {
-            const storedUser = parseInt(localStorage.getItem(`${STORAGE_PREFIX}user_${user.value.id}_used`) || '0', 10)
-            userChecksUsed.value = isNaN(storedUser) ? 0 : storedUser
+    // Check legacy storage migration if needed
+    if (isNaN(storedUsed) || storedUsed === 0) {
+        const legacyAnon = parseInt(localStorage.getItem(`${STORAGE_PREFIX}anon_used`) || '0', 10)
+        if (!isNaN(legacyAnon) && legacyAnon > 0) {
+            storedUsed = legacyAnon
         }
     }
+
+    if (!storedRefill || isNaN(storedRefill) || now >= storedRefill) {
+        // Refill credits: 16 hours elapsed or first visit
+        storedRefill = now + REFILL_MS
+        storedUsed = 0
+        try {
+            localStorage.setItem(`${STORAGE_PREFIX}refill_at`, storedRefill.toString())
+            localStorage.setItem(`${STORAGE_PREFIX}used`, '0')
+        } catch (_) {}
+    }
+
+    refillTimestamp.value = storedRefill
+    sharedCreditsUsed.value = isNaN(storedUsed) ? 0 : storedUsed
 }
 
 // Run immediately
 initCredits()
 
-// Compute remaining credits: 30 credits per day, whether logged in or not
-const totalCredits = computed(() => {
-    return DAILY_LIMIT
-})
+// Compute remaining credits: 30 credits total, carried over whether logged in or not
+const totalCredits = computed(() => TOTAL_CREDITS)
 
-const creditsUsed = computed(() => {
-    return isAuthenticated.value && user.value?.id ? userChecksUsed.value : anonChecksUsed.value
-})
+const creditsUsed = computed(() => sharedCreditsUsed.value)
 
 const creditsLeft = computed(() => {
-    return Math.max(0, totalCredits.value - creditsUsed.value)
+    if (refillTimestamp.value && Date.now() >= refillTimestamp.value) {
+        initCredits()
+    }
+    return Math.max(0, TOTAL_CREDITS - sharedCreditsUsed.value)
 })
 
-const isOutOfCredits = computed(() => {
-    return creditsLeft.value <= 0
+const isOutOfCredits = computed(() => creditsLeft.value <= 0)
+
+// Helper: formatted time until next refill (e.g. "15h 42m")
+const formattedTimeUntilRefill = computed(() => {
+    const diff = Math.max(0, refillTimestamp.value - Date.now())
+    const hours = Math.floor(diff / (1000 * 60 * 60))
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+    if (hours > 0) {
+        return `${hours}h ${minutes}m`
+    }
+    return `${minutes}m`
 })
 
 export function useCredits() {
-    // Re-verify date & refill if day rolled over
-    initCredits()
-
-    // Re-check if user ID changes
-    if (user.value?.id) {
-        const storedUser = parseInt(localStorage.getItem(`${STORAGE_PREFIX}user_${user.value.id}_used`) || '0', 10)
-        userChecksUsed.value = isNaN(storedUser) ? 0 : storedUser
+    // Check if 16h cycle has elapsed
+    if (refillTimestamp.value && Date.now() >= refillTimestamp.value) {
+        initCredits()
     }
 
     /**
      * Consume credits for grammar checks (1 check = 1 credit).
+     * Carried over with or without login.
      * @param {number} count Number of credits to consume
-     * @returns {boolean} True if credit consumed successfully, False if out of credits
+     * @returns {boolean} True if consumed, False if out of credits
      */
     const consumeCredit = (count = 1) => {
+        // Auto-refill if 16 hours passed
+        if (refillTimestamp.value && Date.now() >= refillTimestamp.value) {
+            initCredits()
+        }
+
         if (creditsLeft.value < count) {
             showCreditLimitModal.value = true
             return false
         }
 
-        if (isAuthenticated.value && user.value?.id) {
-            userChecksUsed.value += count
-            try {
-                localStorage.setItem(`${STORAGE_PREFIX}user_${user.value.id}_used`, userChecksUsed.value.toString())
-            } catch (_) {}
-        } else {
-            anonChecksUsed.value += count
-            try {
-                localStorage.setItem(`${STORAGE_PREFIX}anon_used`, anonChecksUsed.value.toString())
-            } catch (_) {}
-        }
+        sharedCreditsUsed.value += count
+        try {
+            localStorage.setItem(`${STORAGE_PREFIX}used`, sharedCreditsUsed.value.toString())
+        } catch (_) {}
 
         return true
     }
 
-    /**
-     * Check if user can run a grammar check without consuming yet
-     */
     const canConvert = (count = 1) => {
         return creditsLeft.value >= count
     }
@@ -114,13 +112,15 @@ export function useCredits() {
     }
 
     return {
+        TOTAL_CREDITS,
         DAILY_LIMIT,
-        ANON_LIMIT: DAILY_LIMIT,
-        USER_LIMIT: DAILY_LIMIT,
+        REFILL_HOURS,
         totalCredits,
         creditsUsed,
         creditsLeft,
         isOutOfCredits,
+        refillTimestamp,
+        formattedTimeUntilRefill,
         showCreditLimitModal,
         consumeCredit,
         canConvert,

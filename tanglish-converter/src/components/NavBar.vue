@@ -22,15 +22,15 @@
 
       <!-- Right Section -->
       <div class="nav-right">
-        <!-- Daily Credits Badge -->
+        <!-- Credits Badge (30 credits, carries over with/without login, refills every 16h) -->
         <div 
           class="credits-badge" 
           @click="!isAuthenticated && openLoginModal()"
           :class="{ 'clickable': !isAuthenticated }"
-          :title="creditsLeft + ' of 30 daily grammar checks remaining (refills every day)'"
+          :title="creditsLeft + ' of 30 grammar checks remaining. Refills in ' + formattedTimeUntilRefill"
         >
           <span class="credits-icon">⚡</span>
-          <span class="credits-text">{{ creditsLeft }} credits / day</span>
+          <span class="credits-text">{{ creditsLeft }} credits</span>
         </div>
 
         <!-- Theme Toggle (Light / Dark) -->
@@ -184,7 +184,7 @@ import { useCredits } from '@/composables/useCredits'
 const router = useRouter()
 const { user, isAuthenticated, logout } = useAuth()
 const { theme, toggleTheme, setTheme } = useTheme()
-const { creditsLeft, totalCredits, isOutOfCredits, showCreditLimitModal, closeCreditModal } = useCredits()
+const { creditsLeft, totalCredits, isOutOfCredits, formattedTimeUntilRefill, showCreditLimitModal, closeCreditModal } = useCredits()
 
 const showAuthModal = ref(false)
 const showUserMenu = ref(false)

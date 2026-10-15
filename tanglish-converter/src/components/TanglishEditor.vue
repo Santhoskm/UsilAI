@@ -359,7 +359,7 @@
             </button>
           </div>
           <p class="mode-timing-hint">
-            {{ isOutOfCredits ? 'Daily limit of 30 grammar checks reached (refills tomorrow)' : (autoCheckMode ? 'Checks automatically 3s after typing (1 credit/check)' : '1 check = 1 credit • ' + creditsLeft + ' of 30 left today') }}
+            {{ isOutOfCredits ? 'Limit of 30 grammar checks reached (refills in ' + formattedTimeUntilRefill + ')' : (autoCheckMode ? 'Checks automatically 3s after typing (1 credit/check)' : '1 check = 1 credit • ' + creditsLeft + ' of 30 left (refills in ' + formattedTimeUntilRefill + ')') }}
           </p>
         </div>
 
@@ -373,7 +373,7 @@
             :class="{ 'limit-reached': isOutOfCredits }"
           >
             <span v-if="aiChecking">Analyzing document...</span>
-            <span v-else-if="isOutOfCredits">Daily Limit Reached (0/30 credits)</span>
+            <span v-else-if="isOutOfCredits">Limit Reached (Refills in {{ formattedTimeUntilRefill }})</span>
             <span v-else>Check Grammar ({{ creditsLeft }} credits left)</span>
           </button>
         </div>
@@ -394,8 +394,8 @@
         <div class="issues-scroll-area">
           <div v-if="isOutOfCredits && activeIssues.length === 0" class="credit-limit-sidebar-card">
             <div class="limit-card-icon">⚡</div>
-            <div class="limit-card-title">Daily Limit Reached</div>
-            <div class="limit-card-desc">You have used all 30 grammar checks for today. Your 30 credits will refill tomorrow!</div>
+            <div class="limit-card-title">Credit Limit Reached</div>
+            <div class="limit-card-desc">You have used all 30 grammar checks. Your credits will refill in {{ formattedTimeUntilRefill }} (16-hour cycle).</div>
           </div>
           <div v-else-if="activeIssues.length === 0 && !aiChecking" class="no-issues-placeholder">
             <div class="no-issues-check-icon">✓</div>
@@ -501,7 +501,7 @@ import { useAuth } from '@/composables/useAuth'
 import { useCredits } from '@/composables/useCredits'
 
 const { isAuthenticated } = useAuth()
-const { creditsLeft, isOutOfCredits, consumeCredit, openCreditModal } = useCredits()
+const { creditsLeft, isOutOfCredits, formattedTimeUntilRefill, consumeCredit, openCreditModal } = useCredits()
 const { suggestions: aiSuggestions, convertWord, convertSentence, getSuggestions, learnCorrection, recordUsage } = useTanglishConverter()
 const { checkGrammar, isChecking: aiChecking, error: aiError, correctionResult } = useClaudeGrammarChecker()
 
