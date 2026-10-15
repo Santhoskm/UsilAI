@@ -564,3 +564,98 @@ export async function fetchAdminAnalytics() {
         throw err
     }
 }
+
+/**
+ * ── Backend AI Tools APIs (Secure Server-Side Claude Calls) ────────────────
+ */
+
+/**
+ * Server-side AI Grammar Check
+ */
+export async function checkGrammarAI(text) {
+    const response = await fetch(`${API_BASE}/tools/grammar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text })
+    })
+    if (!response.ok) {
+        const err = await response.json().catch(() => ({}))
+        throw new Error(err.detail || `Server error: ${response.status}`)
+    }
+    return await response.json()
+}
+
+/**
+ * Server-side Tamil SEO Blog Generator
+ */
+export async function generateBlogAI({ topic, tone = 'conversational', wordCount = 500, instructions = '' }) {
+    const response = await fetch(`${API_BASE}/tools/blog`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            topic,
+            tone,
+            word_count: Number(wordCount) || 500,
+            instructions
+        })
+    })
+    if (!response.ok) {
+        const err = await response.json().catch(() => ({}))
+        throw new Error(err.detail || `Server error: ${response.status}`)
+    }
+    return await response.json()
+}
+
+/**
+ * Server-side Tamil OCR Vision
+ */
+export async function extractTamilOCRAI({ imageBase64, mimeType = 'image/jpeg' }) {
+    const response = await fetch(`${API_BASE}/tools/ocr`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            image_base64: imageBase64,
+            mime_type: mimeType
+        })
+    })
+    if (!response.ok) {
+        const err = await response.json().catch(() => ({}))
+        throw new Error(err.detail || `Server error: ${response.status}`)
+    }
+    return await response.json()
+}
+
+/**
+ * Server-side AI Word Transliteration Fallback
+ */
+export async function transliterateAIWord(tanglishWord, surroundingTamil = '') {
+    const response = await fetch(`${API_BASE}/tools/ai-word`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            tanglish_word: tanglishWord,
+            surrounding_tamil: surroundingTamil
+        })
+    })
+    if (!response.ok) return null
+    const data = await response.json()
+    return data.tamil || null
+}
+
+/**
+ * Server-side Tamil to English Translation
+ */
+export async function translateTamilToEnglishAI(text) {
+    const response = await fetch(`${API_BASE}/tools/translate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text })
+    })
+    if (!response.ok) {
+        const err = await response.json().catch(() => ({}))
+        throw new Error(err.detail || `Server error: ${response.status}`)
+    }
+    return await response.json()
+}
+
+

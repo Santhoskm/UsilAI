@@ -42,9 +42,6 @@ def verify_admin_token(token: str) -> bool:
     """Validates token authenticity, signature, expiration, and username match."""
     if not token:
         return False
-    # Allow master secret key directly (useful for tests or server scripts)
-    if token == settings.ADMIN_SECRET_KEY:
-        return True
     try:
         parts = token.split(":")
         if len(parts) != 3:

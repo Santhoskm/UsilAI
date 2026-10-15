@@ -5,3 +5,8 @@ usil-backend/reranker/model_dynamic.onnx
 usil-backend/reranker/model_dynamic.onnx.data
 __pycache__/
 *.pyc
+.env
+.env.*
+*.env
+!*.env.example
+

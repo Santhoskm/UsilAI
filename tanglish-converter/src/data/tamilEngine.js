@@ -2,6 +2,7 @@ import Sanscript from '@indic-transliteration/sanscript';
 import { disambiguateLa, generateLaCandidates, isLaAmbiguous, disambiguateRa, isRaAmbiguous } from './tamilLaDisambiguator.js';
 import { commonWords } from './tamilMapping.js';
 import { tamilFrequencyList, FREQUENCY_LIST_SIZE } from './tamilFrequencyList.js';
+import { transliterateAIWord } from '../services/apiService.js';
 
 // ================================================================
 // PERFECT TAMIL CONVERSION ENGINE v2.0  (Backend-powered)
@@ -4625,27 +4626,7 @@ export async function aiDisambiguate(tanglishWord, surroundingTamil = '') {
     if (_aiWordCache.has(cacheKey)) return _aiWordCache.get(cacheKey);
 
     try {
-        const prompt = surroundingTamil
-            ? `You are a Tamil transliteration expert. The user typed "${tanglishWord}" in Tanglish. Surrounding Tamil text: "${surroundingTamil}". What is the single most correct Tamil word for "${tanglishWord}" in this context? Reply with ONLY the Tamil word, nothing else.`
-            : `You are a Tamil transliteration expert. The user typed "${tanglishWord}" in Tanglish (Tamil in English letters). What is the single most correct Tamil word? Reply with ONLY the Tamil word, nothing else.`;
-
-        const apiKey = import.meta.env.VITE_CLAUDE_API_KEY;
-        const response = await fetch('https://api.anthropic.com/v1/messages', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-api-key': apiKey || '',
-                'anthropic-version': '2023-06-01',
-                'anthropic-dangerous-direct-browser-access': 'true'
-            },
-            body: JSON.stringify({
-                model: 'claude-haiku-4-5-20251001',
-                max_tokens: 50,
-                messages: [{ role: 'user', content: prompt }]
-            })
-        });
-        const data = await response.json();
-        const result = data?.content?.[0]?.text?.trim();
+        const result = await transliterateAIWord(tanglishWord, surroundingTamil);
         if (result && /[\u0B80-\u0BFF]/.test(result)) {
             _aiWordCache.set(cacheKey, result);
             learnCorrection(tanglishWord.toLowerCase(), result);

@@ -300,7 +300,7 @@ Or paste multiple lines - each line will become a separate subtitle cue."
 
 <script setup>
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
-import axios from 'axios'
+import { checkGrammarAI } from '@/services/apiService'
 
 const emit = defineEmits(['subtitles-generated'])
 
@@ -325,11 +325,6 @@ const settings = ref({
   addPeriods: false,
   capitalizeFirst: false,
   tamilScript: true
-})
-
-// Check if API key is configured
-const hasApiKey = computed(() => {
-  return import.meta.env.VITE_CLAUDE_API_KEY && import.meta.env.VITE_CLAUDE_API_KEY.length > 0
 })
 
 // Computed
@@ -527,7 +522,7 @@ const generateSubtitles = async () => {
   }
 }
 
-// AI Grammar Check using Claude API
+// AI Grammar Check using Backend Claude API
 const runGrammarCheck = async () => {
   if (!subtitleContent.value.trim()) return
   
@@ -536,67 +531,7 @@ const runGrammarCheck = async () => {
   aiError.value = null
   
   try {
-    const API_KEY = import.meta.env.VITE_CLAUDE_API_KEY
-    
-    if (!API_KEY) {
-      performBasicGrammarCheck()
-      return
-    }
-    
-    const prompt = `You are a Tamil language grammar expert. Analyze the following Tamil text and correct any grammatical errors.
-
-Text to check: "${subtitleContent.value}"
-
-Rules to check:
-1. Verb conjugations
-2. Word order
-3. Tense consistency
-4. Respectful forms (neenga vs nee)
-5. Question formation
-6. Common Tamil grammar mistakes
-
-Respond ONLY with valid JSON in this exact format:
-
-{
-    "hasErrors": true,
-    "corrections": [
-        {
-            "original": "original text segment",
-            "corrected": "corrected text segment",
-            "explanation": "brief explanation of the error",
-            "type": "grammar"
-        }
-    ]
-}
-
-If no errors found, return:
-{
-    "hasErrors": false,
-    "corrections": []
-}`
-
-    const response = await axios.post('https://api.anthropic.com/v1/messages', {
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 1024,
-      temperature: 0.3,
-      messages: [
-        {
-          role: 'user',
-          content: prompt
-        }
-      ]
-    }, {
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': API_KEY,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
-      },
-      timeout: 30000
-    })
-
-    const claudeResponse = response.data.content[0].text
-    const parsed = parseAIResponse(claudeResponse)
+    const parsed = await checkGrammarAI(subtitleContent.value)
     
     if (parsed && parsed.corrections && parsed.corrections.length > 0) {
       grammarSuggestions.value = parsed.corrections

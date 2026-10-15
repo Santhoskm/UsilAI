@@ -231,7 +231,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import axios from 'axios'
+import { generateBlogAI } from '@/services/apiService'
 
 const emit = defineEmits(['blog-generated'])
 
@@ -265,9 +265,18 @@ const wordCountOptions = [
 ]
 
 // Computed
+const escapeHtml = (text) => {
+  return String(text || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+}
+
 const formattedBlog = computed(() => {
   if (!generatedBlog.value) return ''
-  return generatedBlog.value.replace(/\n/g, '<br>')
+  return escapeHtml(generatedBlog.value).replace(/\n/g, '<br>')
 })
 
 // Helper functions
@@ -281,110 +290,47 @@ const generateBlog = async () => {
 
   isGenerating.value = true
   progress.value = 0
-  progressMessage.value = 'Analyzing topic...'
+  progressMessage.value = 'Connecting to AI server...'
   generatedBlog.value = ''
   seoKeywords.value = null
   tamilSeoKeywords.value = null
 
+  // Progress simulation
+  const progressInterval = setInterval(() => {
+    if (progress.value < 90) {
+      progress.value += 10
+      if (progress.value === 30) progressMessage.value = 'Researching keywords...'
+      if (progress.value === 50) progressMessage.value = 'Writing blog content...'
+      if (progress.value === 70) progressMessage.value = 'Optimizing for SEO...'
+      if (progress.value === 85) progressMessage.value = 'Finalizing...'
+    }
+  }, 800)
+
   try {
-    const API_KEY = import.meta.env.VITE_CLAUDE_API_KEY
-    
-    if (!API_KEY) {
-      throw new Error('Claude API key not configured')
-    }
-
-    // Progress simulation
-    const progressInterval = setInterval(() => {
-      if (progress.value < 90) {
-        progress.value += 10
-        if (progress.value === 30) progressMessage.value = 'Researching keywords...'
-        if (progress.value === 50) progressMessage.value = 'Writing blog content...'
-        if (progress.value === 70) progressMessage.value = 'Optimizing for SEO...'
-        if (progress.value === 85) progressMessage.value = 'Finalizing...'
-      }
-    }, 800)
-
-    const prompt = `You are an expert Tamil content writer and SEO specialist. Generate a comprehensive blog post based on the following requirements:
-
-TOPIC: "${topic.value}"
-WRITING TONE: ${selectedTone.value} (${toneOptions.find(t => t.value === selectedTone.value)?.tamil})
-TARGET WORD COUNT: ${selectedWordCount.value} words
-${additionalInstructions.value ? `ADDITIONAL INSTRUCTIONS: ${additionalInstructions.value}` : ''}
-
-Please generate the following in valid JSON format:
-
-{
-  "blog": {
-    "title": "Tamil blog title (catchy and SEO-optimized)",
-    "content": "Full Tamil blog content with proper formatting using line breaks. Include introduction, main points (2-3 subheadings), conclusion.",
-    "meta": {
-      "wordCount": "actual word count",
-      "readingTime": "estimated minutes to read",
-      "tone": "${selectedTone.value}"
-    }
-  },
-  "seoKeywords": {
-    "primary": ["3-4 primary English keywords"],
-    "secondary": ["5-6 secondary English keywords"],
-    "longTail": ["4-5 long-tail English keywords"],
-    "lsi": ["4-5 LSI English keywords"]
-  },
-  "tamilSeoKeywords": {
-    "primary": ["3-4 primary Tamil keywords (தமிழில்)"],
-    "secondary": ["5-6 secondary Tamil keywords (தமிழில்)"],
-    "longTail": ["4-5 long-tail Tamil keywords (தமிழில்)"]
-  }
-}
-
-Requirements:
-- Blog content MUST be in Tamil language (Tamil script)
-- Keep the tone ${selectedTone.value} throughout
-- Include natural keyword placement
-- Make it engaging and valuable for readers
-- SEO keywords should be relevant to the topic
-- Tamil keywords should be accurate and commonly searched
-- Title should be compelling in Tamil`
-
-    const response = await axios.post('https://api.anthropic.com/v1/messages', {
-      model: 'claude-sonnet-4-5-20250929',
-      max_tokens: 4000,
-      temperature: 0.7,
-      messages: [
-        {
-          role: 'user',
-          content: prompt
-        }
-      ]
-    }, {
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': API_KEY,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
-      },
-      timeout: 60000
+    const parsed = await generateBlogAI({
+      topic: topic.value,
+      tone: selectedTone.value,
+      wordCount: selectedWordCount.value,
+      instructions: additionalInstructions.value
     })
 
     clearInterval(progressInterval)
     progress.value = 100
     progressMessage.value = 'Complete!'
 
-    const claudeResponse = response.data.content[0].text
-    const parsed = parseResponse(claudeResponse)
-
-    if (parsed) {
+    if (parsed && parsed.blog) {
       generatedBlog.value = `# ${parsed.blog.title}\n\n${parsed.blog.content}`
       blogMeta.value = parsed.blog.meta
       seoKeywords.value = parsed.seoKeywords
       tamilSeoKeywords.value = parsed.tamilSeoKeywords
-      
+
       emit('blog-generated', {
         blog: generatedBlog.value,
         seoKeywords: parsed.seoKeywords,
         tamilSeoKeywords: parsed.tamilSeoKeywords
       })
     } else {
-      throw new Error('Failed to parse response')
+      throw new Error('Failed to parse blog response from server')
     }
 
     setTimeout(() => {
@@ -393,12 +339,13 @@ Requirements:
     }, 500)
 
   } catch (error) {
+    clearInterval(progressInterval)
     console.error('Blog generation error:', error)
     progressMessage.value = `Error: ${error.message}`
     setTimeout(() => {
       isGenerating.value = false
       progress.value = 0
-    }, 2000)
+    }, 3000)
   }
 }
 

@@ -365,6 +365,7 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
+import { translateTamilToEnglishAI } from '@/services/apiService'
 
 const emit = defineEmits(['text-extracted'])
 const router = useRouter()
@@ -412,8 +413,6 @@ let animationFrameId = null
 // Web Speech API
 let recognition = null
 let userRequestedStop = false
-
-const CLAUDE_API_KEY = import.meta.env.VITE_CLAUDE_API_KEY
 
 const formattedRecordingTime = computed(() => {
   const mins = Math.floor(recordingSeconds.value / 60)
@@ -773,81 +772,21 @@ const runWhisperTranscription = async () => {
 }
 
 // -------------------------------------------------------------------------
-// Translation to English using Claude Sonnet
+// Translation to English using Backend Claude Service
 // -------------------------------------------------------------------------
 const triggerTranslation = async () => {
   const tamilText = tamilTranscript.value.trim()
   if (!tamilText) return
 
-  if (!CLAUDE_API_KEY) {
-    audioError.value = 'Claude API key not configured for English translation.'
-    return
-  }
-
   isTranslating.value = true
   audioError.value = null
 
   try {
-    const response = await axios.post(
-      'https://api.anthropic.com/v1/messages',
-      {
-        model: 'claude-sonnet-4-5-20250929',
-        max_tokens: 1500,
-        temperature: 0.2,
-        messages: [
-          {
-            role: 'user',
-            content: `You are a professional Tamil-to-English translator.
-Translate the following spoken Tamil speech transcript accurately and fluently into English.
-Maintain natural conversational grammar, preserve proper nouns, and keep all numbers/dates intact.
-Output ONLY the English translation without introductory remarks, explanations, or quotes.
-
-Tamil Transcript:
-${tamilText}`
-          }
-        ]
-      },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': CLAUDE_API_KEY,
-          'anthropic-version': '2023-06-01',
-          'anthropic-dangerous-direct-browser-access': 'true'
-        }
-      }
-    )
-
-    englishTranslation.value = response.data?.content?.[0]?.text?.trim() || ''
+    const data = await translateTamilToEnglishAI(tamilText)
+    englishTranslation.value = data.translated_text || ''
   } catch (err) {
     console.error('Translation error:', err)
-    // Fallback to Haiku if Sonnet fails
-    try {
-      const fallbackRes = await axios.post(
-        'https://api.anthropic.com/v1/messages',
-        {
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 1000,
-          temperature: 0.2,
-          messages: [
-            {
-              role: 'user',
-              content: `Translate this Tamil text to English concisely:\n\n${tamilText}`
-            }
-          ]
-        },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': CLAUDE_API_KEY,
-            'anthropic-version': '2023-06-01',
-            'anthropic-dangerous-direct-browser-access': 'true'
-          }
-        }
-      )
-      englishTranslation.value = fallbackRes.data?.content?.[0]?.text?.trim() || ''
-    } catch (fbErr) {
-      audioError.value = 'Translation failed: ' + (fbErr.message || 'network error')
-    }
+    audioError.value = 'Translation failed: ' + (err.message || 'server error')
   } finally {
     isTranslating.value = false
   }

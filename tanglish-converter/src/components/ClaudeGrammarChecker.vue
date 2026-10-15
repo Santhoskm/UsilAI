@@ -150,11 +150,7 @@ const emit = defineEmits(['correction-applied'])
 const { isChecking, correctionResult, error, checkGrammar } = useClaudeGrammarChecker()
 
 const inputText = ref('')
-const placeholderText = ref('Type Tanglish or Tamil text here... Claude AI will check grammar...')
-
-const hasApiKey = computed(() => {
-  return import.meta.env.VITE_CLAUDE_API_KEY && import.meta.env.VITE_CLAUDE_API_KEY.length > 0
-})
+const placeholderText = ref('Type Tanglish or Tamil text here... AI will check grammar...')
 
 const checkGrammarText = async () => {
   if (!inputText.value.trim()) return

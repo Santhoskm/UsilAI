@@ -12,6 +12,7 @@ from typing import Optional
 from app.database import get_db, engine
 from app.services.suggestion_service import SuggestionService
 from app.state import trie_cache
+from app.api.v1.admin import get_current_admin
 
 router = APIRouter(prefix="/suggestions", tags=["suggestions"])
 
@@ -212,11 +213,13 @@ class AddWordBatchRequest(BaseModel):
 @router.post("/words")
 async def add_word(
     req: AddWordRequest,
+    current_admin: str = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Add a single Tanglish→Tamil word to the database.
     If the word already exists, its tamil mapping and frequency are updated.
+    Protected: Requires Admin Authentication.
     """
     tanglish = req.tanglish.lower().strip()
     tamil = req.tamil.strip()
@@ -238,11 +241,13 @@ async def add_word(
 @router.post("/words/batch")
 async def add_words_batch(
     req: AddWordBatchRequest,
+    current_admin: str = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Add multiple words at once.
     Existing words are updated (upsert).
+    Protected: Requires Admin Authentication.
     """
     added = 0
     for word in req.words:
@@ -276,6 +281,7 @@ async def get_word_count(db: AsyncSession = Depends(get_db)):
 @router.delete("/words")
 async def delete_word(
     tanglish: str = Query(..., description="Tanglish word to delete"),
+    current_admin: str = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Delete a word from the database by its tanglish key."""

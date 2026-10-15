@@ -1,6 +1,6 @@
 import { ref } from 'vue'
-import axios from 'axios'
 import { createWorker } from 'tesseract.js'
+import { extractTamilOCRAI } from '@/services/apiService'
 
 export function useTamilOCR() {
     const isProcessing = ref(false)
@@ -9,8 +9,6 @@ export function useTamilOCR() {
     const error = ref(null)
     const ocrEngine = ref('ai') // 'ai' (Claude Vision) or 'tesseract' (Local)
 
-    const API_KEY = import.meta.env.VITE_CLAUDE_API_KEY
-    const API_URL = 'https://api.anthropic.com/v1/messages'
     const activeEngineUsed = ref('ai')
 
     let worker = null
@@ -29,12 +27,8 @@ export function useTamilOCR() {
         })
     }
 
-    // AI Vision OCR using Claude
+    // AI Vision OCR using Backend Claude Service
     const extractWithClaudeVision = async (imageFile) => {
-        if (!API_KEY) {
-            throw new Error('Claude API key not configured')
-        }
-
         statusMessage.value = 'Preparing image for Claude AI Vision...'
         progress.value = 25
 
@@ -43,60 +37,12 @@ export function useTamilOCR() {
         statusMessage.value = 'Claude AI Vision is reading Tamil characters...'
         progress.value = 60
 
-        const prompt = `You are a specialized Tamil language Optical Character Recognition (OCR) engine.
-Your task is to transcribe ALL printed text from this Tamil document or newspaper image with high fidelity.
-
-MANDATORY SCRIPT & ACCURACY RULES:
-1. SCRIPT ENFORCEMENT: The text in this image is exclusively TAMIL SCRIPT (தமிழ் எழுத்துக்கள்). Under NO circumstances should you produce Hindi or Devanagari (देवनागरी) characters or Arabic script.
-2. Output ONLY in pure Tamil Unicode characters (e.g. அ, ஆ, இ, க, ங, ச, ஞ, ட, ண, த, ந, ப, ம, ய, ர, ல, வ, ழ, ள, ற, ன, etc.).
-3. Transcribe Tamil headlines, articles, subheadings, and captions with 100% exact Tamil spelling and correct ligatures (மெய், உயிர்மெய் எழுத்துக்கள்).
-4. If there are English characters, initials, abbreviations, names (e.g., TVS, Holy Angel, St. Joseph), or numbers (0-9), output them in standard English / Latin digits.
-5. NO META COMMENTARY: Do NOT include any descriptions, image captions, visual summaries, or bracketed notes (e.g., do NOT output "[Photo of...]" or "[Bottom section contains...]").
-6. If this is a newspaper clipping or document with multiple columns, transcribe each article column-by-column in natural reading order with appropriate headings and paragraphs.
-
-Output ONLY the raw transcribed text. Do NOT add any preamble or explanations.`
-
-        const response = await axios.post(
-            API_URL,
-            {
-                model: 'claude-sonnet-4-5-20250929',
-                max_tokens: 3500,
-                temperature: 0.2,
-                messages: [
-                    {
-                        role: 'user',
-                        content: [
-                            {
-                                type: 'image',
-                                source: {
-                                    type: 'base64',
-                                    media_type: mimeType,
-                                    data: base64
-                                }
-                            },
-                            {
-                                type: 'text',
-                                text: prompt
-                            }
-                        ]
-                    }
-                ]
-            },
-            {
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-api-key': API_KEY,
-                    'anthropic-version': '2023-06-01',
-                    'anthropic-dangerous-direct-browser-access': 'true'
-                }
-            }
-        )
+        const data = await extractTamilOCRAI({ imageBase64: base64, mimeType })
 
         progress.value = 95
         statusMessage.value = 'Formatting extracted text...'
 
-        const content = response.data?.content?.[0]?.text || ''
-        return cleanExtractedText(content)
+        return cleanExtractedText(data.text || '')
     }
 
     // Local Tesseract OCR
