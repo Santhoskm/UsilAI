@@ -14,6 +14,13 @@ git pull origin main
 # 2. Update Python dependencies & restart backend
 echo " 2. Updating backend dependencies..."
 cd /root/UsilAI/usil-backend
+
+# Ensure .env exists so systemd / backend does not fail
+if [ ! -f ".env" ] && [ -f ".env.example" ]; then
+    echo " Restoring .env from .env.example..."
+    cp .env.example .env
+fi
+
 source venv/bin/activate
 pip install -r requirements.txt --quiet
 
