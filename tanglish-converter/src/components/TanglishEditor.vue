@@ -781,8 +781,26 @@ const loadSavedFiles = async () => {
     syncStatus.value = 'syncing'
     const dbDocs = await fetchUserDocuments(uid, altUid)
     if (Array.isArray(dbDocs) && dbDocs.length > 0) {
+      // If user has real documents, clean up any accidental empty "New File" created by previous failed fetch
+      let validDocs = dbDocs
+      const hasRealDocs = dbDocs.some(d => 
+        (d.plain_text && d.plain_text.trim().length > 0) || 
+        (d.title && d.title !== 'New File' && d.title.trim().length > 0)
+      )
+      if (hasRealDocs) {
+        const filtered = dbDocs.filter(d => {
+          const isEmptyNew = d.title === 'New File' && (!d.plain_text || !d.plain_text.trim()) && (!d.content || !d.content.replace(/<[^>]*>/g, '').trim())
+          if (isEmptyNew) {
+            deleteUserDocument(d.id, uid)
+            return false
+          }
+          return true
+        })
+        if (filtered.length > 0) validDocs = filtered
+      }
+
       // Strictly enforce total max 5 files (including previous logins)
-      savedFiles.value = dbDocs.slice(0, 5).map(d => ({
+      savedFiles.value = validDocs.slice(0, 5).map(d => ({
         id: d.id,
         title: d.title || 'New File',
         content: d.content || '',
@@ -792,8 +810,10 @@ const loadSavedFiles = async () => {
         updatedAt: d.updated_at || new Date().toISOString()
       }))
 
-      activeFileId.value = savedFiles.value[0].id
-      setEditorTextSafely(savedFiles.value[0].content || '')
+      // Prioritize activating a document with content
+      const targetDoc = savedFiles.value.find(f => f.plainText && f.plainText.trim().length > 0) || savedFiles.value[0]
+      activeFileId.value = targetDoc.id
+      setEditorTextSafely(targetDoc.content || '')
       syncStatus.value = 'saved'
     } else {
       // Brand new user with 0 files in PostgreSQL: create 1 default in-memory file for them

@@ -25,6 +25,7 @@ class DocumentsSyncRequest(BaseModel):
     documents: List[DocumentItem] = Field(..., max_length=5)
 
 
+@router.get("")
 @router.get("/")
 async def get_user_documents(
     user_id: str = Query(..., min_length=1, max_length=150, description="Unique user identifier"),
@@ -76,6 +77,7 @@ async def get_user_documents(
 
 
 @router.post("/sync")
+@router.post("/sync/")
 async def sync_user_documents(
     payload: DocumentsSyncRequest,
     db: AsyncSession = Depends(get_db)
@@ -160,6 +162,7 @@ async def sync_user_documents(
 
 
 @router.delete("/{doc_id}")
+@router.delete("/{doc_id}/")
 async def delete_user_document(
     doc_id: str,
     user_id: str = Query(..., min_length=1, max_length=150),

@@ -712,7 +712,7 @@ export async function translateTamilToEnglishAI(text) {
 export async function fetchUserDocuments(userId, altId = null) {
     if (!userId) return []
     try {
-        let url = `${API_BASE}/documents?user_id=${encodeURIComponent(userId)}`
+        let url = `${API_BASE}/documents/?user_id=${encodeURIComponent(userId)}`
         if (altId && altId !== userId) {
             url += `&alt_id=${encodeURIComponent(altId)}`
         }

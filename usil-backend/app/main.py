@@ -121,16 +121,16 @@ admin_portal.add_model_view(UserDocumentAdmin)
 
 # ── API Routers ───────────────────────────────────────────────────────────────
 # Support both /api/usil and /api/v1 paths for direct server deployment and proxy setups
-app.include_router(suggestions.router, prefix="/api/v1")
 app.include_router(suggestions.router, prefix="/api/usil")
-app.include_router(tools.router, prefix="/api/v1")
+app.include_router(suggestions.router, prefix="/api/v1")
 app.include_router(tools.router, prefix="/api/usil")
-app.include_router(rerank.router, prefix="/api/v1")
+app.include_router(tools.router, prefix="/api/v1")
 app.include_router(rerank.router, prefix="/api/usil")
-app.include_router(admin_api.router, prefix="/api/v1")
+app.include_router(rerank.router, prefix="/api/v1")
 app.include_router(admin_api.router, prefix="/api/usil")
-app.include_router(documents.router, prefix="/api/v1")
+app.include_router(admin_api.router, prefix="/api/v1")
 app.include_router(documents.router, prefix="/api/usil")
+app.include_router(documents.router, prefix="/api/v1")
 
 
 @app.on_event("startup")
