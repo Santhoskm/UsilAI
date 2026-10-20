@@ -716,7 +716,7 @@ export async function fetchUserDocuments(userId) {
         const data = await response.json()
         return Array.isArray(data.documents) ? data.documents : []
     } catch (e) {
-        console.warn('Could not fetch user documents from database, falling back to local storage', e)
+        console.warn('Could not fetch user documents from PostgreSQL database:', e)
         return []
     }
 }

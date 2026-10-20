@@ -706,12 +706,7 @@ let saveDebounceTimer = null
 let dbSyncDebounceTimer = null
 
 const currentUserId = computed(() => {
-  return user.value?.id || user.value?.email || null
-})
-
-const userStorageKey = computed(() => {
-  const uid = currentUserId.value || 'default'
-  return `usil_saved_files_${uid}`
+  return user.value?.id || (user.value?.email ? user.value.email.toLowerCase() : null)
 })
 
 const activeFile = computed(() => {
@@ -745,108 +740,94 @@ const groupedFiles = computed(() => {
   }
 })
 
-// Immediately writes to localStorage & debounces PostgreSQL DB sync
+// Syncs documents exclusively to PostgreSQL database (NO local storage)
 const saveFilesToStorage = () => {
-  try {
-    localStorage.setItem(userStorageKey.value, JSON.stringify(savedFiles.value))
-  } catch (e) {
-    console.error('Error writing saved files to storage', e)
-  }
-
-  // Sync to PostgreSQL database for logged-in user
   const uid = currentUserId.value
-  if (isAuthenticated.value && uid) {
-    syncStatus.value = 'syncing'
-    if (dbSyncDebounceTimer) clearTimeout(dbSyncDebounceTimer)
-    dbSyncDebounceTimer = setTimeout(async () => {
-      try {
-        const res = await syncUserDocuments(uid, savedFiles.value)
-        if (res && res.success) {
-          syncStatus.value = 'saved'
-        } else {
-          syncStatus.value = 'error'
-        }
-      } catch (err) {
-        console.warn('PostgreSQL sync failed, kept in local storage:', err)
+  if (!isAuthenticated.value || !uid || savedFiles.value.length === 0) return
+
+  syncStatus.value = 'syncing'
+  if (dbSyncDebounceTimer) clearTimeout(dbSyncDebounceTimer)
+  dbSyncDebounceTimer = setTimeout(async () => {
+    try {
+      const res = await syncUserDocuments(uid, savedFiles.value)
+      if (res && res.success) {
+        syncStatus.value = 'saved'
+      } else {
         syncStatus.value = 'error'
       }
-    }, 500)
-  }
-}
-
-// Loads files from local storage first (0ms), then syncs latest from PostgreSQL database
-const loadSavedFiles = async () => {
-  // 1. Instant local restore
-  try {
-    const raw = localStorage.getItem(userStorageKey.value)
-    if (raw) {
-      const parsed = JSON.parse(raw)
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        savedFiles.value = parsed.slice(0, 5)
-        activeFileId.value = savedFiles.value[0].id
-      }
-    }
-  } catch (e) {
-    console.error('Error loading saved files from storage', e)
-  }
-
-  // 2. Fetch from PostgreSQL database if user is logged in
-  const uid = currentUserId.value
-  if (isAuthenticated.value && uid) {
-    try {
-      syncStatus.value = 'syncing'
-      const dbDocs = await fetchUserDocuments(uid)
-      if (Array.isArray(dbDocs) && dbDocs.length > 0) {
-        // Map database records into client state
-        savedFiles.value = dbDocs.map(d => ({
-          id: d.id,
-          title: d.title || 'New File',
-          content: d.content || '',
-          plainText: d.plain_text || d.plainText || '',
-          wordCount: d.word_count || d.wordCount || 0,
-          createdAt: d.created_at || new Date().toISOString(),
-          updatedAt: d.updated_at || new Date().toISOString()
-        }))
-
-        if (!savedFiles.value.some(f => f.id === activeFileId.value)) {
-          activeFileId.value = savedFiles.value[0].id
-        }
-
-        // Keep local cache fresh
-        try {
-          localStorage.setItem(userStorageKey.value, JSON.stringify(savedFiles.value))
-        } catch (_) {}
-        syncStatus.value = 'saved'
-      } else if (savedFiles.value.length > 0) {
-        // First time user: sync existing local initial files into PostgreSQL
-        await syncUserDocuments(uid, savedFiles.value)
-        syncStatus.value = 'saved'
-      }
-    } catch (dbErr) {
-      console.warn('Could not retrieve documents from PostgreSQL:', dbErr)
+    } catch (err) {
+      console.warn('PostgreSQL sync failed:', err)
       syncStatus.value = 'error'
     }
-  }
+  }, 400)
+}
 
-  // 3. Fallback: initialize 1 default "New File" if still empty
-  if (savedFiles.value.length === 0) {
-    const defaultFile = {
-      id: 'file_' + Date.now(),
-      title: 'New File',
-      content: '',
-      plainText: '',
-      wordCount: 0,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+// Loads documents exclusively from PostgreSQL database for THIS authenticated user
+const loadSavedFiles = async () => {
+  // Clean up any legacy saved files previously stored in localStorage to protect privacy
+  try {
+    Object.keys(localStorage).forEach(k => {
+      if (k.startsWith('usil_saved_files_')) {
+        localStorage.removeItem(k)
+      }
+    })
+  } catch (_) {}
+
+  const uid = currentUserId.value
+  if (!isAuthenticated.value || !uid) {
+    savedFiles.value = []
+    activeFileId.value = ''
+    if (editor.value) {
+      editor.value.commands.setContent('')
     }
-    savedFiles.value = [defaultFile]
-    activeFileId.value = defaultFile.id
-    saveFilesToStorage()
+    syncStatus.value = 'idle'
+    return
   }
 
-  // Update editor instance if ready
-  if (editor.value && activeFile.value) {
-    editor.value.commands.setContent(activeFile.value.content || '')
+  // Query PostgreSQL database for this user's private documents
+  try {
+    syncStatus.value = 'syncing'
+    const dbDocs = await fetchUserDocuments(uid)
+    if (Array.isArray(dbDocs) && dbDocs.length > 0) {
+      // Map user's private documents from PostgreSQL
+      savedFiles.value = dbDocs.map(d => ({
+        id: d.id,
+        title: d.title || 'New File',
+        content: d.content || '',
+        plainText: d.plain_text || d.plainText || '',
+        wordCount: d.word_count || d.wordCount || 0,
+        createdAt: d.created_at || new Date().toISOString(),
+        updatedAt: d.updated_at || new Date().toISOString()
+      }))
+
+      activeFileId.value = savedFiles.value[0].id
+      if (editor.value) {
+        editor.value.commands.setContent(savedFiles.value[0].content || '')
+      }
+      syncStatus.value = 'saved'
+    } else {
+      // Brand new user with 0 files in PostgreSQL: create 1 default file for them
+      const defaultFile = {
+        id: 'file_' + Date.now(),
+        title: 'New File',
+        content: '',
+        plainText: '',
+        wordCount: 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }
+      savedFiles.value = [defaultFile]
+      activeFileId.value = defaultFile.id
+      if (editor.value) {
+        editor.value.commands.setContent('')
+      }
+      // Save this new initial file to PostgreSQL under this user's account
+      await syncUserDocuments(uid, savedFiles.value)
+      syncStatus.value = 'saved'
+    }
+  } catch (err) {
+    console.warn('Could not load user documents from PostgreSQL:', err)
+    syncStatus.value = 'error'
   }
 }
 
@@ -2125,9 +2106,26 @@ watch(autoConvert, (newValue) => {
   console.log('Auto convert:', newValue ? 'ON' : 'OFF')
 })
 
-// Watch for authentication changes (e.g. user logs in while editor is open)
-watch([isAuthenticated, currentUserId], async ([newAuth, newUid]) => {
-  if (newAuth && newUid) {
+// Watch for authentication changes (login, logout, or account switch)
+watch([isAuthenticated, currentUserId], async ([newAuth, newUid], [oldAuth, oldUid]) => {
+  if (!newAuth || !newUid) {
+    // User logged out: clear all editor state and document data immediately (zero cross-user leakage)
+    savedFiles.value = []
+    activeFileId.value = ''
+    if (editor.value) {
+      editor.value.commands.setContent('')
+    }
+    syncStatus.value = 'idle'
+    return
+  }
+
+  if (newUid !== oldUid || (newAuth && !oldAuth)) {
+    // User logged in or switched accounts: reset editor and fetch their private DB files
+    savedFiles.value = []
+    activeFileId.value = ''
+    if (editor.value) {
+      editor.value.commands.setContent('')
+    }
     await loadSavedFiles()
   }
 })
@@ -2137,7 +2135,7 @@ onMounted(async () => {
   // Preload common dictionary chunks in background — makes first lookup instant
   preloadCommonChunks()
 
-  // Initialize and restore saved files (from PostgreSQL for logged-in user or local cache)
+  // Initialize and restore saved files strictly from PostgreSQL for authenticated user
   await loadSavedFiles()
   setTimeout(() => {
     if (editor.value && activeFile.value && activeFile.value.content) {

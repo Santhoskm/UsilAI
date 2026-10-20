@@ -116,7 +116,7 @@ export function useAuth() {
 
             if (foundUser) {
                 const userData = {
-                    id: Date.now().toString(),
+                    id: foundUser.email.toLowerCase(),
                     email: foundUser.email,
                     name: foundUser.name,
                     role: foundUser.role,
@@ -156,7 +156,7 @@ export function useAuth() {
             }
 
             const userData = {
-                id: Date.now().toString(),
+                id: email.toLowerCase(),
                 email,
                 name,
                 role: 'user',
