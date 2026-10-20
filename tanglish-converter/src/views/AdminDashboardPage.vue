@@ -172,6 +172,19 @@
             </svg>
             System & Security
           </button>
+          <button
+            @click="activeTab = 'documents'; loadAdminDocuments(1)"
+            :class="['tab-btn', { active: activeTab === 'documents' }]"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+              <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+            User Documents (PostgreSQL)
+          </button>
         </nav>
       </header>
 
@@ -246,6 +259,22 @@
                 <span class="metric-label">Reranker Model</span>
                 <span class="metric-value">{{ systemStatus?.reranker?.status || 'Active' }}</span>
                 <span class="metric-sub">ONNX Dynamic Transformer</span>
+              </div>
+            </div>
+
+            <div class="metric-card glass clickable-card" @click="activeTab = 'documents'; loadAdminDocuments(1)">
+              <div class="metric-icon-wrap emerald">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="16" y1="13" x2="8" y2="13"></line>
+                  <line x1="16" y1="17" x2="8" y2="17"></line>
+                </svg>
+              </div>
+              <div class="metric-details">
+                <span class="metric-label">User Saved Documents</span>
+                <span class="metric-value">{{ (analyticsData?.summary?.total_user_documents ?? 0).toLocaleString() }}</span>
+                <span class="metric-sub">{{ analyticsData?.summary?.total_document_users ?? 0 }} active user(s) in DB</span>
               </div>
             </div>
           </div>
@@ -620,6 +649,129 @@
             </div>
           </div>
         </section>
+
+        <!-- ─────────────────── TAB 4: USER DOCUMENTS (POSTGRESQL) ─────────────────── -->
+        <section v-if="activeTab === 'documents'" class="tab-panel">
+          <div class="card glass">
+            <div class="card-header flex-between">
+              <div>
+                <h3>User Documents in PostgreSQL (user_documents)</h3>
+                <span class="card-caption">All persistent editor files saved per user in PostgreSQL</span>
+              </div>
+              <div class="header-tools">
+                <button @click="loadAdminDocuments(adminDocsPage)" class="btn-secondary btn-sm" :disabled="isLoadingDocs">
+                  <svg :class="['icon-spin', { active: isLoadingDocs }]" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="23 4 23 10 17 10"></polyline>
+                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                  </svg>
+                  Refresh
+                </button>
+                <a href="/sqladmin/userdocument/list" target="_blank" rel="noopener noreferrer" class="btn-primary btn-sm">
+                  Open in SQLAdmin ↗
+                </a>
+              </div>
+            </div>
+
+            <!-- Search and Filter Bar -->
+            <div class="filter-bar">
+              <div class="search-input-wrap flex-1">
+                <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <input
+                  v-model="adminDocsSearch"
+                  @input="handleDocSearchInput"
+                  type="text"
+                  placeholder="Filter documents by user ID, title, or content..."
+                  class="form-input search-input"
+                />
+                <button v-if="adminDocsSearch" @click="adminDocsSearch = ''; loadAdminDocuments(1)" class="clear-btn">&times;</button>
+              </div>
+              <div class="total-badge">
+                Total: <strong>{{ adminDocsTotal }}</strong> docs
+              </div>
+            </div>
+
+            <!-- Documents Table -->
+            <div class="table-container">
+              <div v-if="isLoadingDocs" class="table-loading">
+                <div class="spinner"></div>
+                <span>Querying PostgreSQL database...</span>
+              </div>
+
+              <div v-else-if="adminDocsList.length === 0" class="empty-state">
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                </svg>
+                <h4>No User Documents Found</h4>
+                <p>No documents found in PostgreSQL matching your search filter.</p>
+              </div>
+
+              <table v-else class="data-table">
+                <thead>
+                  <tr>
+                    <th>User ID</th>
+                    <th>Title</th>
+                    <th>Text Content Preview</th>
+                    <th class="text-right">Words</th>
+                    <th>Last Updated</th>
+                    <th class="text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="doc in adminDocsList" :key="doc.id">
+                    <td>
+                      <span class="user-id-badge" :title="doc.user_id">{{ doc.user_id }}</span>
+                    </td>
+                    <td>
+                      <span class="doc-title-cell">{{ doc.title }}</span>
+                    </td>
+                    <td>
+                      <span class="preview-text-cell" :title="doc.plain_text">
+                        {{ doc.plain_text ? (doc.plain_text.slice(0, 65) + (doc.plain_text.length > 65 ? '...' : '')) : '(Empty content)' }}
+                      </span>
+                    </td>
+                    <td class="text-right font-mono">{{ doc.word_count || 0 }}</td>
+                    <td class="font-mono text-muted text-sm">
+                      {{ doc.updated_at ? new Date(doc.updated_at).toLocaleString() : '-' }}
+                    </td>
+                    <td class="actions-cell text-center">
+                      <button @click="selectedDocForView = doc" class="btn-action edit" title="View Document Content">
+                        👁 View
+                      </button>
+                      <button @click="confirmDeleteDocument(doc)" class="btn-action delete" title="Delete Document from PostgreSQL">
+                        🗑 Delete
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Pagination Bar -->
+            <div v-if="adminDocsPages > 1" class="pagination-bar">
+              <span class="page-info">Page {{ adminDocsPage }} of {{ adminDocsPages }}</span>
+              <div class="page-controls">
+                <button
+                  @click="loadAdminDocuments(adminDocsPage - 1)"
+                  :disabled="adminDocsPage <= 1"
+                  class="btn-page"
+                >
+                  ← Previous
+                </button>
+                <button
+                  @click="loadAdminDocuments(adminDocsPage + 1)"
+                  :disabled="adminDocsPage >= adminDocsPages"
+                  class="btn-page"
+                >
+                  Next →
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
       </main>
 
       <!-- ─────────────────── ADD / EDIT WORD MODAL ─────────────────── -->
@@ -709,6 +861,59 @@
           </div>
         </div>
       </div>
+
+      <!-- ─────────────────── VIEW USER DOCUMENT MODAL ─────────────────── -->
+      <div v-if="selectedDocForView" class="modal-overlay" @click.self="selectedDocForView = null">
+        <div class="modal-box glass doc-view-modal">
+          <div class="modal-header">
+            <div>
+              <h3>{{ selectedDocForView.title }}</h3>
+              <span class="doc-modal-meta">
+                User: <strong>{{ selectedDocForView.user_id }}</strong> | Words: {{ selectedDocForView.word_count }} | Updated: {{ new Date(selectedDocForView.updated_at).toLocaleString() }}
+              </span>
+            </div>
+            <button @click="selectedDocForView = null" class="modal-close">&times;</button>
+          </div>
+
+          <div class="doc-view-body">
+            <div class="doc-view-section">
+              <div class="section-title-tag">Plain Tamil Text</div>
+              <div class="doc-text-rendered">{{ selectedDocForView.plain_text || '(Empty text)' }}</div>
+            </div>
+
+            <div v-if="selectedDocForView.content" class="doc-view-section">
+              <div class="section-title-tag">Formatted HTML Preview</div>
+              <div class="doc-html-preview" v-html="selectedDocForView.content"></div>
+            </div>
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" @click="selectedDocForView = null" class="btn-secondary">Close</button>
+            <button @click="confirmDeleteDocument(selectedDocForView); selectedDocForView = null" class="btn-danger">
+              Delete Document
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─────────────────── DELETE DOC CONFIRM MODAL ─────────────────── -->
+      <div v-if="docToDelete" class="modal-overlay" @click.self="docToDelete = null">
+        <div class="modal-box glass confirm-box">
+          <div class="modal-header">
+            <h3>Confirm Delete Document</h3>
+            <button @click="docToDelete = null" class="modal-close">&times;</button>
+          </div>
+          <p class="confirm-message">
+            Are you sure you want to permanently delete <strong class="code-pill">{{ docToDelete.title }}</strong> owned by user <strong class="code-pill">{{ docToDelete.user_id }}</strong> from PostgreSQL?
+          </p>
+          <div class="modal-actions">
+            <button type="button" @click="docToDelete = null" class="btn-secondary">Cancel</button>
+            <button @click="executeDeleteDocument" :disabled="isDeletingDoc" class="btn-danger">
+              {{ isDeletingDoc ? 'Deleting...' : 'Delete Document' }}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -729,7 +934,9 @@ import {
   fetchAdminStatus,
   reloadAdminTrie,
   fetchAdminAnalytics,
-  fetchSuggestions
+  fetchSuggestions,
+  fetchAdminDocuments,
+  deleteAdminDocumentById
 } from '@/services/apiService'
 
 // Tab state
@@ -862,13 +1069,72 @@ const handleChangeCredentialsSubmit = async () => {
   }
 }
 
+// ── Admin Documents State (PostgreSQL) ───────────────────────────────────────
+const adminDocsList = ref([])
+const adminDocsTotal = ref(0)
+const adminDocsPage = ref(1)
+const adminDocsPages = ref(1)
+const adminDocsSearch = ref('')
+const isLoadingDocs = ref(false)
+const selectedDocForView = ref(null)
+const docToDelete = ref(null)
+const isDeletingDoc = ref(false)
+let docSearchDebounce = null
+
+const loadAdminDocuments = async (page = 1) => {
+  isLoadingDocs.value = true
+  adminDocsPage.value = page
+  try {
+    const res = await fetchAdminDocuments({
+      search: adminDocsSearch.value.trim(),
+      page: adminDocsPage.value,
+      limit: 25
+    })
+    adminDocsList.value = res.documents || []
+    adminDocsTotal.value = res.total || 0
+    adminDocsPages.value = res.pages || 1
+  } catch (err) {
+    showToast('Failed to load user documents: ' + err.message, 'error')
+  } finally {
+    isLoadingDocs.value = false
+  }
+}
+
+const handleDocSearchInput = () => {
+  clearTimeout(docSearchDebounce)
+  docSearchDebounce = setTimeout(() => {
+    loadAdminDocuments(1)
+  }, 300)
+}
+
+const confirmDeleteDocument = (doc) => {
+  docToDelete.value = doc
+}
+
+const executeDeleteDocument = async () => {
+  if (!docToDelete.value) return
+  isDeletingDoc.value = true
+  try {
+    await deleteAdminDocumentById(docToDelete.value.id)
+    showToast(`Deleted document "${docToDelete.value.title}" successfully.`)
+    docToDelete.value = null
+    await loadAdminDocuments(adminDocsPage.value)
+    await loadAnalytics()
+  } catch (err) {
+    showToast('Failed to delete document: ' + err.message, 'error')
+  } finally {
+    isDeletingDoc.value = false
+  }
+}
+
 // ── Data Loaders ────────────────────────────────────────────────────────────
 
 const initializeAdminData = async () => {
   await Promise.all([
     loadStatus(),
     loadAnalytics(),
-    loadWords(1)
+    loadWords(1),
+    loadAdminDocuments(1)
   ])
 }
 
@@ -2089,6 +2355,109 @@ onMounted(async () => {
   justify-content: flex-end;
   gap: 12px;
   margin-top: 12px;
+}
+
+/* Emerald Metric Card */
+.metric-icon-wrap.emerald {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+
+.clickable-card {
+  cursor: pointer;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.clickable-card:hover {
+  transform: translateY(-2px);
+  border-color: #10b981;
+}
+
+/* User Documents Tab & Table Elements */
+.user-id-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  border-radius: 6px;
+  font-family: monospace;
+  font-size: 11.5px;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.doc-title-cell {
+  font-weight: 600;
+  color: var(--text-main, #0f172a);
+}
+
+.preview-text-cell {
+  display: block;
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: 'Noto Sans Tamil', 'Inter', sans-serif;
+  color: var(--text-muted, #475569);
+  font-size: 13.5px;
+}
+
+/* Document View Modal */
+.doc-view-modal {
+  max-width: 700px;
+  width: 90%;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.doc-modal-meta {
+  display: block;
+  font-size: 12px;
+  color: #94a3b8;
+  margin-top: 4px;
+}
+
+.doc-view-body {
+  overflow-y: auto;
+  padding: 16px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.doc-view-section {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid var(--card-border, #334155);
+  border-radius: 10px;
+  padding: 14px;
+}
+
+.section-title-tag {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+  color: #38bdf8;
+  margin-bottom: 8px;
+}
+
+.doc-text-rendered {
+  font-family: 'Noto Sans Tamil', sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  color: #f1f5f9;
+}
+
+.doc-html-preview {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #cbd5e1;
+  max-height: 200px;
+  overflow-y: auto;
 }
 
 /* Responsive */

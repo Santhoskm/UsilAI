@@ -566,6 +566,51 @@ export async function fetchAdminAnalytics() {
 }
 
 /**
+ * Fetch all user documents from PostgreSQL for the Admin dashboard
+ */
+export async function fetchAdminDocuments({ search = '', page = 1, limit = 25 } = {}) {
+    try {
+        const params = new URLSearchParams()
+        if (search) params.set('search', search)
+        params.set('page', page)
+        params.set('limit', limit)
+
+        const response = await fetch(`${API_BASE}/admin/documents?${params.toString()}`, {
+            headers: getAdminHeaders()
+        })
+        if (response.status === 401) {
+            adminLogout()
+            throw new Error('Unauthorized: Admin session expired')
+        }
+        if (!response.ok) throw new Error(`HTTP ${response.status}`)
+        return await response.json()
+    } catch (err) {
+        console.error('[Admin API] Fetch documents failed:', err)
+        throw err
+    }
+}
+
+/**
+ * Delete a user document as admin
+ */
+export async function deleteAdminDocumentById(docId) {
+    try {
+        const response = await fetch(`${API_BASE}/admin/documents/${encodeURIComponent(docId)}`, {
+            method: 'DELETE',
+            headers: getAdminHeaders()
+        })
+        if (!response.ok) {
+            const errData = await response.json().catch(() => ({}))
+            throw new Error(errData.detail || `HTTP ${response.status}`)
+        }
+        return await response.json()
+    } catch (err) {
+        console.error('[Admin API] Delete document failed:', err)
+        throw err
+    }
+}
+
+/**
  * ── Backend AI Tools APIs (Secure Server-Side Claude Calls) ────────────────
  */
 
@@ -656,6 +701,80 @@ export async function translateTamilToEnglishAI(text) {
         throw new Error(err.detail || `Server error: ${response.status}`)
     }
     return await response.json()
+}
+
+/**
+ * Fetch up to 5 user documents from PostgreSQL
+ * @param {string} userId - User identifier (ID or email)
+ * @returns {Promise<Array>} - List of user documents
+ */
+export async function fetchUserDocuments(userId) {
+    if (!userId) return []
+    try {
+        const response = await fetch(`${API_BASE}/documents?user_id=${encodeURIComponent(userId)}`)
+        if (!response.ok) return []
+        const data = await response.json()
+        return Array.isArray(data.documents) ? data.documents : []
+    } catch (e) {
+        console.warn('Could not fetch user documents from database, falling back to local storage', e)
+        return []
+    }
+}
+
+/**
+ * Save / sync up to 5 documents to PostgreSQL for logged-in user
+ * @param {string} userId - User identifier
+ * @param {Array} documents - List of up to 5 documents
+ */
+export async function syncUserDocuments(userId, documents) {
+    if (!userId || !Array.isArray(documents)) return { success: false }
+    try {
+        const payload = {
+            user_id: userId,
+            documents: documents.slice(0, 5).map(doc => ({
+                id: doc.id,
+                title: doc.title || 'New File',
+                content: doc.content || '',
+                plain_text: doc.plainText || doc.plain_text || '',
+                word_count: doc.wordCount || doc.word_count || 0
+            }))
+        }
+
+        const response = await fetch(`${API_BASE}/documents/sync`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({}))
+            console.warn('Failed to sync documents to database:', err)
+            return { success: false, error: err }
+        }
+
+        return await response.json()
+    } catch (e) {
+        console.warn('Network error while syncing documents to database:', e)
+        return { success: false, error: e }
+    }
+}
+
+/**
+ * Delete a specific document from PostgreSQL
+ * @param {string} docId - Document ID
+ * @param {string} userId - User identifier
+ */
+export async function deleteUserDocument(docId, userId) {
+    if (!docId || !userId) return false
+    try {
+        const response = await fetch(`${API_BASE}/documents/${encodeURIComponent(docId)}?user_id=${encodeURIComponent(userId)}`, {
+            method: 'DELETE'
+        })
+        return response.ok
+    } catch (e) {
+        console.warn('Failed to delete document from database:', e)
+        return false
+    }
 }
 
 

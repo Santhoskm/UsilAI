@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Query, HTTPException, Header, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text, select, func, desc, asc
+from sqlalchemy import text, select, func, desc, asc, delete
 from pydantic import BaseModel, Field
 from typing import Optional, List
 import time
@@ -16,6 +16,7 @@ except ImportError:
 
 from app.database import get_db, engine
 from app.models.word import Word, UserWordFrequency
+from app.models.document import UserDocument
 from app.state import trie_cache
 from app.config import settings
 
@@ -498,6 +499,12 @@ async def get_word_analytics(
         user_freq_count_res = await db.execute(select(func.count(UserWordFrequency.id)))
         user_freq_count = user_freq_count_res.scalar_one_or_none() or 0
 
+        user_docs_count_res = await db.execute(select(func.count(UserDocument.id)))
+        total_user_documents = user_docs_count_res.scalar_one_or_none() or 0
+
+        user_docs_users_res = await db.execute(select(func.count(func.distinct(UserDocument.user_id))))
+        total_document_users = user_docs_users_res.scalar_one_or_none() or 0
+
         top_user_freq_res = await db.execute(
             select(Word.tanglish, Word.tamil, UserWordFrequency.usage_count, UserWordFrequency.user_id)
             .join(Word, UserWordFrequency.word_id == Word.id)
@@ -522,12 +529,15 @@ async def get_word_analytics(
         med_count = med_freq_res.scalar_one_or_none() or 0
         low_count = low_freq_res.scalar_one_or_none() or 0
     except Exception:
-        pass
+        total_user_documents = 0
+        total_document_users = 0
 
     return {
         "summary": {
             "total_dictionary_words": total_words,
             "total_user_tracked_words": user_freq_count,
+            "total_user_documents": total_user_documents,
+            "total_document_users": total_document_users,
             "in_memory_trie_size": trie_cache.size
         },
         "top_frequent_words": top_words,
@@ -538,3 +548,65 @@ async def get_word_analytics(
             "low_frequency": low_count
         }
     }
+
+
+@router.get("/documents")
+async def get_admin_documents(
+    search: Optional[str] = Query(None, description="Search by user_id or title"),
+    page: int = Query(1, ge=1),
+    limit: int = Query(25, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    admin_user: str = Depends(get_current_admin)
+):
+    """Retrieve all user documents stored in PostgreSQL with filtering and pagination."""
+    query = select(UserDocument)
+    count_query = select(func.count(UserDocument.id))
+
+    if search and search.strip():
+        s = f"%{search.strip()}%"
+        filter_expr = (UserDocument.user_id.ilike(s)) | (UserDocument.title.ilike(s)) | (UserDocument.plain_text.ilike(s))
+        query = query.where(filter_expr)
+        count_query = count_query.where(filter_expr)
+
+    total_res = await db.execute(count_query)
+    total = total_res.scalar_one_or_none() or 0
+
+    offset = (page - 1) * limit
+    stmt = query.order_by(desc(UserDocument.updated_at)).offset(offset).limit(limit)
+    result = await db.execute(stmt)
+    docs = result.scalars().all()
+
+    return {
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "pages": (total + limit - 1) // limit if total > 0 else 1,
+        "documents": [
+            {
+                "id": doc.id,
+                "user_id": doc.user_id,
+                "title": doc.title,
+                "plain_text": doc.plain_text,
+                "content": doc.content,
+                "word_count": doc.word_count,
+                "created_at": doc.created_at.isoformat() if doc.created_at else None,
+                "updated_at": doc.updated_at.isoformat() if doc.updated_at else None,
+            }
+            for doc in docs
+        ]
+    }
+
+
+@router.delete("/documents/{doc_id}")
+async def delete_admin_document(
+    doc_id: str,
+    db: AsyncSession = Depends(get_db),
+    admin_user: str = Depends(get_current_admin)
+):
+    """Delete a user document from PostgreSQL by ID (Admin override)."""
+    stmt = delete(UserDocument).where(UserDocument.id == doc_id)
+    res = await db.execute(stmt)
+    await db.commit()
+    if res.rowcount == 0:
+        raise HTTPException(status_code=404, detail="Document not found")
+    return {"success": True, "deleted_id": doc_id}

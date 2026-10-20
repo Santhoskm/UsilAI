@@ -2,6 +2,22 @@
   <div class="tanglish-editor-container">
     <!-- Toolbar -->
     <div class="toolbar" v-if="editor">
+      <!-- Documents Sidebar Toggle (When logged in) -->
+      <div v-if="isAuthenticated" class="toolbar-group files-toggle-group">
+        <button 
+          @click="showFilesSidebar = !showFilesSidebar"
+          class="toolbar-btn btn-files-toggle"
+          :class="{ active: showFilesSidebar }"
+          :title="showFilesSidebar ? 'Hide Documents Sidebar' : 'Show Documents Sidebar'"
+        >
+          <span class="files-toggle-icon">📁</span>
+          <span class="files-btn-title">{{ activeFile?.title || 'Documents' }}</span>
+          <span class="files-badge">{{ savedFiles.length }}/5</span>
+        </button>
+      </div>
+
+      <div v-if="isAuthenticated" class="toolbar-divider"></div>
+
       <div class="toolbar-group">
         <button
           @click="editor.chain().focus().toggleBold().run()"
@@ -223,19 +239,9 @@
           </button>
           
           <div v-if="showDownloadDropdown" class="download-dropdown-menu">
-            <button @click="downloadAsPDF" class="download-menu-item">
-              <div class="item-icon-badge">
-                <svg class="format-download-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M12 2.5V15.5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
-                  <path d="M5.5 10.5L12 16.5L18.5 10.5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
-                  <path d="M3.5 21H20.5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
-                </svg>
-              </div>
-              <div class="item-info">
-                <span class="item-title">PDF Document (.pdf)</span>
-                <span class="item-desc">Print / Save as PDF</span>
-              </div>
-            </button>
+            <div class="download-section-tag">
+              <span>📄 Current: <strong>{{ activeFile?.title || 'Document' }}</strong></span>
+            </div>
             <button @click="downloadAsDocx" class="download-menu-item">
               <div class="item-icon-badge">
                 <svg class="format-download-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -246,7 +252,7 @@
               </div>
               <div class="item-info">
                 <span class="item-title">Word Document (.doc)</span>
-                <span class="item-desc">Microsoft Word / Docs format</span>
+                <span class="item-desc">Current file in Word format</span>
               </div>
             </button>
             <button @click="downloadAsTxt" class="download-menu-item">
@@ -259,7 +265,54 @@
               </div>
               <div class="item-info">
                 <span class="item-title">Plain Text (.txt)</span>
-                <span class="item-desc">Standard text file</span>
+                <span class="item-desc">Current file as standard text</span>
+              </div>
+            </button>
+            <button @click="downloadAsPDF" class="download-menu-item">
+              <div class="item-icon-badge">
+                <svg class="format-download-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 2.5V15.5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+                  <path d="M5.5 10.5L12 16.5L18.5 10.5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M3.5 21H20.5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+                </svg>
+              </div>
+              <div class="item-info">
+                <span class="item-title">PDF Document (.pdf)</span>
+                <span class="item-desc">Print / Save current file</span>
+              </div>
+            </button>
+
+            <!-- Joint Download Section (Merge all saved files) -->
+            <div class="download-divider-line"></div>
+            <div class="download-section-tag joint-tag">
+              <span>📦 Joint Download (All {{ savedFiles.length }} Files Merged)</span>
+            </div>
+
+            <button @click="downloadJointWord" class="download-menu-item joint-item">
+              <div class="item-icon-badge joint-badge">
+                <span>📝</span>
+              </div>
+              <div class="item-info">
+                <span class="item-title">Joint Word Document (.doc)</span>
+                <span class="item-desc">Merge all files with titles & breaks</span>
+              </div>
+            </button>
+            <button @click="downloadJointTxt" class="download-menu-item joint-item">
+              <div class="item-icon-badge joint-badge">
+                <span>📋</span>
+              </div>
+              <div class="item-info">
+                <span class="item-title">Joint Text File (.txt)</span>
+                <span class="item-desc">All files combined in single text</span>
+              </div>
+            </button>
+            <button @click="downloadJointPDF" class="download-menu-item joint-item">
+              <div class="item-icon-badge joint-badge">
+                <span>📑</span>
+              </div>
+              <div class="item-info">
+                <span class="item-title">Joint PDF Document (.pdf)</span>
+                <span class="item-desc">Print / Save all files merged</span>
               </div>
             </button>
           </div>
@@ -294,8 +347,140 @@
       </div>
     </div>
 
-    <!-- Main Workspace Layout: Editor on Left, AI Assistant Sidebar on Right -->
-    <div class="editor-workspace" :class="{ 'with-sidebar': aiHelpEnabled }">
+    <!-- Main Workspace Layout: Files Sidebar Left, Editor Center, AI Assistant Right -->
+    <div class="editor-workspace" :class="{ 'with-sidebar': aiHelpEnabled, 'with-files-sidebar': isAuthenticated && showFilesSidebar }">
+      <!-- Files Sidebar (Left) - Visible when logged in (Matches user screenshot) -->
+      <aside v-if="isAuthenticated && showFilesSidebar" class="files-sidebar">
+        <!-- New File Action Button (Matches Screenshot) -->
+        <div class="files-sidebar-top">
+          <button 
+            class="new-file-main-btn" 
+            @click="createNewFile"
+            :disabled="savedFiles.length >= 5"
+            :title="savedFiles.length >= 5 ? '5/5 files limit reached' : 'Create new document'"
+          >
+            <span class="plus-symbol">+</span>
+            <span class="new-file-label">New File</span>
+            <span class="file-count-badge" :class="{ 'at-limit': savedFiles.length >= 5 }">
+              {{ savedFiles.length }}/5
+            </span>
+          </button>
+          <div class="files-sync-status-row" :title="syncStatus === 'syncing' ? 'Syncing to PostgreSQL database...' : syncStatus === 'error' ? 'Saved locally (offline)' : 'Stored in PostgreSQL Database'">
+            <span class="sync-dot" :class="syncStatus"></span>
+            <span class="sync-status-text">
+              {{ syncStatus === 'syncing' ? 'Syncing to DB...' : syncStatus === 'error' ? 'Local only' : 'PostgreSQL Synced' }}
+            </span>
+          </div>
+        </div>
+
+        <!-- Files Scroll List -->
+        <div class="files-scroll-list">
+          <!-- Today Section -->
+          <div v-if="groupedFiles.today.length > 0" class="file-group-section">
+            <div class="group-header-label">Today</div>
+            <div class="group-items-stack">
+              <div 
+                v-for="file in groupedFiles.today" 
+                :key="file.id"
+                class="file-item-card"
+                :class="{ 'active': file.id === activeFileId }"
+                @click="switchToFile(file.id)"
+              >
+                <div class="file-item-main">
+                  <input 
+                    v-if="editingFileId === file.id"
+                    :id="`rename-input-${file.id}`"
+                    v-model="editingTitleText"
+                    @blur="saveRenameFile(file)"
+                    @keydown.enter="saveRenameFile(file)"
+                    @keydown.esc="editingFileId = null"
+                    @click.stop
+                    class="file-rename-input"
+                  />
+                  <span v-else class="file-item-title" :title="file.title">
+                    {{ file.title }}
+                  </span>
+                </div>
+                <div class="file-item-actions" @click.stop>
+                  <button 
+                    class="file-action-icon-btn" 
+                    @click="startRenameFile(file, $event)" 
+                    title="Rename File"
+                  >
+                    ✎
+                  </button>
+                  <button 
+                    class="file-action-icon-btn delete-btn" 
+                    @click="deleteFile(file.id, $event)" 
+                    title="Delete File"
+                  >
+                    🗑
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Earlier Section -->
+          <div v-if="groupedFiles.earlier.length > 0" class="file-group-section">
+            <div class="group-header-label">Earlier</div>
+            <div class="group-items-stack">
+              <div 
+                v-for="file in groupedFiles.earlier" 
+                :key="file.id"
+                class="file-item-card"
+                :class="{ 'active': file.id === activeFileId }"
+                @click="switchToFile(file.id)"
+              >
+                <div class="file-item-main">
+                  <input 
+                    v-if="editingFileId === file.id"
+                    :id="`rename-input-${file.id}`"
+                    v-model="editingTitleText"
+                    @blur="saveRenameFile(file)"
+                    @keydown.enter="saveRenameFile(file)"
+                    @keydown.esc="editingFileId = null"
+                    @click.stop
+                    class="file-rename-input"
+                  />
+                  <span v-else class="file-item-title" :title="file.title">
+                    {{ file.title }}
+                  </span>
+                </div>
+                <div class="file-item-actions" @click.stop>
+                  <button 
+                    class="file-action-icon-btn" 
+                    @click="startRenameFile(file, $event)" 
+                    title="Rename File"
+                  >
+                    ✎
+                  </button>
+                  <button 
+                    class="file-action-icon-btn delete-btn" 
+                    @click="deleteFile(file.id, $event)" 
+                    title="Delete File"
+                  >
+                    🗑
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Files Sidebar Footer: Quick Joint Download Button -->
+        <div class="files-sidebar-footer">
+          <button 
+            class="joint-download-btn" 
+            @click="downloadJointWord" 
+            title="Download all saved files merged together"
+          >
+            <span class="joint-icon">📦</span>
+            <span class="joint-label">Download All (Joint)</span>
+          </button>
+        </div>
+      </aside>
+
       <!-- Editor Area -->
       <div class="editor-wrapper" ref="editorWrapper">
         <editor-content :editor="editor" class="editor-content" :style="{ fontFamily: selectedFont.value, fontSize: currentFontSize + 'px' }" />
@@ -503,11 +688,297 @@ import { preloadCommonChunks } from '@/data/tamilEngine'
 import { useClaudeGrammarChecker } from '@/composables/useClaudeGrammarChecker'
 import { useAuth } from '@/composables/useAuth'
 import { useCredits } from '@/composables/useCredits'
+import { fetchUserDocuments, syncUserDocuments, deleteUserDocument } from '@/services/apiService'
 
-const { isAuthenticated } = useAuth()
+const { isAuthenticated, user } = useAuth()
 const { creditsLeft, isOutOfCredits, formattedTimeUntilRefill, consumeCredit, openCreditModal } = useCredits()
 const { suggestions: aiSuggestions, convertWord, convertSentence, getSuggestions, learnCorrection, recordUsage } = useTanglishConverter()
 const { checkGrammar, isChecking: aiChecking, error: aiError, correctionResult } = useClaudeGrammarChecker()
+
+// ── File Management State (Up to 5 files for authenticated users with PostgreSQL DB persistence) ──
+const showFilesSidebar = ref(true)
+const savedFiles = ref([])
+const activeFileId = ref('')
+const editingFileId = ref(null)
+const editingTitleText = ref('')
+const syncStatus = ref('saved') // 'saved' | 'syncing' | 'error'
+let saveDebounceTimer = null
+let dbSyncDebounceTimer = null
+
+const currentUserId = computed(() => {
+  return user.value?.id || user.value?.email || null
+})
+
+const userStorageKey = computed(() => {
+  const uid = currentUserId.value || 'default'
+  return `usil_saved_files_${uid}`
+})
+
+const activeFile = computed(() => {
+  return savedFiles.value.find(f => f.id === activeFileId.value) || savedFiles.value[0] || null
+})
+
+const isToday = (dateString) => {
+  if (!dateString) return true
+  const d = new Date(dateString)
+  const today = new Date()
+  return (
+    d.getDate() === today.getDate() &&
+    d.getMonth() === today.getMonth() &&
+    d.getFullYear() === today.getFullYear()
+  )
+}
+
+const groupedFiles = computed(() => {
+  const todayList = []
+  const earlierList = []
+  savedFiles.value.forEach(file => {
+    if (isToday(file.updatedAt)) {
+      todayList.push(file)
+    } else {
+      earlierList.push(file)
+    }
+  })
+  return {
+    today: todayList,
+    earlier: earlierList
+  }
+})
+
+// Immediately writes to localStorage & debounces PostgreSQL DB sync
+const saveFilesToStorage = () => {
+  try {
+    localStorage.setItem(userStorageKey.value, JSON.stringify(savedFiles.value))
+  } catch (e) {
+    console.error('Error writing saved files to storage', e)
+  }
+
+  // Sync to PostgreSQL database for logged-in user
+  const uid = currentUserId.value
+  if (isAuthenticated.value && uid) {
+    syncStatus.value = 'syncing'
+    if (dbSyncDebounceTimer) clearTimeout(dbSyncDebounceTimer)
+    dbSyncDebounceTimer = setTimeout(async () => {
+      try {
+        const res = await syncUserDocuments(uid, savedFiles.value)
+        if (res && res.success) {
+          syncStatus.value = 'saved'
+        } else {
+          syncStatus.value = 'error'
+        }
+      } catch (err) {
+        console.warn('PostgreSQL sync failed, kept in local storage:', err)
+        syncStatus.value = 'error'
+      }
+    }, 500)
+  }
+}
+
+// Loads files from local storage first (0ms), then syncs latest from PostgreSQL database
+const loadSavedFiles = async () => {
+  // 1. Instant local restore
+  try {
+    const raw = localStorage.getItem(userStorageKey.value)
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        savedFiles.value = parsed.slice(0, 5)
+        activeFileId.value = savedFiles.value[0].id
+      }
+    }
+  } catch (e) {
+    console.error('Error loading saved files from storage', e)
+  }
+
+  // 2. Fetch from PostgreSQL database if user is logged in
+  const uid = currentUserId.value
+  if (isAuthenticated.value && uid) {
+    try {
+      syncStatus.value = 'syncing'
+      const dbDocs = await fetchUserDocuments(uid)
+      if (Array.isArray(dbDocs) && dbDocs.length > 0) {
+        // Map database records into client state
+        savedFiles.value = dbDocs.map(d => ({
+          id: d.id,
+          title: d.title || 'New File',
+          content: d.content || '',
+          plainText: d.plain_text || d.plainText || '',
+          wordCount: d.word_count || d.wordCount || 0,
+          createdAt: d.created_at || new Date().toISOString(),
+          updatedAt: d.updated_at || new Date().toISOString()
+        }))
+
+        if (!savedFiles.value.some(f => f.id === activeFileId.value)) {
+          activeFileId.value = savedFiles.value[0].id
+        }
+
+        // Keep local cache fresh
+        try {
+          localStorage.setItem(userStorageKey.value, JSON.stringify(savedFiles.value))
+        } catch (_) {}
+        syncStatus.value = 'saved'
+      } else if (savedFiles.value.length > 0) {
+        // First time user: sync existing local initial files into PostgreSQL
+        await syncUserDocuments(uid, savedFiles.value)
+        syncStatus.value = 'saved'
+      }
+    } catch (dbErr) {
+      console.warn('Could not retrieve documents from PostgreSQL:', dbErr)
+      syncStatus.value = 'error'
+    }
+  }
+
+  // 3. Fallback: initialize 1 default "New File" if still empty
+  if (savedFiles.value.length === 0) {
+    const defaultFile = {
+      id: 'file_' + Date.now(),
+      title: 'New File',
+      content: '',
+      plainText: '',
+      wordCount: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }
+    savedFiles.value = [defaultFile]
+    activeFileId.value = defaultFile.id
+    saveFilesToStorage()
+  }
+
+  // Update editor instance if ready
+  if (editor.value && activeFile.value) {
+    editor.value.commands.setContent(activeFile.value.content || '')
+  }
+}
+
+const scheduleSaveCurrentFile = () => {
+  if (!editor.value || !activeFile.value) return
+  if (saveDebounceTimer) clearTimeout(saveDebounceTimer)
+  saveDebounceTimer = setTimeout(() => {
+    if (!editor.value || !activeFile.value) return
+    const html = editor.value.getHTML()
+    const text = editor.value.getText()
+    const words = text.trim().split(/\s+/).filter(w => w.length > 0).length
+    activeFile.value.content = html
+    activeFile.value.plainText = text
+    activeFile.value.wordCount = words
+    activeFile.value.updatedAt = new Date().toISOString()
+    saveFilesToStorage()
+  }, 250)
+}
+
+const createNewFile = () => {
+  if (savedFiles.value.length >= 5) {
+    alert('Maximum 5 files reached! Please delete or reuse an existing file.')
+    return
+  }
+
+  // Save current active file first
+  if (editor.value && activeFile.value) {
+    activeFile.value.content = editor.value.getHTML()
+    activeFile.value.plainText = editor.value.getText()
+    activeFile.value.wordCount = wordCount.value
+    activeFile.value.updatedAt = new Date().toISOString()
+  }
+
+  const fileNum = savedFiles.value.length + 1
+  const newFile = {
+    id: 'file_' + Date.now(),
+    title: fileNum === 1 ? 'New File' : `New File ${fileNum}`,
+    content: '',
+    plainText: '',
+    wordCount: 0,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  }
+  savedFiles.value.unshift(newFile)
+  activeFileId.value = newFile.id
+  saveFilesToStorage()
+
+  if (editor.value) {
+    editor.value.commands.setContent('')
+    editor.value.commands.focus()
+  }
+}
+
+const switchToFile = (fileId) => {
+  if (fileId === activeFileId.value) return
+  if (editor.value && activeFile.value) {
+    activeFile.value.content = editor.value.getHTML()
+    activeFile.value.plainText = editor.value.getText()
+    activeFile.value.wordCount = wordCount.value
+    activeFile.value.updatedAt = new Date().toISOString()
+    saveFilesToStorage()
+  }
+
+  activeFileId.value = fileId
+  const target = savedFiles.value.find(f => f.id === fileId)
+  if (target && editor.value) {
+    editor.value.commands.setContent(target.content || '')
+    editor.value.commands.focus()
+  }
+}
+
+const startRenameFile = (file, e) => {
+  if (e) e.stopPropagation()
+  editingFileId.value = file.id
+  editingTitleText.value = file.title
+  nextTick(() => {
+    const input = document.getElementById(`rename-input-${file.id}`)
+    if (input) {
+      input.focus()
+      input.select()
+    }
+  })
+}
+
+const saveRenameFile = (file) => {
+  if (editingTitleText.value.trim()) {
+    file.title = editingTitleText.value.trim()
+    saveFilesToStorage()
+  }
+  editingFileId.value = null
+}
+
+const deleteFile = (fileId, e) => {
+  if (e) e.stopPropagation()
+  if (savedFiles.value.length <= 1) {
+    if (confirm('Clear the content of this file?')) {
+      const file = savedFiles.value[0]
+      file.title = 'New File'
+      file.content = ''
+      file.plainText = ''
+      file.wordCount = 0
+      file.updatedAt = new Date().toISOString()
+      saveFilesToStorage()
+      if (editor.value) {
+        editor.value.commands.setContent('')
+      }
+    }
+    return
+  }
+
+  const target = savedFiles.value.find(f => f.id === fileId)
+  if (!confirm(`Delete "${target?.title || 'this file'}"?`)) {
+    return
+  }
+
+  const wasActive = activeFileId.value === fileId
+  savedFiles.value = savedFiles.value.filter(f => f.id !== fileId)
+  saveFilesToStorage()
+
+  const uid = currentUserId.value
+  if (isAuthenticated.value && uid) {
+    deleteUserDocument(fileId, uid)
+  }
+
+  if (wasActive && savedFiles.value.length > 0) {
+    const nextFile = savedFiles.value[0]
+    activeFileId.value = nextFile.id
+    if (editor.value) {
+      editor.value.commands.setContent(nextFile.content || '')
+    }
+  }
+}
 
 
 // State
@@ -992,7 +1463,8 @@ const downloadAsPDF = () => {
         </style>
       </head>
       <body>
-        <div>${htmlContent}</div>
+        <h1 style="color: #1e293b; border-bottom: 2px solid #6366f1; padding-bottom: 8px;">${activeFile.value?.title || 'Tamil Document'}</h1>
+        <div style="margin-top: 16px;">${htmlContent}</div>
         <div class="doc-footer">
           <span>Created with Usil AI (Tanglish to Tamil)</span>
           <span>${new Date().toLocaleDateString()}</span>
@@ -1013,6 +1485,7 @@ const downloadAsPDF = () => {
   }, 400)
 }
 
+// ── Separate Download as Word (.doc) ──
 const downloadAsDocx = () => {
   showDownloadDropdown.value = false
   if (!editor.value) return
@@ -1023,11 +1496,14 @@ const downloadAsDocx = () => {
     return
   }
 
+  const fileTitle = activeFile.value?.title || 'Tamil_Document'
+  const cleanTitle = fileTitle.replace(/[^a-zA-Z0-9_\u0B80-\u0BFF\s-]/g, '').trim() || 'Document'
+
   const wordHtml = `
     <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
       <head>
         <meta charset='utf-8'>
-        <title>Usil AI Tamil Document</title>
+        <title>${fileTitle}</title>
         <!--[if gte mso 9]>
         <xml>
         <w:WordDocument>
@@ -1044,14 +1520,15 @@ const downloadAsDocx = () => {
             line-height: 1.6;
             color: #000000;
           }
-          h1 { font-size: 22pt; font-weight: bold; }
+          h1 { font-size: 22pt; font-weight: bold; border-bottom: 2px solid #6366f1; padding-bottom: 6px; }
           h2 { font-size: 18pt; font-weight: bold; }
           h3 { font-size: 16pt; font-weight: bold; }
           p { margin-bottom: 10pt; }
         </style>
       </head>
       <body>
-        ${htmlContent}
+        <h1>${fileTitle}</h1>
+        <div>${htmlContent}</div>
       </body>
     </html>
   `
@@ -1060,11 +1537,12 @@ const downloadAsDocx = () => {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `Usil_Tamil_Document_${Date.now()}.doc`
+  a.download = `${cleanTitle}_${Date.now()}.doc`
   a.click()
   URL.revokeObjectURL(url)
 }
 
+// ── Separate Download as Plain Text (.txt) ──
 const downloadAsTxt = () => {
   showDownloadDropdown.value = false
   if (!editor.value) return
@@ -1074,13 +1552,173 @@ const downloadAsTxt = () => {
     return
   }
 
+  const fileTitle = activeFile.value?.title || 'Tamil_Document'
+  const cleanTitle = fileTitle.replace(/[^a-zA-Z0-9_\u0B80-\u0BFF\s-]/g, '').trim() || 'Document'
+
   const blob = new Blob(['\\ufeff' + plainText], { type: 'text/plain;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `Usil_Tamil_${Date.now()}.txt`
+  a.download = `${cleanTitle}_${Date.now()}.txt`
   a.click()
   URL.revokeObjectURL(url)
+}
+
+// ── Joint / Merged Download as Word (.doc) ──
+const downloadJointWord = () => {
+  showDownloadDropdown.value = false
+  if (editor.value && activeFile.value) {
+    activeFile.value.content = editor.value.getHTML()
+    activeFile.value.plainText = editor.value.getText()
+    saveFilesToStorage()
+  }
+
+  const filesWithContent = savedFiles.value.filter(f => (f.plainText && f.plainText.trim()) || (f.content && f.content.trim()))
+  if (filesWithContent.length === 0) {
+    alert('None of your saved files contain text yet. Please write some content first.')
+    return
+  }
+
+  let mergedBody = ''
+  filesWithContent.forEach((file, idx) => {
+    mergedBody += `
+      <div style="margin-bottom: 36px; ${idx < filesWithContent.length - 1 ? 'page-break-after: always;' : ''}">
+        <h1 style="color: #1e293b; border-bottom: 2px solid #6366f1; padding-bottom: 6px; font-size: 22pt;">
+          ${file.title || `Document ${idx + 1}`}
+        </h1>
+        <div style="margin-top: 14px; font-size: 14pt; line-height: 1.6;">
+          ${file.content || '<p></p>'}
+        </div>
+      </div>
+    `
+  })
+
+  const wordHtml = `
+    <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+      <head>
+        <meta charset='utf-8'>
+        <title>Usil AI Joint Documents</title>
+        <style>
+          body { font-family: 'Noto Sans Tamil', 'Catamaran', 'Arial Unicode MS', Tahoma, sans-serif; font-size: 14pt; line-height: 1.6; color: #000; }
+          h1 { font-size: 20pt; font-weight: bold; }
+          p { margin-bottom: 10pt; }
+        </style>
+      </head>
+      <body>
+        ${mergedBody}
+      </body>
+    </html>
+  `
+
+  const blob = new Blob(['\\ufeff' + wordHtml], { type: 'application/msword;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `Usil_Joint_All_${savedFiles.value.length}_Files_${Date.now()}.doc`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+// ── Joint / Merged Download as Plain Text (.txt) ──
+const downloadJointTxt = () => {
+  showDownloadDropdown.value = false
+  if (editor.value && activeFile.value) {
+    activeFile.value.content = editor.value.getHTML()
+    activeFile.value.plainText = editor.value.getText()
+    saveFilesToStorage()
+  }
+
+  const filesWithContent = savedFiles.value.filter(f => f.plainText && f.plainText.trim())
+  if (filesWithContent.length === 0) {
+    alert('None of your saved files contain text yet. Please write some content first.')
+    return
+  }
+
+  let mergedText = ''
+  filesWithContent.forEach((file) => {
+    mergedText += `═══════════════════════════════════════════════════════════════\n`
+    mergedText += ` ${file.title.toUpperCase()}\n`
+    mergedText += `═══════════════════════════════════════════════════════════════\n\n`
+    mergedText += `${file.plainText.trim()}\n\n\n`
+  })
+
+  const blob = new Blob(['\\ufeff' + mergedText], { type: 'text/plain;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `Usil_Joint_All_${savedFiles.value.length}_Files_${Date.now()}.txt`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+// ── Joint / Merged Download as PDF (.pdf) ──
+const downloadJointPDF = () => {
+  showDownloadDropdown.value = false
+  if (editor.value && activeFile.value) {
+    activeFile.value.content = editor.value.getHTML()
+    activeFile.value.plainText = editor.value.getText()
+    saveFilesToStorage()
+  }
+
+  const filesWithContent = savedFiles.value.filter(f => (f.plainText && f.plainText.trim()) || (f.content && f.content.trim()))
+  if (filesWithContent.length === 0) {
+    alert('None of your saved files contain text yet. Please write some content first.')
+    return
+  }
+
+  const printIframe = document.createElement('iframe')
+  printIframe.style.position = 'fixed'
+  printIframe.style.right = '0'
+  printIframe.style.bottom = '0'
+  printIframe.style.width = '0'
+  printIframe.style.height = '0'
+  printIframe.style.border = '0'
+  document.body.appendChild(printIframe)
+
+  let mergedSections = ''
+  filesWithContent.forEach((file, idx) => {
+    mergedSections += `
+      <section style="${idx < filesWithContent.length - 1 ? 'page-break-after: always;' : ''} margin-bottom: 40px;">
+        <h1 style="color: #1e293b; border-bottom: 2px solid #6366f1; padding-bottom: 8px; margin-bottom: 16px;">
+          ${file.title || `Document ${idx + 1}`}
+        </h1>
+        <div>${file.content || '<p></p>'}</div>
+      </section>
+    `
+  })
+
+  const doc = printIframe.contentWindow.document
+  doc.open()
+  doc.write(`
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Usil AI Joint Documents</title>
+        <style>
+          @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@400;500;600;700&display=swap');
+          @page { margin: 20mm 15mm; size: A4; }
+          body { font-family: 'Noto Sans Tamil', 'Catamaran', Arial, sans-serif; font-size: 15px; line-height: 1.7; color: #1e293b; padding: 20px; }
+          h1 { font-size: 22px; font-weight: 700; }
+          p { margin-bottom: 12px; }
+        </style>
+      </head>
+      <body>
+        ${mergedSections}
+      </body>
+    </html>
+  `)
+  doc.close()
+
+  setTimeout(() => {
+    printIframe.contentWindow.focus()
+    printIframe.contentWindow.print()
+    setTimeout(() => {
+      if (document.body.contains(printIframe)) {
+        document.body.removeChild(printIframe)
+      }
+    }, 2500)
+  }, 400)
 }
 
 // Clear editor content
@@ -1464,6 +2102,7 @@ const editor = useEditor({
   },
   onUpdate: ({ editor }) => {
     updateStats(editor)
+    scheduleSaveCurrentFile()
     if (aiHelpEnabled.value && autoCheckMode.value) {
       scheduleAutoCheck()
     }
@@ -1471,15 +2110,40 @@ const editor = useEditor({
   onSelectionUpdate: handleSelectionUpdate
 })
 
+// Watch for authentication changes to load user documents
+watch(isAuthenticated, (isAuth) => {
+  if (isAuth) {
+    loadSavedFiles()
+    if (activeFile.value && activeFile.value.content && editor.value) {
+      editor.value.commands.setContent(activeFile.value.content)
+    }
+  }
+})
+
 // Watch for autoConvert changes
 watch(autoConvert, (newValue) => {
   console.log('Auto convert:', newValue ? 'ON' : 'OFF')
 })
 
+// Watch for authentication changes (e.g. user logs in while editor is open)
+watch([isAuthenticated, currentUserId], async ([newAuth, newUid]) => {
+  if (newAuth && newUid) {
+    await loadSavedFiles()
+  }
+})
+
 // Focus editor on mount
-onMounted(() => {
+onMounted(async () => {
   // Preload common dictionary chunks in background — makes first lookup instant
   preloadCommonChunks()
+
+  // Initialize and restore saved files (from PostgreSQL for logged-in user or local cache)
+  await loadSavedFiles()
+  setTimeout(() => {
+    if (editor.value && activeFile.value && activeFile.value.content) {
+      editor.value.commands.setContent(activeFile.value.content)
+    }
+  }, 120)
 
   // Close dropdowns when clicking outside
   document.addEventListener('mousedown', (e) => {
@@ -1518,9 +2182,6 @@ onBeforeUnmount(() => {
   if (editor.value) {
     editor.value.destroy()
   }
-  document.removeEventListener('mousemove', onDrag)
-  document.removeEventListener('mouseup', stopDrag)
-  stopVoiceTyping()
 })
 </script>
 
@@ -1909,7 +2570,53 @@ onBeforeUnmount(() => {
 }
 
 
-/* ── Editor Workspace (Flex Row: Editor Left + Sidebar Right) ── */
+/* ── Documents Sidebar Toggle Button (Toolbar) ── */
+.btn-files-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--toolbar-btn-bg, #ffffff);
+  border: 1px solid var(--toolbar-border, #e2e8f0);
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main, #0f172a);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-files-toggle:hover {
+  background: var(--toolbar-btn-hover, #f1f5f9);
+}
+
+.btn-files-toggle.active {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+  color: #047857;
+}
+
+.files-toggle-icon {
+  font-size: 14px;
+}
+
+.files-btn-title {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.files-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 6px;
+  background: #d1fae5;
+  color: #065f46;
+  border-radius: 10px;
+}
+
+/* ── Editor Workspace (Files Left + Editor Center + AI Right) ── */
 .editor-workspace {
   display: flex;
   flex-direction: row;
@@ -1922,6 +2629,331 @@ onBeforeUnmount(() => {
 
 .editor-workspace.with-sidebar .editor-wrapper {
   border-right: 1px solid var(--card-border, #e2e8f0);
+}
+
+.editor-workspace.with-files-sidebar .editor-wrapper {
+  border-left: 1px solid var(--card-border, #e2e8f0);
+}
+
+/* ── Files Sidebar (Left Pane matching screenshot) ── */
+.files-sidebar {
+  width: 250px;
+  flex-shrink: 0;
+  background: var(--card-bg, #ffffff);
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--card-border, #e2e8f0);
+  height: 100%;
+  animation: slideFilesSidebar 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+  user-select: none;
+}
+
+@keyframes slideFilesSidebar {
+  from { opacity: 0; transform: translateX(-15px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.files-sidebar-top {
+  padding: 16px 14px 10px 14px;
+}
+
+/* New File Button (Exact look & feel from screenshot) */
+.new-file-main-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: transparent;
+  border: 1px dashed transparent;
+  border-radius: 10px;
+  color: #15803d;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  outline: none;
+}
+
+.new-file-main-btn:hover:not(:disabled) {
+  background: #f0fdf4;
+  border-color: #86efac;
+  transform: translateY(-1px);
+}
+
+.new-file-main-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  color: #94a3b8;
+}
+
+.plus-symbol {
+  font-size: 20px;
+  font-weight: 800;
+  color: #16a34a;
+  line-height: 1;
+}
+
+.new-file-label {
+  flex: 1;
+  text-align: left;
+  letter-spacing: -0.01em;
+}
+
+.file-count-badge {
+  font-size: 11px;
+  font-weight: 700;
+  color: #15803d;
+  background: #dcfce7;
+  padding: 2px 7px;
+  border-radius: 10px;
+}
+
+.file-count-badge.at-limit {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.files-sync-status-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 0 10px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #64748b;
+}
+
+.sync-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10b981;
+  display: inline-block;
+  transition: all 0.2s ease;
+}
+
+.sync-dot.syncing {
+  background: #3b82f6;
+  box-shadow: 0 0 6px rgba(59, 130, 246, 0.6);
+  animation: pulseSync 1s infinite alternate;
+}
+
+.sync-dot.error {
+  background: #f59e0b;
+}
+
+@keyframes pulseSync {
+  from { opacity: 0.4; transform: scale(0.85); }
+  to { opacity: 1; transform: scale(1.15); }
+}
+
+.sync-status-text {
+  font-size: 10.5px;
+  letter-spacing: -0.01em;
+}
+
+/* Files Scroll Area */
+.files-scroll-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 12px 14px 12px;
+}
+
+.file-group-section {
+  margin-top: 14px;
+}
+
+.group-header-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #64748b;
+  margin-bottom: 8px;
+  padding-left: 8px;
+  letter-spacing: -0.01em;
+}
+
+:root.dark .group-header-label,
+[data-theme="dark"] .group-header-label {
+  color: #94a3b8;
+}
+
+.group-items-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* File Item Card (Matching user screenshot green pill card) */
+.file-item-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text-main, #1e293b);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  position: relative;
+}
+
+.file-item-card:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+:root.dark .file-item-card:hover,
+[data-theme="dark"] .file-item-card:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* Active File Card - Soft Sage/Pastel Green like Screenshot */
+.file-item-card.active {
+  background: #dcfce7 !important;
+  color: #166534 !important;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(22, 101, 52, 0.08);
+}
+
+:root.dark .file-item-card.active,
+[data-theme="dark"] .file-item-card.active {
+  background: #14532d !important;
+  color: #bbf7d0 !important;
+  border: 1px solid rgba(74, 222, 128, 0.2);
+}
+
+.file-item-main {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.file-item-title {
+  display: block;
+  font-size: 14.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+
+.file-rename-input {
+  width: 100%;
+  padding: 2px 6px;
+  font-size: 14px;
+  font-weight: 600;
+  background: #ffffff;
+  border: 1px solid #16a34a;
+  border-radius: 6px;
+  color: #166534;
+  outline: none;
+}
+
+:root.dark .file-rename-input,
+[data-theme="dark"] .file-rename-input {
+  background: #0f172a;
+  color: #ffffff;
+}
+
+.file-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.file-item-card:hover .file-item-actions,
+.file-item-card.active .file-item-actions {
+  opacity: 1;
+}
+
+.file-action-icon-btn {
+  background: transparent;
+  border: none;
+  font-size: 13px;
+  color: inherit;
+  opacity: 0.6;
+  padding: 3px 5px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+
+.file-action-icon-btn:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.file-action-icon-btn.delete-btn:hover {
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.12);
+}
+
+/* Files Sidebar Footer */
+.files-sidebar-footer {
+  padding: 12px 14px;
+  border-top: 1px solid var(--card-border, #e2e8f0);
+}
+
+.joint-download-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px 12px;
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  border-radius: 9px;
+  color: #15803d;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.joint-download-btn:hover {
+  background: #dcfce7;
+  border-color: #4ade80;
+  transform: translateY(-1px);
+}
+
+:root.dark .joint-download-btn,
+[data-theme="dark"] .joint-download-btn {
+  background: #064e3b;
+  border-color: #059669;
+  color: #a7f3d0;
+}
+
+/* ── Download Dropdown Menu Sections ── */
+.download-section-tag {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted, #64748b);
+  padding: 8px 14px 4px;
+}
+
+.download-section-tag.joint-tag {
+  color: #059669;
+}
+
+.download-divider-line {
+  height: 1px;
+  background: var(--card-border, #e2e8f0);
+  margin: 6px 0;
+}
+
+.download-menu-item.joint-item:hover {
+  background: #f0fdf4;
+}
+
+.item-icon-badge.joint-badge {
+  background: #ecfdf5;
+  color: #059669;
 }
 
 /* ── AI Assistant Sidebar (Right Pane matching screenshot) ── */

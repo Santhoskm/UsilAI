@@ -11,7 +11,9 @@ from app.api.v1 import suggestions
 from app.api.v1 import tools_service as tools
 from app.api.v1 import rerank
 from app.api.v1 import admin as admin_api
+from app.api.v1 import documents
 from app.models.word import Word, UserWordFrequency
+from app.models.document import UserDocument
 
 load_dotenv()
 
@@ -59,6 +61,26 @@ class UserWordFrequencyAdmin(ModelView, model=UserWordFrequency):
     page_size = 50
 
 
+class UserDocumentAdmin(ModelView, model=UserDocument):
+    name = "User Document"
+    name_plural = "User Saved Documents"
+    icon = "fa-solid fa-file-lines"
+    column_list = [
+        UserDocument.id,
+        UserDocument.user_id,
+        UserDocument.title,
+        UserDocument.word_count,
+        UserDocument.updated_at,
+    ]
+    column_searchable_list = [UserDocument.user_id, UserDocument.title]
+    column_sortable_list = [UserDocument.updated_at, UserDocument.word_count]
+    can_create = True
+    can_edit = True
+    can_delete = True
+    can_view_details = True
+    page_size = 50
+
+
 from sqladmin.authentication import AuthenticationBackend
 from starlette.requests import Request
 
@@ -95,6 +117,7 @@ admin_portal = Admin(
 )
 admin_portal.add_model_view(WordAdmin)
 admin_portal.add_model_view(UserWordFrequencyAdmin)
+admin_portal.add_model_view(UserDocumentAdmin)
 
 # ── API Routers ───────────────────────────────────────────────────────────────
 # Support both /api/usil and /api/v1 paths for direct server deployment and proxy setups
@@ -106,6 +129,8 @@ app.include_router(rerank.router, prefix="/api/v1")
 app.include_router(rerank.router, prefix="/api/usil")
 app.include_router(admin_api.router, prefix="/api/v1")
 app.include_router(admin_api.router, prefix="/api/usil")
+app.include_router(documents.router, prefix="/api/v1")
+app.include_router(documents.router, prefix="/api/usil")
 
 
 @app.on_event("startup")
