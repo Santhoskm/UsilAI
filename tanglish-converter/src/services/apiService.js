@@ -705,13 +705,18 @@ export async function translateTamilToEnglishAI(text) {
 
 /**
  * Fetch up to 5 user documents from PostgreSQL
- * @param {string} userId - User identifier (ID or email)
+ * @param {string} userId - Primary user identifier (email)
+ * @param {string} [altId] - Optional alternate identifier (e.g. Google sub)
  * @returns {Promise<Array>} - List of user documents
  */
-export async function fetchUserDocuments(userId) {
+export async function fetchUserDocuments(userId, altId = null) {
     if (!userId) return []
     try {
-        const response = await fetch(`${API_BASE}/documents?user_id=${encodeURIComponent(userId)}`)
+        let url = `${API_BASE}/documents?user_id=${encodeURIComponent(userId)}`
+        if (altId && altId !== userId) {
+            url += `&alt_id=${encodeURIComponent(altId)}`
+        }
+        const response = await fetch(url)
         if (!response.ok) return []
         const data = await response.json()
         return Array.isArray(data.documents) ? data.documents : []

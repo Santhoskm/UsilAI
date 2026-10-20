@@ -683,10 +683,10 @@ import { useEditor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import TextAlign from '@tiptap/extension-text-align'
-import { useTanglishConverter } from '@/composables/useTanglishConverter'
 import { preloadCommonChunks } from '@/data/tamilEngine'
+import { useAuth, registerPreLogoutHook } from '@/composables/useAuth'
+import { useTanglishConverter } from '@/composables/useTanglishConverter'
 import { useClaudeGrammarChecker } from '@/composables/useClaudeGrammarChecker'
-import { useAuth } from '@/composables/useAuth'
 import { useCredits } from '@/composables/useCredits'
 import { fetchUserDocuments, syncUserDocuments, deleteUserDocument } from '@/services/apiService'
 
@@ -704,6 +704,17 @@ const editingTitleText = ref('')
 const syncStatus = ref('saved') // 'saved' | 'syncing' | 'error'
 let saveDebounceTimer = null
 let dbSyncDebounceTimer = null
+let isProgrammaticUpdate = false
+
+const setEditorTextSafely = (content) => {
+  if (!editor.value) return
+  isProgrammaticUpdate = true
+  editor.value.commands.setContent(content || '')
+  updateStats(editor.value)
+  setTimeout(() => {
+    isProgrammaticUpdate = false
+  }, 60)
+}
 
 const currentUserId = computed(() => {
   return user.value?.id || (user.value?.email ? user.value.email.toLowerCase() : null)
@@ -762,6 +773,34 @@ const saveFilesToStorage = () => {
   }, 400)
 }
 
+// Immediately flushes pending edits without waiting for debounce (called before logout/unload)
+const flushPendingSave = async () => {
+  if (saveDebounceTimer) {
+    clearTimeout(saveDebounceTimer)
+    saveDebounceTimer = null
+  }
+  if (dbSyncDebounceTimer) {
+    clearTimeout(dbSyncDebounceTimer)
+    dbSyncDebounceTimer = null
+  }
+  if (!editor.value || !activeFile.value || !isAuthenticated.value) return
+
+  const html = editor.value.getHTML()
+  const text = editor.value.getText()
+  const words = text.trim().split(/\s+/).filter(w => w.length > 0).length
+  activeFile.value.content = html
+  activeFile.value.plainText = text
+  activeFile.value.wordCount = words
+  activeFile.value.updatedAt = new Date().toISOString()
+
+  const uid = currentUserId.value
+  if (uid && savedFiles.value.length > 0) {
+    try {
+      await syncUserDocuments(uid, savedFiles.value)
+    } catch (_) {}
+  }
+}
+
 // Loads documents exclusively from PostgreSQL database for THIS authenticated user
 const loadSavedFiles = async () => {
   // Clean up any legacy saved files previously stored in localStorage to protect privacy
@@ -774,12 +813,12 @@ const loadSavedFiles = async () => {
   } catch (_) {}
 
   const uid = currentUserId.value
+  const altUid = user.value?.sub || null
+
   if (!isAuthenticated.value || !uid) {
     savedFiles.value = []
     activeFileId.value = ''
-    if (editor.value) {
-      editor.value.commands.setContent('')
-    }
+    setEditorTextSafely('')
     syncStatus.value = 'idle'
     return
   }
@@ -787,7 +826,7 @@ const loadSavedFiles = async () => {
   // Query PostgreSQL database for this user's private documents
   try {
     syncStatus.value = 'syncing'
-    const dbDocs = await fetchUserDocuments(uid)
+    const dbDocs = await fetchUserDocuments(uid, altUid)
     if (Array.isArray(dbDocs) && dbDocs.length > 0) {
       // Map user's private documents from PostgreSQL
       savedFiles.value = dbDocs.map(d => ({
@@ -801,13 +840,11 @@ const loadSavedFiles = async () => {
       }))
 
       activeFileId.value = savedFiles.value[0].id
-      if (editor.value) {
-        editor.value.commands.setContent(savedFiles.value[0].content || '')
-        updateStats(editor.value)
-      }
+      setEditorTextSafely(savedFiles.value[0].content || '')
       syncStatus.value = 'saved'
     } else {
-      // Brand new user with 0 files in PostgreSQL: create 1 default file for them
+      // Brand new user with 0 files in PostgreSQL: create 1 default in-memory file for them
+      // Do NOT sync to DB yet until user writes or explicitly saves
       const defaultFile = {
         id: 'file_' + Date.now(),
         title: 'New File',
@@ -819,11 +856,7 @@ const loadSavedFiles = async () => {
       }
       savedFiles.value = [defaultFile]
       activeFileId.value = defaultFile.id
-      if (editor.value) {
-        editor.value.commands.setContent('')
-      }
-      // Save this new initial file to PostgreSQL under this user's account
-      await syncUserDocuments(uid, savedFiles.value)
+      setEditorTextSafely('')
       syncStatus.value = 'saved'
     }
   } catch (err) {
@@ -833,10 +866,10 @@ const loadSavedFiles = async () => {
 }
 
 const scheduleSaveCurrentFile = () => {
-  if (!editor.value || !activeFile.value) return
+  if (!editor.value || !activeFile.value || isProgrammaticUpdate) return
   if (saveDebounceTimer) clearTimeout(saveDebounceTimer)
   saveDebounceTimer = setTimeout(() => {
-    if (!editor.value || !activeFile.value) return
+    if (!editor.value || !activeFile.value || isProgrammaticUpdate) return
     const html = editor.value.getHTML()
     const text = editor.value.getText()
     const words = text.trim().split(/\s+/).filter(w => w.length > 0).length
@@ -877,7 +910,7 @@ const createNewFile = () => {
   saveFilesToStorage()
 
   if (editor.value) {
-    editor.value.commands.setContent('')
+    setEditorTextSafely('')
     editor.value.commands.focus()
   }
 }
@@ -895,7 +928,7 @@ const switchToFile = (fileId) => {
   activeFileId.value = fileId
   const target = savedFiles.value.find(f => f.id === fileId)
   if (target && editor.value) {
-    editor.value.commands.setContent(target.content || '')
+    setEditorTextSafely(target.content || '')
     editor.value.commands.focus()
   }
 }
@@ -932,9 +965,7 @@ const deleteFile = (fileId, e) => {
       file.wordCount = 0
       file.updatedAt = new Date().toISOString()
       saveFilesToStorage()
-      if (editor.value) {
-        editor.value.commands.setContent('')
-      }
+      setEditorTextSafely('')
     }
     return
   }
@@ -2083,6 +2114,7 @@ const editor = useEditor({
     handlePaste: handlePaste
   },
   onUpdate: ({ editor }) => {
+    if (isProgrammaticUpdate) return
     updateStats(editor)
     scheduleSaveCurrentFile()
     if (aiHelpEnabled.value && autoCheckMode.value) {
@@ -2103,10 +2135,7 @@ watch([isAuthenticated, currentUserId], async ([newAuth, newUid], [oldAuth, oldU
     // User logged out: clear all editor state and document data immediately (zero cross-user leakage)
     savedFiles.value = []
     activeFileId.value = ''
-    if (editor.value) {
-      editor.value.commands.setContent('')
-      updateStats(editor.value)
-    }
+    setEditorTextSafely('')
     syncStatus.value = 'idle'
     return
   }
@@ -2115,16 +2144,19 @@ watch([isAuthenticated, currentUserId], async ([newAuth, newUid], [oldAuth, oldU
     // User logged in or switched accounts: reset editor and fetch their private DB files
     savedFiles.value = []
     activeFileId.value = ''
-    if (editor.value) {
-      editor.value.commands.setContent('')
-      updateStats(editor.value)
-    }
+    setEditorTextSafely('')
     await loadSavedFiles()
   }
 })
 
-// Focus editor on mount
+// Lifecycle hooks
+let unregisterPreLogout = null
+
 onMounted(async () => {
+  // Register pre-logout flush to guarantee latest text is saved to PostgreSQL before logout
+  unregisterPreLogout = registerPreLogoutHook(flushPendingSave)
+  window.addEventListener('beforeunload', flushPendingSave)
+
   // Preload common dictionary chunks in background — makes first lookup instant
   preloadCommonChunks()
 
@@ -2132,8 +2164,7 @@ onMounted(async () => {
   await loadSavedFiles()
   setTimeout(() => {
     if (editor.value && activeFile.value) {
-      editor.value.commands.setContent(activeFile.value.content || '')
-      updateStats(editor.value)
+      setEditorTextSafely(activeFile.value.content || '')
     }
   }, 150)
 
@@ -2171,6 +2202,8 @@ onMounted(async () => {
 
 // Cleanup on unmount
 onBeforeUnmount(() => {
+  if (unregisterPreLogout) unregisterPreLogout()
+  window.removeEventListener('beforeunload', flushPendingSave)
   if (editor.value) {
     editor.value.destroy()
   }

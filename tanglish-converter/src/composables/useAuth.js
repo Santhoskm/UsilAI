@@ -7,6 +7,14 @@ const STORAGE_KEY = 'usil_auth_user'
 const user = ref(null)
 const isLoading = ref(false)
 const error = ref(null)
+const preLogoutHooks = new Set()
+
+export function registerPreLogoutHook(fn) {
+    if (typeof fn === 'function') {
+        preLogoutHooks.add(fn)
+    }
+    return () => preLogoutHooks.delete(fn)
+}
 
 // Helper to parse Google JWT credential safely
 function parseJwt(token) {
@@ -80,6 +88,7 @@ export function useAuth() {
             const userData = {
                 id: cleanEmail,
                 email: cleanEmail,
+                sub: payload.sub || '',
                 name: payload.name || payload.email.split('@')[0],
                 picture: payload.picture || '',
                 role: 'user',
@@ -119,6 +128,7 @@ export function useAuth() {
                 const userData = {
                     id: foundUser.email.toLowerCase(),
                     email: foundUser.email,
+                    sub: '',
                     name: foundUser.name,
                     role: foundUser.role,
                     loginTime: new Date().toISOString()
@@ -159,6 +169,7 @@ export function useAuth() {
             const userData = {
                 id: email.toLowerCase(),
                 email,
+                sub: '',
                 name,
                 role: 'user',
                 createdAt: new Date().toISOString()
@@ -175,7 +186,14 @@ export function useAuth() {
     }
 
     // Logout function
-    const logout = () => {
+    const logout = async () => {
+        for (const hook of preLogoutHooks) {
+            try {
+                await hook()
+            } catch (e) {
+                console.error('[Auth] Pre-logout hook failed:', e)
+            }
+        }
         user.value = null
         localStorage.removeItem(STORAGE_KEY)
         if (router) {

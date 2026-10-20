@@ -215,8 +215,8 @@ const toggleUserMenu = () => {
   showUserMenu.value = !showUserMenu.value
 }
 
-const handleLogout = () => {
-  logout()
+const handleLogout = async () => {
+  await logout()
   showUserMenu.value = false
   mobileMenuOpen.value = false
   router.push('/')

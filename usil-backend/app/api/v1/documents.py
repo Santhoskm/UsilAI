@@ -28,12 +28,17 @@ class DocumentsSyncRequest(BaseModel):
 @router.get("/")
 async def get_user_documents(
     user_id: str = Query(..., min_length=1, max_length=150, description="Unique user identifier"),
+    alt_id: Optional[str] = Query(None, max_length=150, description="Optional alternate user identifier (Google sub or email)"),
     db: AsyncSession = Depends(get_db)
 ):
     """Retrieve up to 5 stored documents for the specified user."""
+    query_ids = [user_id]
+    if alt_id and alt_id != user_id:
+        query_ids.append(alt_id)
+
     stmt = (
         select(UserDocument)
-        .where(UserDocument.user_id == user_id)
+        .where(UserDocument.user_id.in_(query_ids))
         .order_by(desc(UserDocument.updated_at))
         .limit(5)
     )
@@ -53,6 +58,16 @@ async def get_user_documents(
         for doc in docs
     ]
 
+    # Automatically migrate any documents found under alt_id to the primary user_id
+    if alt_id and alt_id != user_id:
+        migrated = False
+        for doc in docs:
+            if doc.user_id != user_id:
+                doc.user_id = user_id
+                migrated = True
+        if migrated:
+            await db.commit()
+
     return {
         "user_id": user_id,
         "documents": formatted_docs,
@@ -68,6 +83,7 @@ async def sync_user_documents(
     """
     Save or update up to 5 documents for the specified user.
     Enforces maximum 5 files constraint per user.
+    Safely upserts documents without deleting unmentioned ones.
     """
     if len(payload.documents) > 5:
         raise HTTPException(
@@ -76,10 +92,8 @@ async def sync_user_documents(
         )
 
     user_id = payload.user_id
-    synced_ids = set()
 
     for item in payload.documents:
-        synced_ids.add(item.id)
         # Check if document already exists
         stmt = select(UserDocument).where(
             UserDocument.id == item.id,
@@ -103,14 +117,6 @@ async def sync_user_documents(
                 word_count=item.word_count
             )
             db.add(new_doc)
-
-    # Clean up any old documents for this user that were deleted from client
-    if synced_ids:
-        del_stmt = delete(UserDocument).where(
-            UserDocument.user_id == user_id,
-            UserDocument.id.not_in(synced_ids)
-        )
-        await db.execute(del_stmt)
 
     await db.commit()
 
