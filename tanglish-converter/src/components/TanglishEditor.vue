@@ -375,58 +375,11 @@
 
         <!-- Files Scroll List -->
         <div class="files-scroll-list">
-          <!-- Today Section -->
-          <div v-if="groupedFiles.today.length > 0" class="file-group-section">
+          <div class="file-group-section">
             <div class="group-header-label">Today</div>
             <div class="group-items-stack">
               <div 
-                v-for="file in groupedFiles.today" 
-                :key="file.id"
-                class="file-item-card"
-                :class="{ 'active': file.id === activeFileId }"
-                @click="switchToFile(file.id)"
-              >
-                <div class="file-item-main">
-                  <input 
-                    v-if="editingFileId === file.id"
-                    :id="`rename-input-${file.id}`"
-                    v-model="editingTitleText"
-                    @blur="saveRenameFile(file)"
-                    @keydown.enter="saveRenameFile(file)"
-                    @keydown.esc="editingFileId = null"
-                    @click.stop
-                    class="file-rename-input"
-                  />
-                  <span v-else class="file-item-title" :title="file.title">
-                    {{ file.title }}
-                  </span>
-                </div>
-                <div class="file-item-actions" @click.stop>
-                  <button 
-                    class="file-action-icon-btn" 
-                    @click="startRenameFile(file, $event)" 
-                    title="Rename File"
-                  >
-                    ✎
-                  </button>
-                  <button 
-                    class="file-action-icon-btn delete-btn" 
-                    @click="deleteFile(file.id, $event)" 
-                    title="Delete File"
-                  >
-                    🗑
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Earlier Section -->
-          <div v-if="groupedFiles.earlier.length > 0" class="file-group-section">
-            <div class="group-header-label">Earlier</div>
-            <div class="group-items-stack">
-              <div 
-                v-for="file in groupedFiles.earlier" 
+                v-for="file in savedFiles" 
                 :key="file.id"
                 class="file-item-card"
                 :class="{ 'active': file.id === activeFileId }"
