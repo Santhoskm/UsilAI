@@ -93,20 +93,34 @@ async def sync_user_documents(
 
     user_id = payload.user_id
 
-    for item in payload.documents:
-        # Check if document already exists
-        stmt = select(UserDocument).where(
-            UserDocument.id == item.id,
-            UserDocument.user_id == user_id
-        )
-        res = await db.execute(stmt)
-        existing_doc = res.scalar_one_or_none()
+    # 1. Fetch all existing document IDs for this user
+    existing_stmt = select(UserDocument.id).where(UserDocument.user_id == user_id)
+    existing_ids = set((await db.execute(existing_stmt)).scalars().all())
 
-        if existing_doc:
-            existing_doc.title = item.title
-            existing_doc.content = item.content
-            existing_doc.plain_text = item.plain_text
-            existing_doc.word_count = item.word_count
+    # 2. Check how many genuinely new documents are being added
+    new_doc_items = [item for item in payload.documents if item.id not in existing_ids]
+
+    # Enforce strictly: total existing + new cannot exceed 5
+    if len(existing_ids) + len(new_doc_items) > 5:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Account file limit reached: maximum 5 documents allowed (currently {len(existing_ids)}). Please delete an existing file first."
+        )
+
+    for item in payload.documents:
+        if item.id in existing_ids:
+            # Update existing document
+            stmt = select(UserDocument).where(
+                UserDocument.id == item.id,
+                UserDocument.user_id == user_id
+            )
+            res = await db.execute(stmt)
+            existing_doc = res.scalar_one_or_none()
+            if existing_doc:
+                existing_doc.title = item.title
+                existing_doc.content = item.content
+                existing_doc.plain_text = item.plain_text
+                existing_doc.word_count = item.word_count
         else:
             new_doc = UserDocument(
                 id=item.id,
@@ -117,12 +131,30 @@ async def sync_user_documents(
                 word_count=item.word_count
             )
             db.add(new_doc)
+            existing_ids.add(item.id)
+
+    # 3. Hard safety enforcement: never allow more than 5 documents in PostgreSQL
+    prune_stmt = (
+        select(UserDocument.id)
+        .where(UserDocument.user_id == user_id)
+        .order_by(desc(UserDocument.updated_at))
+    )
+    all_current_ids = (await db.execute(prune_stmt)).scalars().all()
+    if len(all_current_ids) > 5:
+        excess = all_current_ids[5:]
+        await db.execute(
+            delete(UserDocument).where(
+                UserDocument.user_id == user_id,
+                UserDocument.id.in_(excess)
+            )
+        )
 
     await db.commit()
 
     return {
         "success": True,
         "user_id": user_id,
+        "total_documents": min(len(existing_ids), 5),
         "saved_count": len(payload.documents)
     }
 

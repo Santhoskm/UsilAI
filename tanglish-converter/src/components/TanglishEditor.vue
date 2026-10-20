@@ -760,7 +760,7 @@ const saveFilesToStorage = () => {
   if (dbSyncDebounceTimer) clearTimeout(dbSyncDebounceTimer)
   dbSyncDebounceTimer = setTimeout(async () => {
     try {
-      const res = await syncUserDocuments(uid, savedFiles.value)
+      const res = await syncUserDocuments(uid, savedFiles.value.slice(0, 5))
       if (res && res.success) {
         syncStatus.value = 'saved'
       } else {
@@ -796,7 +796,7 @@ const flushPendingSave = async () => {
   const uid = currentUserId.value
   if (uid && savedFiles.value.length > 0) {
     try {
-      await syncUserDocuments(uid, savedFiles.value)
+      await syncUserDocuments(uid, savedFiles.value.slice(0, 5))
     } catch (_) {}
   }
 }
@@ -828,8 +828,8 @@ const loadSavedFiles = async () => {
     syncStatus.value = 'syncing'
     const dbDocs = await fetchUserDocuments(uid, altUid)
     if (Array.isArray(dbDocs) && dbDocs.length > 0) {
-      // Map user's private documents from PostgreSQL
-      savedFiles.value = dbDocs.map(d => ({
+      // Strictly enforce total max 5 files (including previous logins)
+      savedFiles.value = dbDocs.slice(0, 5).map(d => ({
         id: d.id,
         title: d.title || 'New File',
         content: d.content || '',
@@ -883,7 +883,7 @@ const scheduleSaveCurrentFile = () => {
 
 const createNewFile = () => {
   if (savedFiles.value.length >= 5) {
-    alert('Maximum 5 files reached! Please delete or reuse an existing file.')
+    alert('Maximum 5 files limit reached for your account! Including all previous logins, you can have up to 5 files total. Please edit an existing file or delete one to create a new file.')
     return
   }
 
@@ -906,6 +906,10 @@ const createNewFile = () => {
     updatedAt: new Date().toISOString()
   }
   savedFiles.value.unshift(newFile)
+  // Ensure we never have more than 5 in memory
+  if (savedFiles.value.length > 5) {
+    savedFiles.value = savedFiles.value.slice(0, 5)
+  }
   activeFileId.value = newFile.id
   saveFilesToStorage()
 
