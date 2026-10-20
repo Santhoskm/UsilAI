@@ -803,6 +803,7 @@ const loadSavedFiles = async () => {
       activeFileId.value = savedFiles.value[0].id
       if (editor.value) {
         editor.value.commands.setContent(savedFiles.value[0].content || '')
+        updateStats(editor.value)
       }
       syncStatus.value = 'saved'
     } else {
@@ -2091,16 +2092,6 @@ const editor = useEditor({
   onSelectionUpdate: handleSelectionUpdate
 })
 
-// Watch for authentication changes to load user documents
-watch(isAuthenticated, (isAuth) => {
-  if (isAuth) {
-    loadSavedFiles()
-    if (activeFile.value && activeFile.value.content && editor.value) {
-      editor.value.commands.setContent(activeFile.value.content)
-    }
-  }
-})
-
 // Watch for autoConvert changes
 watch(autoConvert, (newValue) => {
   console.log('Auto convert:', newValue ? 'ON' : 'OFF')
@@ -2114,6 +2105,7 @@ watch([isAuthenticated, currentUserId], async ([newAuth, newUid], [oldAuth, oldU
     activeFileId.value = ''
     if (editor.value) {
       editor.value.commands.setContent('')
+      updateStats(editor.value)
     }
     syncStatus.value = 'idle'
     return
@@ -2125,6 +2117,7 @@ watch([isAuthenticated, currentUserId], async ([newAuth, newUid], [oldAuth, oldU
     activeFileId.value = ''
     if (editor.value) {
       editor.value.commands.setContent('')
+      updateStats(editor.value)
     }
     await loadSavedFiles()
   }
@@ -2138,10 +2131,11 @@ onMounted(async () => {
   // Initialize and restore saved files strictly from PostgreSQL for authenticated user
   await loadSavedFiles()
   setTimeout(() => {
-    if (editor.value && activeFile.value && activeFile.value.content) {
-      editor.value.commands.setContent(activeFile.value.content)
+    if (editor.value && activeFile.value) {
+      editor.value.commands.setContent(activeFile.value.content || '')
+      updateStats(editor.value)
     }
-  }, 120)
+  }, 150)
 
   // Close dropdowns when clicking outside
   document.addEventListener('mousedown', (e) => {

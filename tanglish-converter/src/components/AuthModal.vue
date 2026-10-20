@@ -27,6 +27,17 @@
           <div ref="googleModalBtnRef" class="google-btn-container"></div>
         </div>
 
+        <div class="auth-divider-row">
+          <span>or test with demo</span>
+        </div>
+
+        <div class="demo-auth-wrapper">
+          <button @click="handleDemoLogin('demo@usil.ai', 'demo123')" class="btn-demo-login">
+            <span class="demo-icon">⚡</span>
+            <span>Sign in as Demo User (demo@usil.ai)</span>
+          </button>
+        </div>
+
         <div v-if="error" class="error-message">
           ⚠️ {{ error }}
         </div>
@@ -90,7 +101,7 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'success'])
 
-const { error } = useAuth()
+const { login, error } = useAuth()
 const { initAndRender } = useGoogleAuth()
 
 const googleModalBtnRef = ref(null)
@@ -98,6 +109,14 @@ const googleModalBtnRef = ref(null)
 const handleGoogleSuccess = (user) => {
   emit('success', user)
   emit('close')
+}
+
+const handleDemoLogin = async (email, password) => {
+  const res = await login(email, password)
+  if (res.success) {
+    emit('success', res.user)
+    emit('close')
+  }
 }
 
 const renderGoogleButton = async () => {
@@ -305,6 +324,68 @@ watch(() => props.isOpen, (newVal) => {
   font-size: 12px;
   color: #94a3b8;
   font-weight: 500;
+}
+
+.auth-divider-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  margin: 12px 0 8px 0;
+  position: relative;
+}
+
+.auth-divider-row::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--card-border, #e2e8f0);
+}
+
+.auth-divider-row span {
+  position: relative;
+  background: var(--card-bg, #ffffff);
+  padding: 0 10px;
+  font-size: 11px;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+.demo-auth-wrapper {
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.btn-demo-login {
+  width: 100%;
+  padding: 9px 16px;
+  border-radius: 9999px;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.18s ease;
+}
+
+.btn-demo-login:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  transform: translateY(-1px);
+}
+
+.demo-icon {
+  font-size: 13px;
 }
 
 @media (max-width: 480px) {

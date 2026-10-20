@@ -76,9 +76,10 @@ export function useAuth() {
                 throw new Error('Failed to retrieve user profile from Google')
             }
 
+            const cleanEmail = payload.email.toLowerCase().trim()
             const userData = {
-                id: payload.sub || Date.now().toString(),
-                email: payload.email,
+                id: cleanEmail,
+                email: cleanEmail,
                 name: payload.name || payload.email.split('@')[0],
                 picture: payload.picture || '',
                 role: 'user',
