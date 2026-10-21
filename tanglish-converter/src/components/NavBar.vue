@@ -238,10 +238,9 @@ onBeforeUnmount(() => {
   position: sticky;
   top: 0;
   z-index: 1000;
-  background: var(--nav-bg);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  background: #ffffff;
   border-bottom: 1px solid var(--nav-border);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   transition: all 0.25s ease;
 }
 

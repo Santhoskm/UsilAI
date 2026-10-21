@@ -808,6 +808,7 @@ const groupedFiles = computed(() => {
 
 // Syncs documents exclusively to PostgreSQL database (NO local storage)
 const saveFilesToStorage = () => {
+  if (!props.fullPage && !props.enableSidebar) return
   const uid = currentUserId.value
   if (!isAuthenticated.value || !uid || savedFiles.value.length === 0) return
 
@@ -830,6 +831,7 @@ const saveFilesToStorage = () => {
 
 // Immediately flushes pending edits without waiting for debounce (called before logout/unload)
 const flushPendingSave = async () => {
+  if (!props.fullPage && !props.enableSidebar) return
   if (saveDebounceTimer) {
     clearTimeout(saveDebounceTimer)
     saveDebounceTimer = null
@@ -858,6 +860,15 @@ const flushPendingSave = async () => {
 
 // Loads documents exclusively from PostgreSQL database for THIS authenticated user
 const loadSavedFiles = async () => {
+  // If on home page (sidebar disabled / not full page), keep editor strictly clean!
+  if (!props.fullPage && !props.enableSidebar) {
+    savedFiles.value = []
+    activeFileId.value = ''
+    setEditorTextSafely('')
+    syncStatus.value = 'idle'
+    return
+  }
+
   // Clean up any legacy saved files previously stored in localStorage to protect privacy
   try {
     Object.keys(localStorage).forEach(k => {
@@ -941,6 +952,7 @@ const loadSavedFiles = async () => {
 }
 
 const scheduleSaveCurrentFile = () => {
+  if (!props.fullPage && !props.enableSidebar) return
   if (!editor.value || !activeFile.value || isProgrammaticUpdate) return
   if (saveDebounceTimer) clearTimeout(saveDebounceTimer)
   saveDebounceTimer = setTimeout(() => {
@@ -2229,11 +2241,13 @@ watch([isAuthenticated, currentUserId], async ([newAuth, newUid], [oldAuth, oldU
   }
 
   if (newUid !== oldUid || (newAuth && !oldAuth)) {
-    // User logged in or switched accounts: reset editor and fetch their private DB files
+    // User logged in or switched accounts: reset editor
     savedFiles.value = []
     activeFileId.value = ''
     setEditorTextSafely('')
-    await loadSavedFiles()
+    if (props.fullPage || props.enableSidebar) {
+      await loadSavedFiles()
+    }
   }
 })
 
@@ -2248,13 +2262,20 @@ onMounted(async () => {
   // Preload common dictionary chunks in background — makes first lookup instant
   preloadCommonChunks()
 
-  // Initialize and restore saved files strictly from PostgreSQL for authenticated user
-  await loadSavedFiles()
-  setTimeout(() => {
-    if (editor.value && activeFile.value) {
-      setEditorTextSafely(activeFile.value.content || '')
-    }
-  }, 150)
+  // Initialize and restore saved files strictly for fullPage/sidebar editor
+  if (props.fullPage || props.enableSidebar) {
+    await loadSavedFiles()
+    setTimeout(() => {
+      if (editor.value && activeFile.value) {
+        setEditorTextSafely(activeFile.value.content || '')
+      }
+    }, 150)
+  } else {
+    // Home page editor: ensure clean empty editor
+    savedFiles.value = []
+    activeFileId.value = ''
+    setEditorTextSafely('')
+  }
 
   // Close dropdowns when clicking outside
   document.addEventListener('mousedown', (e) => {
