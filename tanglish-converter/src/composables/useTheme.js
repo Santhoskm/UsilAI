@@ -1,39 +1,38 @@
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 
-const theme = ref(localStorage.getItem('usil_theme') || 'dark')
+// Application is locked strictly to light mode as requested by user
+const theme = ref('light')
 
 export function useTheme() {
-  const isDark = computed(() => theme.value === 'dark')
+  const isDark = computed(() => false)
 
-  const applyTheme = (currentTheme) => {
-    localStorage.setItem('usil_theme', currentTheme)
+  const applyTheme = () => {
+    try {
+      localStorage.setItem('usil_theme', 'light')
+    } catch (_) {}
+
     if (typeof document !== 'undefined') {
       const root = document.documentElement
-      if (currentTheme === 'dark') {
-        root.classList.add('dark')
-        root.classList.remove('light')
-        root.setAttribute('data-theme', 'dark')
-      } else {
-        root.classList.add('light')
-        root.classList.remove('dark')
-        root.setAttribute('data-theme', 'light')
-      }
+      root.classList.add('light')
+      root.classList.remove('dark')
+      root.setAttribute('data-theme', 'light')
     }
   }
 
   const toggleTheme = () => {
-    theme.value = theme.value === 'dark' ? 'light' : 'dark'
-    applyTheme(theme.value)
+    // Only light mode is permitted
+    theme.value = 'light'
+    applyTheme()
   }
 
-  const setTheme = (newTheme) => {
-    theme.value = newTheme
-    applyTheme(newTheme)
+  const setTheme = () => {
+    theme.value = 'light'
+    applyTheme()
   }
 
-  // Ensure theme is applied on initial load
+  // Ensure light theme is applied on initial load
   if (typeof document !== 'undefined') {
-    applyTheme(theme.value)
+    applyTheme()
   }
 
   return {

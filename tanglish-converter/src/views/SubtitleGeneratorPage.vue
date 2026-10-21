@@ -95,15 +95,8 @@ const handleSubtitlesGenerated = (data) => {
 }
 
 .sub-badge {
-  background: rgba(236, 72, 153, 0.15);
-  border: 1px solid rgba(236, 72, 153, 0.3);
-  color: #f472b6;
-}
-
-:root.light .sub-badge,
-[data-theme="light"] .sub-badge {
   background: #fce7f3;
-  border-color: #fbcfe8;
+  border: 1px solid #fbcfe8;
   color: #be185d;
 }
 

@@ -33,40 +33,6 @@
           <span class="credits-text">{{ creditsLeft }} credits</span>
         </div>
 
-        <!-- Theme Toggle (Light / Dark) -->
-        <div class="theme-switch-pill" title="Switch Theme">
-          <button 
-            class="theme-segment" 
-            :class="{ active: theme === 'light' }" 
-            @click="setTheme('light')"
-            aria-label="Light mode"
-            title="Light Theme"
-          >
-            <svg class="theme-icon-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="12" cy="12" r="4.3" fill="currentColor"/>
-              <line x1="12" y1="2.2" x2="12" y2="5.5" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"/>
-              <line x1="12" y1="18.5" x2="12" y2="21.8" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"/>
-              <line x1="2.2" y1="12" x2="5.5" y2="12" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"/>
-              <line x1="18.5" y1="12" x2="21.8" y2="12" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"/>
-              <line x1="5.1" y1="5.1" x2="7.4" y2="7.4" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"/>
-              <line x1="16.6" y1="16.6" x2="18.9" y2="18.9" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"/>
-              <line x1="5.1" y1="18.9" x2="7.4" y2="16.6" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"/>
-              <line x1="16.6" y1="7.4" x2="18.9" y2="5.1" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"/>
-            </svg>
-          </button>
-          <button 
-            class="theme-segment" 
-            :class="{ active: theme === 'dark' }" 
-            @click="setTheme('dark')"
-            aria-label="Dark mode"
-            title="Dark Theme"
-          >
-            <svg class="theme-icon-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" fill="currentColor"/>
-            </svg>
-          </button>
-        </div>
-
         <!-- User Menu (Logged In) -->
         <div v-if="isAuthenticated" class="user-menu">
           <button class="user-avatar-btn" @click="toggleUserMenu" :title="user?.name || 'Account'">
@@ -176,14 +142,12 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
-import { useTheme } from '@/composables/useTheme'
 import AuthModal from '@/components/AuthModal.vue'
 
 import { useCredits } from '@/composables/useCredits'
 
 const router = useRouter()
 const { user, isAuthenticated, logout } = useAuth()
-const { theme, toggleTheme, setTheme } = useTheme()
 const { creditsLeft, totalCredits, isOutOfCredits, formattedTimeUntilRefill, showCreditLimitModal, closeCreditModal } = useCredits()
 
 const showAuthModal = ref(false)
@@ -376,49 +340,6 @@ onBeforeUnmount(() => {
 
 .credits-icon {
   font-size: 13px;
-}
-
-/* Theme Switch Pill */
-.theme-switch-pill {
-  display: inline-flex;
-  align-items: center;
-  background: var(--toolbar-btn-bg);
-  border: 1px solid var(--toolbar-border);
-  padding: 3px;
-  border-radius: 20px;
-  gap: 3px;
-  user-select: none;
-}
-
-.theme-segment {
-  background: transparent;
-  border: none;
-  width: 32px;
-  height: 28px;
-  padding: 0;
-  border-radius: 14px;
-  color: var(--text-muted);
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.theme-segment:hover {
-  color: var(--text-main);
-}
-
-.theme-segment.active {
-  background: linear-gradient(135deg, #4f46e5, #6366f1);
-  color: #ffffff;
-  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.35);
-}
-
-.theme-icon-svg {
-  width: 16px;
-  height: 16px;
-  display: block;
 }
 
 /* Login Button */

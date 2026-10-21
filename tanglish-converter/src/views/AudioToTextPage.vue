@@ -98,15 +98,8 @@ const handleAudioText = (text) => {
 }
 
 .audio-badge {
-  background: rgba(16, 185, 129, 0.15);
-  border: 1px solid rgba(16, 185, 129, 0.3);
-  color: #34d399;
-}
-
-:root.light .audio-badge,
-[data-theme="light"] .audio-badge {
   background: #d1fae5;
-  border-color: #a7f3d0;
+  border: 1px solid #a7f3d0;
   color: #065f46;
 }
 

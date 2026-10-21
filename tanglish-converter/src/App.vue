@@ -1,5 +1,5 @@
 <template>
-  <div id="app" :class="[theme === 'dark' ? 'dark-mode' : 'light-mode']">
+  <div id="app" class="light-mode">
     <NavBar />
     <router-view />
   </div>
@@ -15,36 +15,7 @@ const { theme } = useTheme()
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap');
 
-:root, :root.dark, [data-theme="dark"] {
-  --app-bg: #080d1a;
-  --app-bg-radial: radial-gradient(circle at 85% 15%, rgba(99, 102, 241, 0.16), transparent 45%), radial-gradient(circle at 15% 75%, rgba(139, 92, 246, 0.1), transparent 40%);
-  --nav-bg: rgba(11, 16, 29, 0.82);
-  --nav-border: rgba(255, 255, 255, 0.08);
-  --card-bg: #0d1527;
-  --card-border: rgba(255, 255, 255, 0.08);
-  --card-hover-border: rgba(99, 102, 241, 0.4);
-  --card-inner-bg: #090e1d;
-  --card-inner-border: rgba(255, 255, 255, 0.06);
-  --toolbar-bg: #0a1020;
-  --toolbar-btn-bg: rgba(255, 255, 255, 0.05);
-  --toolbar-btn-hover: rgba(255, 255, 255, 0.12);
-  --toolbar-btn-active: #4f46e5;
-  --toolbar-border: rgba(255, 255, 255, 0.08);
-  --text-main: #ffffff;
-  --text-sub: #94a3b8;
-  --text-muted: #64748b;
-  --accent-purple: #8b5cf6;
-  --accent-indigo: #6366f1;
-  --credits-bg: rgba(99, 102, 241, 0.15);
-  --credits-border: rgba(99, 102, 241, 0.3);
-  --credits-text: #c7d2fe;
-  --btn-primary-bg: #4f46e5;
-  --btn-primary-hover: #4338ca;
-  --scrollbar-track: #0d1527;
-  --scrollbar-thumb: #1e293b;
-}
-
-:root.light, [data-theme="light"] {
+:root, :root.light, [data-theme="light"] {
   --app-bg: #f8fafc;
   --app-bg-radial: radial-gradient(circle at 85% 15%, rgba(99, 102, 241, 0.08), transparent 45%), radial-gradient(circle at 10% 85%, rgba(147, 197, 253, 0.08), transparent 45%);
   --nav-bg: rgba(255, 255, 255, 0.85);

@@ -95,15 +95,8 @@ const handleBlogGenerated = (data) => {
 }
 
 .blog-badge {
-  background: rgba(245, 158, 11, 0.15);
-  border: 1px solid rgba(245, 158, 11, 0.3);
-  color: #fbbf24;
-}
-
-:root.light .blog-badge,
-[data-theme="light"] .blog-badge {
   background: #fef3c7;
-  border-color: #fde68a;
+  border: 1px solid #fde68a;
   color: #b45309;
 }
 

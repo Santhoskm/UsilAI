@@ -2776,11 +2776,6 @@ onBeforeUnmount(() => {
   letter-spacing: -0.01em;
 }
 
-:root.dark .group-header-label,
-[data-theme="dark"] .group-header-label {
-  color: #94a3b8;
-}
-
 .group-items-stack {
   display: flex;
   flex-direction: column;
@@ -2805,24 +2800,12 @@ onBeforeUnmount(() => {
   background: rgba(0, 0, 0, 0.04);
 }
 
-:root.dark .file-item-card:hover,
-[data-theme="dark"] .file-item-card:hover {
-  background: rgba(255, 255, 255, 0.05);
-}
-
 /* Active File Card - Soft Sage/Pastel Green like Screenshot */
 .file-item-card.active {
   background: #dcfce7 !important;
   color: #166534 !important;
   font-weight: 600;
   box-shadow: 0 1px 3px rgba(22, 101, 52, 0.08);
-}
-
-:root.dark .file-item-card.active,
-[data-theme="dark"] .file-item-card.active {
-  background: #14532d !important;
-  color: #bbf7d0 !important;
-  border: 1px solid rgba(74, 222, 128, 0.2);
 }
 
 .file-item-main {
@@ -2850,12 +2833,6 @@ onBeforeUnmount(() => {
   border-radius: 6px;
   color: #166534;
   outline: none;
-}
-
-:root.dark .file-rename-input,
-[data-theme="dark"] .file-rename-input {
-  background: #0f172a;
-  color: #ffffff;
 }
 
 .file-item-actions {
@@ -2920,13 +2897,6 @@ onBeforeUnmount(() => {
   background: #dcfce7;
   border-color: #4ade80;
   transform: translateY(-1px);
-}
-
-:root.dark .joint-download-btn,
-[data-theme="dark"] .joint-download-btn {
-  background: #064e3b;
-  border-color: #059669;
-  color: #a7f3d0;
 }
 
 /* ── Download Dropdown Menu Sections ── */

@@ -662,143 +662,59 @@ const scrollToEditor = () => {
 }
 
 /* Theme 1: OCR Text Extraction */
-:root.dark .ocr-theme,
-[data-theme="dark"] .ocr-theme {
-  background: #14122b;
-  border-color: rgba(168, 85, 247, 0.22);
-}
-:root.dark .ocr-theme .tool-icon-box,
-[data-theme="dark"] .ocr-theme .tool-icon-box {
-  background: #261947;
-  color: #c084fc;
-}
-:root.dark .ocr-theme .tool-name,
-[data-theme="dark"] .ocr-theme .tool-name {
-  color: #f3e8ff;
-}
-:root.dark .ocr-theme .tool-desc,
-[data-theme="dark"] .ocr-theme .tool-desc {
-  color: #c4b5fd;
-}
-:root.dark .ocr-theme .tool-arrow,
-[data-theme="dark"] .ocr-theme .tool-arrow {
-  color: #c084fc;
-}
-
-:root.light .ocr-theme,
-[data-theme="light"] .ocr-theme {
+.ocr-theme {
   background: #f5f3ff;
   border-color: #ede9fe;
 }
-:root.light .ocr-theme .tool-icon-box,
-[data-theme="light"] .ocr-theme .tool-icon-box {
+.ocr-theme .tool-icon-box {
   background: #ede9fe;
   color: #7c3aed;
 }
-:root.light .ocr-theme .tool-name,
-[data-theme="light"] .ocr-theme .tool-name {
+.ocr-theme .tool-name {
   color: #1e1b4b;
 }
-:root.light .ocr-theme .tool-desc,
-[data-theme="light"] .ocr-theme .tool-desc {
+.ocr-theme .tool-desc {
   color: #5b21b6;
 }
-:root.light .ocr-theme .tool-arrow,
-[data-theme="light"] .ocr-theme .tool-arrow {
+.ocr-theme .tool-arrow {
   color: #7c3aed;
 }
 
 /* Theme 2: Audio Transcription */
-:root.dark .audio-theme,
-[data-theme="dark"] .audio-theme {
-  background: #0f1c34;
-  border-color: rgba(59, 130, 246, 0.22);
-}
-:root.dark .audio-theme .tool-icon-box,
-[data-theme="dark"] .audio-theme .tool-icon-box {
-  background: #162a52;
-  color: #60a5fa;
-}
-:root.dark .audio-theme .tool-name,
-[data-theme="dark"] .audio-theme .tool-name {
-  color: #eff6ff;
-}
-:root.dark .audio-theme .tool-desc,
-[data-theme="dark"] .audio-theme .tool-desc {
-  color: #bfdbfe;
-}
-:root.dark .audio-theme .tool-arrow,
-[data-theme="dark"] .audio-theme .tool-arrow {
-  color: #60a5fa;
-}
-
-:root.light .audio-theme,
-[data-theme="light"] .audio-theme {
+.audio-theme {
   background: #eff6ff;
   border-color: #dbeafe;
 }
-:root.light .audio-theme .tool-icon-box,
-[data-theme="light"] .audio-theme .tool-icon-box {
+.audio-theme .tool-icon-box {
   background: #dbeafe;
   color: #2563eb;
 }
-:root.light .audio-theme .tool-name,
-[data-theme="light"] .audio-theme .tool-name {
+.audio-theme .tool-name {
   color: #172554;
 }
-:root.light .audio-theme .tool-desc,
-[data-theme="light"] .audio-theme .tool-desc {
+.audio-theme .tool-desc {
   color: #1d4ed8;
 }
-:root.light .audio-theme .tool-arrow,
-[data-theme="light"] .audio-theme .tool-arrow {
+.audio-theme .tool-arrow {
   color: #2563eb;
 }
 
 /* Theme 3: Tamil Blog & SEO */
-:root.dark .blog-theme,
-[data-theme="dark"] .blog-theme {
-  background: #0d2325;
-  border-color: rgba(16, 185, 129, 0.22);
-}
-:root.dark .blog-theme .tool-icon-box,
-[data-theme="dark"] .blog-theme .tool-icon-box {
-  background: #133939;
-  color: #34d399;
-}
-:root.dark .blog-theme .tool-name,
-[data-theme="dark"] .blog-theme .tool-name {
-  color: #ecfdf5;
-}
-:root.dark .blog-theme .tool-desc,
-[data-theme="dark"] .blog-theme .tool-desc {
-  color: #a7f3d0;
-}
-:root.dark .blog-theme .tool-arrow,
-[data-theme="dark"] .blog-theme .tool-arrow {
-  color: #34d399;
-}
-
-:root.light .blog-theme,
-[data-theme="light"] .blog-theme {
+.blog-theme {
   background: #f0fdf4;
   border-color: #dcfce7;
 }
-:root.light .blog-theme .tool-icon-box,
-[data-theme="light"] .blog-theme .tool-icon-box {
+.blog-theme .tool-icon-box {
   background: #dcfce7;
   color: #059669;
 }
-:root.light .blog-theme .tool-name,
-[data-theme="light"] .blog-theme .tool-name {
+.blog-theme .tool-name {
   color: #064e3b;
 }
-:root.light .blog-theme .tool-desc,
-[data-theme="light"] .blog-theme .tool-desc {
+.blog-theme .tool-desc {
   color: #047857;
 }
-:root.light .blog-theme .tool-arrow,
-[data-theme="light"] .blog-theme .tool-arrow {
+.blog-theme .tool-arrow {
   color: #059669;
 }
 

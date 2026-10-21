@@ -98,15 +98,8 @@ const handleOCRText = (text) => {
 }
 
 .ocr-badge {
-  background: rgba(168, 85, 247, 0.15);
-  border: 1px solid rgba(168, 85, 247, 0.3);
-  color: #c084fc;
-}
-
-:root.light .ocr-badge,
-[data-theme="light"] .ocr-badge {
   background: #f3e8ff;
-  border-color: #e9d5ff;
+  border: 1px solid #e9d5ff;
   color: #7e22ce;
 }
 

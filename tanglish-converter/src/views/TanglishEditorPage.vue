@@ -91,15 +91,8 @@ const router = useRouter()
 }
 
 .editor-badge {
-  background: rgba(99, 102, 241, 0.15);
-  border: 1px solid rgba(99, 102, 241, 0.3);
-  color: #818cf8;
-}
-
-:root.light .editor-badge,
-[data-theme="light"] .editor-badge {
   background: #e0e7ff;
-  border-color: #c7d2fe;
+  border: 1px solid #c7d2fe;
   color: #4338ca;
 }
 
