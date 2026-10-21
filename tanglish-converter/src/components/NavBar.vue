@@ -18,7 +18,15 @@
         <span class="logo-text">Usil AI</span>
       </router-link>
 
-
+      <!-- Center Navigation Links -->
+      <div class="nav-links">
+        <router-link to="/editor" class="nav-link" active-class="active">Editor</router-link>
+        <router-link to="/ocr" class="nav-link" active-class="active">OCR</router-link>
+        <router-link to="/audio" class="nav-link" active-class="active">Audio</router-link>
+        <router-link to="/subtitle" class="nav-link" active-class="active">Subtitles</router-link>
+        <router-link to="/blog" class="nav-link" active-class="active">Blog & SEO</router-link>
+        <router-link to="/admin" class="nav-link" active-class="active">Admin</router-link>
+      </div>
 
       <!-- Right Section -->
       <div class="nav-right">
@@ -87,6 +95,14 @@
 
     <!-- Mobile Navigation Drawer -->
     <div v-if="mobileMenuOpen" class="mobile-drawer">
+      <div class="mobile-nav-links">
+        <router-link to="/editor" class="mobile-link" @click="mobileMenuOpen = false">Editor</router-link>
+        <router-link to="/ocr" class="mobile-link" @click="mobileMenuOpen = false">OCR</router-link>
+        <router-link to="/audio" class="mobile-link" @click="mobileMenuOpen = false">Audio</router-link>
+        <router-link to="/subtitle" class="mobile-link" @click="mobileMenuOpen = false">Subtitles</router-link>
+        <router-link to="/blog" class="mobile-link" @click="mobileMenuOpen = false">Blog & SEO</router-link>
+        <router-link to="/admin" class="mobile-link" @click="mobileMenuOpen = false">Admin</router-link>
+      </div>
       <div v-if="!isAuthenticated" class="mobile-auth-wrapper">
         <button class="login-btn mobile-full-btn" @click="openLoginModal">
           <span>Sign in with Google</span>
@@ -94,7 +110,6 @@
         </button>
       </div>
       <div v-else class="mobile-auth-wrapper">
-        <router-link to="/admin" class="mobile-link" @click="mobileMenuOpen = false">Admin Console</router-link>
         <button @click="handleLogout" class="mobile-link logout-link">Logout</button>
       </div>
     </div>

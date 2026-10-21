@@ -173,6 +173,26 @@
                 <div class="tool-arrow">›</div>
               </div>
 
+              <!-- Tool: Tamil Subtitles -->
+              <div 
+                class="tool-feature-item subtitles-theme"
+                @click="handleToolNavigate('/subtitle')"
+              >
+                <div class="tool-icon-box">
+                  <svg class="tool-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="2" y="4" width="20" height="16" rx="2"/>
+                    <line x1="6" y1="15" x2="10" y2="15"/>
+                    <line x1="14" y1="15" x2="18" y2="15"/>
+                    <line x1="6" y1="11" x2="18" y2="11"/>
+                  </svg>
+                </div>
+                <div class="tool-content">
+                  <h4 class="tool-name">Tamil subtitles</h4>
+                  <p class="tool-desc">Create, sync, and export SRT & VTT subtitles for videos.</p>
+                </div>
+                <div class="tool-arrow">›</div>
+              </div>
+
               <!-- Tool 4: Tamil Blog & SEO -->
               <div 
                 class="tool-feature-item blog-theme"
@@ -761,6 +781,25 @@ const scrollToEditor = () => {
 }
 .blog-theme .tool-arrow {
   color: #059669;
+}
+
+/* Theme 4: Tamil Subtitles */
+.subtitles-theme {
+  background: #fdf2f8;
+  border-color: #fce7f3;
+}
+.subtitles-theme .tool-icon-box {
+  background: #fce7f3;
+  color: #db2777;
+}
+.subtitles-theme .tool-name {
+  color: #831843;
+}
+.subtitles-theme .tool-desc {
+  color: #9d174d;
+}
+.subtitles-theme .tool-arrow {
+  color: #db2777;
 }
 
 /* =========================================================================

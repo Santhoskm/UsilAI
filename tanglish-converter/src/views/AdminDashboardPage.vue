@@ -2429,8 +2429,8 @@ onMounted(async () => {
 }
 
 .doc-view-section {
-  background: rgba(15, 23, 42, 0.6);
-  border: 1px solid var(--card-border, #334155);
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
   border-radius: 10px;
   padding: 14px;
 }
@@ -2440,7 +2440,7 @@ onMounted(async () => {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   font-weight: 700;
-  color: #38bdf8;
+  color: #4f46e5;
   margin-bottom: 8px;
 }
 
@@ -2449,13 +2449,13 @@ onMounted(async () => {
   font-size: 15px;
   line-height: 1.6;
   white-space: pre-wrap;
-  color: #f1f5f9;
+  color: #0f172a;
 }
 
 .doc-html-preview {
   font-size: 14px;
   line-height: 1.6;
-  color: #cbd5e1;
+  color: #334155;
   max-height: 200px;
   overflow-y: auto;
 }
