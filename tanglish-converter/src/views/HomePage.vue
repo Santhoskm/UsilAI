@@ -21,6 +21,11 @@
               <span class="feat-label">Tanglish to Tamil</span>
             </div>
             <span class="feat-divider">|</span>
+            <div class="feature-badge" @click="handleToolNavigate('/editor')">
+              <span class="feat-icon">📄</span>
+              <span class="feat-label">Tamil Documents</span>
+            </div>
+            <span class="feat-divider">|</span>
             <div class="feature-badge" @click="handleToolNavigate('/ocr')">
               <span class="feat-icon">⛶</span>
               <span class="feat-label">OCR</span>
@@ -92,9 +97,9 @@
               </div>
             </div>
 
-            <!-- Tanglish Editor Component -->
+            <!-- Tanglish Editor Component (Sidebar disabled on home page per user request) -->
             <div class="editor-component-wrapper">
-              <TanglishEditor />
+              <TanglishEditor :enableSidebar="false" />
             </div>
           </div>
         </div>
@@ -108,9 +113,30 @@
               <h3 class="tools-header-title">AI Tools</h3>
             </div>
 
-            <!-- 3 AI Tool Cards -->
+            <!-- AI Tool Cards -->
             <div class="tools-stack">
-              <!-- Tool 1: OCR Text Extraction -->
+              <!-- Tool 1: Tamil Documents & Cloud Workspace (Matching user request Image 3) -->
+              <div 
+                class="tool-feature-item docs-theme"
+                @click="handleToolNavigate('/editor')"
+              >
+                <div class="tool-icon-box">
+                  <svg class="tool-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                    <line x1="16" y1="13" x2="8" y2="13"/>
+                    <line x1="16" y1="17" x2="8" y2="17"/>
+                    <polyline points="10 9 9 9 8 9"/>
+                  </svg>
+                </div>
+                <div class="tool-content">
+                  <h4 class="tool-name">Tamil documents</h4>
+                  <p class="tool-desc">Save up to 5 persistent multi-file documents in PostgreSQL.</p>
+                </div>
+                <div class="tool-arrow">›</div>
+              </div>
+
+              <!-- Tool 2: OCR Text Extraction -->
               <div 
                 class="tool-feature-item ocr-theme"
                 @click="handleToolNavigate('/ocr')"
@@ -128,7 +154,7 @@
                 <div class="tool-arrow">›</div>
               </div>
 
-              <!-- Tool 2: Audio Transcription -->
+              <!-- Tool 3: Audio Transcription -->
               <div 
                 class="tool-feature-item audio-theme"
                 @click="handleToolNavigate('/audio')"
@@ -147,7 +173,7 @@
                 <div class="tool-arrow">›</div>
               </div>
 
-              <!-- Tool 3: Tamil Blog & SEO -->
+              <!-- Tool 4: Tamil Blog & SEO -->
               <div 
                 class="tool-feature-item blog-theme"
                 @click="handleToolNavigate('/blog')"
@@ -659,6 +685,25 @@ const scrollToEditor = () => {
 
 .tool-feature-item:hover .tool-arrow {
   transform: translateX(4px);
+}
+
+/* Theme 0: Tamil Documents & Notes */
+.docs-theme {
+  background: #f0fdf4;
+  border-color: #dcfce7;
+}
+.docs-theme .tool-icon-box {
+  background: #dcfce7;
+  color: #10b981;
+}
+.docs-theme .tool-name {
+  color: #064e3b;
+}
+.docs-theme .tool-desc {
+  color: #047857;
+}
+.docs-theme .tool-arrow {
+  color: #10b981;
 }
 
 /* Theme 1: OCR Text Extraction */

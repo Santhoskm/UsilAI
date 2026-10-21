@@ -46,6 +46,10 @@
               <div class="user-email">{{ user?.email }}</div>
             </div>
             <div class="dropdown-divider"></div>
+            <router-link to="/editor" class="dropdown-item" @click="showUserMenu = false">
+              <span class="dropdown-icon">📄</span>
+              <span>Tamil Documents</span>
+            </router-link>
             <router-link to="/admin" class="dropdown-item" @click="showUserMenu = false">
               <span class="dropdown-icon">⚙️</span>
               <span>Admin Console</span>

@@ -23,7 +23,11 @@ const routes = [
         path: '/editor',
         name: 'TanglishEditor',
         component: TanglishEditorPage
-        // Editor is free - no auth required
+    },
+    {
+        path: '/docs',
+        name: 'TamilDocuments',
+        component: TanglishEditorPage
     },
     {
         path: '/ocr',

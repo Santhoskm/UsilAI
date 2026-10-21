@@ -2,8 +2,8 @@
   <div class="tanglish-editor-container">
     <!-- Toolbar -->
     <div class="toolbar" v-if="editor">
-      <!-- Documents Sidebar Toggle (When logged in) -->
-      <div v-if="isAuthenticated" class="toolbar-group files-toggle-group">
+      <!-- Documents Sidebar Toggle (When logged in and sidebar enabled) -->
+      <div v-if="isAuthenticated && enableSidebar" class="toolbar-group files-toggle-group">
         <button 
           @click="showFilesSidebar = !showFilesSidebar"
           class="toolbar-btn btn-files-toggle"
@@ -16,7 +16,7 @@
         </button>
       </div>
 
-      <div v-if="isAuthenticated" class="toolbar-divider"></div>
+      <div v-if="isAuthenticated && enableSidebar" class="toolbar-divider"></div>
 
       <div class="toolbar-group">
         <button
@@ -348,9 +348,9 @@
     </div>
 
     <!-- Main Workspace Layout: Files Sidebar Left, Editor Center, AI Assistant Right -->
-    <div class="editor-workspace" :class="{ 'with-sidebar': aiHelpEnabled, 'with-files-sidebar': isAuthenticated && showFilesSidebar }">
+    <div class="editor-workspace" :class="{ 'with-sidebar': aiHelpEnabled, 'with-files-sidebar': isAuthenticated && showFilesSidebar && enableSidebar, 'is-full-page': fullPage }">
       <!-- Files Sidebar (Left) - Visible when logged in (Matches user screenshot) -->
-      <aside v-if="isAuthenticated && showFilesSidebar" class="files-sidebar">
+      <aside v-if="isAuthenticated && showFilesSidebar && enableSidebar" class="files-sidebar" :class="{ 'full-page-sidebar': fullPage }">
         <!-- New File Action Button (Matches Screenshot) -->
         <div class="files-sidebar-top">
           <button 
@@ -449,6 +449,61 @@
                class="suggestion-item">
             <span class="tamil-text-main">{{ suggestion.tamil }}</span>
             <span class="suggestion-space-hint" v-if="idx === 0">Space</span>
+          </div>
+        </div>
+
+        <!-- Bottom Action Bar (Image 3: Desh Tamil Keyboard layout) -->
+        <div class="editor-bottom-bar" :class="{ 'full-page-dock': fullPage }">
+          <!-- Left: Tamil / English Engine Mode Toggle -->
+          <div class="engine-mode-pill" title="Toggle Tanglish transliteration or English typing">
+            <button 
+              type="button" 
+              class="mode-btn" 
+              :class="{ active: autoConvert }" 
+              @click="autoConvert = true"
+            >
+              தமிழ்
+            </button>
+            <button 
+              type="button" 
+              class="mode-btn" 
+              :class="{ active: !autoConvert }" 
+              @click="autoConvert = false"
+            >
+              English
+            </button>
+          </div>
+
+          <!-- Center: Words / Chars Stats -->
+          <div class="bottom-stats-label">
+            <span>{{ wordCount }} words</span>
+            <span class="stats-sep">•</span>
+            <span>{{ charCount }} chars</span>
+          </div>
+
+          <!-- Right: Voice Typing & Copy Actions -->
+          <div class="bottom-tools-group">
+            <button 
+              type="button" 
+              class="bottom-action-btn voice-btn" 
+              :class="{ 'voice-listening': isVoiceActive }"
+              @click="toggleVoiceTyping"
+              :title="isVoiceActive ? 'Stop Voice Typing' : 'Start Voice Typing'"
+            >
+              <span class="btn-icon">🎙️</span>
+              <span>{{ isVoiceActive ? 'Listening...' : 'Voice Typing' }}</span>
+            </button>
+
+            <button 
+              type="button" 
+              class="bottom-action-btn copy-btn" 
+              :class="{ 'copied': copiedSuccess }"
+              @click="copyEditorContent"
+              title="Copy Tamil text to clipboard"
+            >
+              <span class="btn-icon">{{ copiedSuccess ? '✓' : '📋' }}</span>
+              <span>{{ copiedSuccess ? 'Copied!' : 'Copy' }}</span>
+            </button>
           </div>
         </div>
       </div>
@@ -648,16 +703,47 @@ const { creditsLeft, isOutOfCredits, formattedTimeUntilRefill, consumeCredit, op
 const { suggestions: aiSuggestions, convertWord, convertSentence, getSuggestions, learnCorrection, recordUsage } = useTanglishConverter()
 const { checkGrammar, isChecking: aiChecking, error: aiError, correctionResult } = useClaudeGrammarChecker()
 
+const props = defineProps({
+  enableSidebar: {
+    type: Boolean,
+    default: true
+  },
+  fullPage: {
+    type: Boolean,
+    default: false
+  }
+})
+
 // ── File Management State (Up to 5 files for authenticated users with PostgreSQL DB persistence) ──
-const showFilesSidebar = ref(true)
+const showFilesSidebar = ref(props.enableSidebar)
 const savedFiles = ref([])
 const activeFileId = ref('')
 const editingFileId = ref(null)
 const editingTitleText = ref('')
 const syncStatus = ref('saved') // 'saved' | 'syncing' | 'error'
+const copiedSuccess = ref(false)
 let saveDebounceTimer = null
 let dbSyncDebounceTimer = null
 let isProgrammaticUpdate = false
+
+watch(() => props.enableSidebar, (newVal) => {
+  showFilesSidebar.value = newVal
+})
+
+const copyEditorContent = async () => {
+  if (!editor.value) return
+  const text = editor.value.getText()
+  if (!text || !text.trim()) return
+  try {
+    await navigator.clipboard.writeText(text)
+    copiedSuccess.value = true
+    setTimeout(() => {
+      copiedSuccess.value = false
+    }, 2000)
+  } catch (err) {
+    console.warn('Failed to copy to clipboard:', err)
+  }
+}
 
 const setEditorTextSafely = (content) => {
   if (!editor.value) return
@@ -2635,6 +2721,113 @@ onBeforeUnmount(() => {
 
 .editor-workspace.with-files-sidebar .editor-wrapper {
   border-left: 1px solid var(--card-border, #e2e8f0);
+}
+
+.editor-workspace.is-full-page {
+  min-height: calc(100vh - 170px);
+}
+
+/* ── Bottom Action Bar (Image 3: Desh Tamil Keyboard layout) ── */
+.editor-bottom-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 20px;
+  background: #f8fafc;
+  border-top: 1px solid var(--card-border, #e2e8f0);
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.engine-mode-pill {
+  display: inline-flex;
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 9999px;
+  padding: 3px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.mode-btn {
+  padding: 5px 14px;
+  border: none;
+  background: transparent;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #64748b;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.mode-btn.active {
+  background: #10b981;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(16, 185, 129, 0.35);
+}
+
+.bottom-stats-label {
+  font-size: 13px;
+  color: #64748b;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stats-sep {
+  color: #cbd5e1;
+}
+
+.bottom-tools-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.bottom-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 20px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.bottom-action-btn:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+.bottom-action-btn.voice-listening {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #dc2626;
+  animation: pulseVoice 1.2s infinite;
+}
+
+@keyframes pulseVoice {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+  50% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+}
+
+.bottom-action-btn.copy-btn.copied {
+  background: #dcfce7;
+  border-color: #86efac;
+  color: #15803d;
+}
+
+.full-page-sidebar {
+  width: 270px !important;
 }
 
 /* ── Files Sidebar (Left Pane matching screenshot) ── */

@@ -1,29 +1,33 @@
 <template>
-  <div class="tool-page-container">
-    <div class="tool-page-header">
-      <router-link to="/" class="back-pill-btn">
-        <span class="back-arrow">←</span>
-        <span>Back to Home</span>
-      </router-link>
-
-      <div class="tool-header-content">
-        <div class="tool-badge-pill editor-badge">
-          <span class="badge-icon">⚡</span>
-          <span>Phonetic Engine</span>
+  <div class="docs-workspace-page">
+    <!-- Top Workspace Header (Clean & Minimal like Desh Tamil / Google Docs) -->
+    <header class="workspace-top-header">
+      <div class="header-left">
+        <router-link to="/" class="back-home-btn" title="Return to Usil AI Home">
+          <span class="back-arrow">←</span>
+          <span>Home</span>
+        </router-link>
+        <div class="workspace-brand">
+          <div class="brand-avatar">文A</div>
+          <div class="brand-text">
+            <h1 class="workspace-title">Tamil Document Editor</h1>
+            <span class="workspace-subtitle">Multi-File Cloud Notes & Typist</span>
+          </div>
         </div>
-        <h1 class="tool-page-title">
-          <span class="title-primary">Tanglish</span>
-          <span class="title-gradient">Editor</span>
-        </h1>
-        <p class="tool-page-subtitle">
-          Type naturally in English/Tanglish and get real-time, phonetically accurate Tamil script with rich formatting & export options.
-        </p>
       </div>
-    </div>
 
-    <div class="tool-page-body">
-      <TanglishEditor />
-    </div>
+      <div class="header-right">
+        <div class="cloud-sync-badge" title="All changes saved permanently to your PostgreSQL database">
+          <span class="sync-indicator"></span>
+          <span>PostgreSQL Cloud Sync (5 files max)</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Full-Page Document Canvas (Matching Image 3 layout) -->
+    <main class="docs-canvas-container">
+      <TanglishEditor :enableSidebar="true" :fullPage="true" />
+    </main>
   </div>
 </template>
 
@@ -35,104 +39,136 @@ const router = useRouter()
 </script>
 
 <style scoped>
-.tool-page-container {
-  max-width: 1250px;
-  margin: 0 auto;
-  padding: 36px 24px 60px 24px;
+.docs-workspace-page {
+  width: 100%;
+  min-height: calc(100vh - 72px);
+  display: flex;
+  flex-direction: column;
+  background: var(--app-bg, #f8fafc);
+  padding: 12px 20px 24px 20px;
 }
 
-.tool-page-header {
-  margin-bottom: 32px;
+.workspace-top-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px 14px 16px;
+  background: transparent;
+  gap: 16px;
+  flex-wrap: wrap;
 }
 
-.back-pill-btn {
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.back-home-btn {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  background: var(--toolbar-btn-bg);
-  border: 1px solid var(--toolbar-border);
-  color: var(--text-sub);
-  padding: 8px 16px;
+  gap: 6px;
+  background: #ffffff;
+  border: 1px solid var(--card-border, #e2e8f0);
+  color: var(--text-sub, #475569);
+  padding: 7px 14px;
   border-radius: 20px;
   text-decoration: none;
   font-size: 13.5px;
   font-weight: 600;
-  transition: all 0.2s;
-  margin-bottom: 20px;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
-.back-pill-btn:hover {
-  color: var(--text-main);
-  background: var(--toolbar-btn-hover);
+.back-home-btn:hover {
+  background: #f1f5f9;
+  color: var(--text-main, #0f172a);
+  border-color: #cbd5e1;
   transform: translateX(-2px);
 }
 
 .back-arrow {
-  font-size: 15px;
+  font-size: 14px;
 }
 
-.tool-header-content {
+.workspace-brand {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  align-items: center;
+  gap: 10px;
 }
 
-.tool-badge-pill {
+.brand-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(79, 70, 229, 0.25);
+}
+
+.workspace-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-main, #0f172a);
+  margin: 0;
+  line-height: 1.2;
+}
+
+.workspace-subtitle {
+  font-size: 12px;
+  color: var(--text-muted, #94a3b8);
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.cloud-sync-badge {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 12px;
+  gap: 8px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #15803d;
+  padding: 6px 14px;
   border-radius: 20px;
-  font-size: 12px;
-  font-weight: 700;
-  width: fit-content;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  font-size: 12.5px;
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(22, 101, 52, 0.04);
 }
 
-.editor-badge {
-  background: #e0e7ff;
-  border: 1px solid #c7d2fe;
-  color: #4338ca;
+.sync-indicator {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 6px rgba(34, 197, 94, 0.8);
 }
 
-.tool-page-title {
-  font-size: 40px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  line-height: 1.15;
-  margin: 0;
-}
-
-.title-primary {
-  color: var(--text-main);
-  margin-right: 10px;
-}
-
-.title-gradient {
-  background: linear-gradient(135deg, #6366f1, #a855f7);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.tool-page-subtitle {
-  font-size: 15.5px;
-  color: var(--text-sub);
-  margin: 0;
-  max-width: 650px;
-  line-height: 1.5;
-}
-
-.tool-page-body {
-  width: 100%;
+.docs-canvas-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border: 1px solid var(--card-border, #e2e8f0);
+  border-radius: 16px;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
 }
 
 @media (max-width: 768px) {
-  .tool-page-container {
-    padding: 20px 16px;
+  .docs-workspace-page {
+    padding: 8px 8px 16px 8px;
   }
-  .tool-page-title {
-    font-size: 30px;
+  .workspace-top-header {
+    padding: 6px 8px 10px 8px;
   }
 }
 </style>
