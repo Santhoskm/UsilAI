@@ -36,6 +36,11 @@
               <span class="feat-label">Audio Transcription</span>
             </div>
             <span class="feat-divider">|</span>
+            <div class="feature-badge" @click="handleToolNavigate('/subtitle')">
+              <span class="feat-icon">🎬</span>
+              <span class="feat-label">Subtitles</span>
+            </div>
+            <span class="feat-divider">|</span>
             <div class="feature-badge" @click="handleToolNavigate('/blog')">
               <span class="feat-icon">📝</span>
               <span class="feat-label">AI Blog & SEO</span>
@@ -229,17 +234,35 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, onMounted, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
 import TanglishEditor from '@/components/TanglishEditor.vue'
 import AuthModal from '@/components/AuthModal.vue'
 
 const router = useRouter()
+const route = useRoute()
 const { isAuthenticated } = useAuth()
 
 const showAuthModal = ref(false)
 const pendingRoute = ref(null)
+
+const checkLoginQuery = () => {
+  if (route.query.login === 'true' && !isAuthenticated.value) {
+    if (route.query.redirect) {
+      pendingRoute.value = route.query.redirect
+    }
+    showAuthModal.value = true
+  }
+}
+
+onMounted(() => {
+  checkLoginQuery()
+})
+
+watch(() => route.query.login, () => {
+  checkLoginQuery()
+})
 
 const handleToolNavigate = (path) => {
   if (isAuthenticated.value) {
@@ -253,9 +276,11 @@ const handleToolNavigate = (path) => {
 const onAuthSuccess = () => {
   showAuthModal.value = false
   if (pendingRoute.value) {
-    const route = pendingRoute.value
+    const routeToPush = pendingRoute.value
     pendingRoute.value = null
-    router.push(route)
+    router.push(routeToPush)
+  } else if (route.query.login) {
+    router.replace({ path: '/' })
   }
 }
 

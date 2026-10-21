@@ -18,8 +18,8 @@
         <span class="logo-text">Usil AI</span>
       </router-link>
 
-      <!-- Center Navigation Links -->
-      <div class="nav-links">
+      <!-- Center Navigation Links (Only shown when logged in) -->
+      <div v-if="isAuthenticated" class="nav-links">
         <router-link to="/editor" class="nav-link" active-class="active">Editor</router-link>
         <router-link to="/ocr" class="nav-link" active-class="active">OCR</router-link>
         <router-link to="/audio" class="nav-link" active-class="active">Audio</router-link>
@@ -95,7 +95,7 @@
 
     <!-- Mobile Navigation Drawer -->
     <div v-if="mobileMenuOpen" class="mobile-drawer">
-      <div class="mobile-nav-links">
+      <div v-if="isAuthenticated" class="mobile-nav-links">
         <router-link to="/editor" class="mobile-link" @click="mobileMenuOpen = false">Editor</router-link>
         <router-link to="/ocr" class="mobile-link" @click="mobileMenuOpen = false">OCR</router-link>
         <router-link to="/audio" class="mobile-link" @click="mobileMenuOpen = false">Audio</router-link>

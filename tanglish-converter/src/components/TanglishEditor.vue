@@ -682,6 +682,15 @@
         </div>
       </div>
     </Teleport>
+
+    <!-- Auth Modal for AI Features -->
+    <AuthModal 
+      :isOpen="showAuthModal" 
+      title="Sign in to Usil AI"
+      subtitle="Sign in with your Google account to unlock AI grammar check, cloud documents, and all AI features."
+      @close="showAuthModal = false"
+      @success="onAuthSuccess"
+    />
   </div>
 </template>
 
@@ -697,11 +706,18 @@ import { useTanglishConverter } from '@/composables/useTanglishConverter'
 import { useClaudeGrammarChecker } from '@/composables/useClaudeGrammarChecker'
 import { useCredits } from '@/composables/useCredits'
 import { fetchUserDocuments, syncUserDocuments, deleteUserDocument } from '@/services/apiService'
+import AuthModal from '@/components/AuthModal.vue'
 
 const { isAuthenticated, user } = useAuth()
 const { creditsLeft, isOutOfCredits, formattedTimeUntilRefill, consumeCredit, openCreditModal } = useCredits()
 const { suggestions: aiSuggestions, convertWord, convertSentence, getSuggestions, learnCorrection, recordUsage } = useTanglishConverter()
 const { checkGrammar, isChecking: aiChecking, error: aiError, correctionResult } = useClaudeGrammarChecker()
+
+const showAuthModal = ref(false)
+const onAuthSuccess = () => {
+  showAuthModal.value = false
+  loadFilesFromStorage()
+}
 
 const props = defineProps({
   enableSidebar: {
@@ -941,6 +957,11 @@ const scheduleSaveCurrentFile = () => {
 }
 
 const createNewFile = () => {
+  if (!isAuthenticated.value) {
+    showAuthModal.value = true
+    return
+  }
+
   if (savedFiles.value.length >= 5) {
     alert('Maximum 5 files limit reached for your account! Including all previous logins, you can have up to 5 files total. Please edit an existing file or delete one to create a new file.')
     return
@@ -1826,6 +1847,10 @@ const setAutoCheckMode = (val) => {
 
 // Toggle AI Assistant Sidebar ON/OFF
 const toggleAIHelp = () => {
+  if (!isAuthenticated.value) {
+    showAuthModal.value = true
+    return
+  }
   aiHelpEnabled.value = !aiHelpEnabled.value
   if (aiHelpEnabled.value) {
     // Initial scan when sidebar opens if credits available

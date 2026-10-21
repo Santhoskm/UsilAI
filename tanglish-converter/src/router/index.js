@@ -22,12 +22,14 @@ const routes = [
     {
         path: '/editor',
         name: 'TanglishEditor',
-        component: TanglishEditorPage
+        component: TanglishEditorPage,
+        meta: { requiresAuth: true }
     },
     {
         path: '/docs',
         name: 'TamilDocuments',
-        component: TanglishEditorPage
+        component: TanglishEditorPage,
+        meta: { requiresAuth: true }
     },
     {
         path: '/ocr',
@@ -68,9 +70,8 @@ const router = createRouter({
 // Navigation guard for protected routes
 router.beforeEach((to, from, next) => {
     if (to.meta.requiresAuth && !isAuthenticated()) {
-        // Redirect to home page with login required message
-        next('/')
-        // You can also show a toast/notification here
+        // Redirect to home page and open login modal
+        next({ path: '/', query: { login: 'true', redirect: to.fullPath } })
     } else {
         next()
     }
