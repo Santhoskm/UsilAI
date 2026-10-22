@@ -41,21 +41,25 @@ const router = useRouter()
 <style scoped>
 .docs-workspace-page {
   width: 100%;
-  min-height: calc(100vh - 72px);
+  height: calc(100vh - 65px);
+  max-height: calc(100vh - 65px);
   display: flex;
   flex-direction: column;
   background: var(--app-bg, #f8fafc);
-  padding: 12px 20px 24px 20px;
+  padding: 8px 16px 12px 16px;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .workspace-top-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 16px 14px 16px;
+  padding: 4px 8px 8px 8px;
   background: transparent;
   gap: 16px;
   flex-wrap: wrap;
+  flex-shrink: 0;
 }
 
 .header-left {
@@ -154,6 +158,8 @@ const router = useRouter()
 
 .docs-canvas-container {
   flex: 1;
+  min-height: 0;
+  height: 100%;
   display: flex;
   flex-direction: column;
   background: #ffffff;

@@ -2136,7 +2136,8 @@ onBeforeUnmount(() => {
 
 .tanglish-editor-container.full-page-editor {
   height: 100%;
-  min-height: calc(100vh - 170px);
+  min-height: 0;
+  flex: 1;
 }
 
 /* Toolbar */
@@ -2579,7 +2580,8 @@ onBeforeUnmount(() => {
 }
 
 .editor-workspace.is-full-page {
-  min-height: calc(100vh - 170px);
+  height: 100%;
+  min-height: 0;
 }
 
 /* ── Bottom Action Bar (Image 3: Desh Tamil Keyboard layout) ── */
