@@ -239,9 +239,6 @@
           </button>
           
           <div v-if="showDownloadDropdown" class="download-dropdown-menu">
-            <div class="download-section-tag">
-              <span>📄 Current: <strong>{{ activeFile?.title || 'Document' }}</strong></span>
-            </div>
             <button @click="downloadAsDocx" class="download-menu-item">
               <div class="item-icon-badge">
                 <svg class="format-download-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -279,40 +276,6 @@
               <div class="item-info">
                 <span class="item-title">PDF Document (.pdf)</span>
                 <span class="item-desc">Print / Save current file</span>
-              </div>
-            </button>
-
-            <!-- Joint Download Section (Merge all saved files) -->
-            <div class="download-divider-line"></div>
-            <div class="download-section-tag joint-tag">
-              <span>📦 Joint Download (All {{ savedFiles.length }} Files Merged)</span>
-            </div>
-
-            <button @click="downloadJointWord" class="download-menu-item joint-item">
-              <div class="item-icon-badge joint-badge">
-                <span>📝</span>
-              </div>
-              <div class="item-info">
-                <span class="item-title">Joint Word Document (.doc)</span>
-                <span class="item-desc">Merge all files with titles & breaks</span>
-              </div>
-            </button>
-            <button @click="downloadJointTxt" class="download-menu-item joint-item">
-              <div class="item-icon-badge joint-badge">
-                <span>📋</span>
-              </div>
-              <div class="item-info">
-                <span class="item-title">Joint Text File (.txt)</span>
-                <span class="item-desc">All files combined in single text</span>
-              </div>
-            </button>
-            <button @click="downloadJointPDF" class="download-menu-item joint-item">
-              <div class="item-icon-badge joint-badge">
-                <span>📑</span>
-              </div>
-              <div class="item-info">
-                <span class="item-title">Joint PDF Document (.pdf)</span>
-                <span class="item-desc">Print / Save all files merged</span>
               </div>
             </button>
           </div>
@@ -421,17 +384,6 @@
           </div>
         </div>
 
-        <!-- Files Sidebar Footer: Quick Joint Download Button -->
-        <div class="files-sidebar-footer">
-          <button 
-            class="joint-download-btn" 
-            @click="downloadJointWord" 
-            title="Download all saved files merged together"
-          >
-            <span class="joint-icon">📦</span>
-            <span class="joint-label">Download All (Joint)</span>
-          </button>
-        </div>
       </aside>
 
       <!-- Editor Area -->
@@ -1651,7 +1603,7 @@ const downloadAsDocx = () => {
   URL.revokeObjectURL(url)
 }
 
-// ── Separate Download as Plain Text (.txt) ──
+// ── Download as Plain Text (.txt) ──
 const downloadAsTxt = () => {
   showDownloadDropdown.value = false
   if (!editor.value) return
@@ -1664,170 +1616,13 @@ const downloadAsTxt = () => {
   const fileTitle = activeFile.value?.title || 'Tamil_Document'
   const cleanTitle = fileTitle.replace(/[^a-zA-Z0-9_\u0B80-\u0BFF\s-]/g, '').trim() || 'Document'
 
-  const blob = new Blob(['\\ufeff' + plainText], { type: 'text/plain;charset=utf-8' })
+  const blob = new Blob(['\ufeff' + plainText], { type: 'text/plain;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
   a.download = `${cleanTitle}_${Date.now()}.txt`
   a.click()
   URL.revokeObjectURL(url)
-}
-
-// ── Joint / Merged Download as Word (.doc) ──
-const downloadJointWord = () => {
-  showDownloadDropdown.value = false
-  if (editor.value && activeFile.value) {
-    activeFile.value.content = editor.value.getHTML()
-    activeFile.value.plainText = editor.value.getText()
-    saveFilesToStorage()
-  }
-
-  const filesWithContent = savedFiles.value.filter(f => (f.plainText && f.plainText.trim()) || (f.content && f.content.trim()))
-  if (filesWithContent.length === 0) {
-    alert('None of your saved files contain text yet. Please write some content first.')
-    return
-  }
-
-  let mergedBody = ''
-  filesWithContent.forEach((file, idx) => {
-    mergedBody += `
-      <div style="margin-bottom: 36px; ${idx < filesWithContent.length - 1 ? 'page-break-after: always;' : ''}">
-        <h1 style="color: #1e293b; border-bottom: 2px solid #6366f1; padding-bottom: 6px; font-size: 22pt;">
-          ${file.title || `Document ${idx + 1}`}
-        </h1>
-        <div style="margin-top: 14px; font-size: 14pt; line-height: 1.6;">
-          ${file.content || '<p></p>'}
-        </div>
-      </div>
-    `
-  })
-
-  const wordHtml = `
-    <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
-      <head>
-        <meta charset='utf-8'>
-        <title>Usil AI Joint Documents</title>
-        <style>
-          body { font-family: 'Noto Sans Tamil', 'Catamaran', 'Arial Unicode MS', Tahoma, sans-serif; font-size: 14pt; line-height: 1.6; color: #000; }
-          h1 { font-size: 20pt; font-weight: bold; }
-          p { margin-bottom: 10pt; }
-        </style>
-      </head>
-      <body>
-        ${mergedBody}
-      </body>
-    </html>
-  `
-
-  const blob = new Blob(['\\ufeff' + wordHtml], { type: 'application/msword;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `Usil_Joint_All_${savedFiles.value.length}_Files_${Date.now()}.doc`
-  a.click()
-  URL.revokeObjectURL(url)
-}
-
-// ── Joint / Merged Download as Plain Text (.txt) ──
-const downloadJointTxt = () => {
-  showDownloadDropdown.value = false
-  if (editor.value && activeFile.value) {
-    activeFile.value.content = editor.value.getHTML()
-    activeFile.value.plainText = editor.value.getText()
-    saveFilesToStorage()
-  }
-
-  const filesWithContent = savedFiles.value.filter(f => f.plainText && f.plainText.trim())
-  if (filesWithContent.length === 0) {
-    alert('None of your saved files contain text yet. Please write some content first.')
-    return
-  }
-
-  let mergedText = ''
-  filesWithContent.forEach((file) => {
-    mergedText += `═══════════════════════════════════════════════════════════════\n`
-    mergedText += ` ${file.title.toUpperCase()}\n`
-    mergedText += `═══════════════════════════════════════════════════════════════\n\n`
-    mergedText += `${file.plainText.trim()}\n\n\n`
-  })
-
-  const blob = new Blob(['\\ufeff' + mergedText], { type: 'text/plain;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `Usil_Joint_All_${savedFiles.value.length}_Files_${Date.now()}.txt`
-  a.click()
-  URL.revokeObjectURL(url)
-}
-
-// ── Joint / Merged Download as PDF (.pdf) ──
-const downloadJointPDF = () => {
-  showDownloadDropdown.value = false
-  if (editor.value && activeFile.value) {
-    activeFile.value.content = editor.value.getHTML()
-    activeFile.value.plainText = editor.value.getText()
-    saveFilesToStorage()
-  }
-
-  const filesWithContent = savedFiles.value.filter(f => (f.plainText && f.plainText.trim()) || (f.content && f.content.trim()))
-  if (filesWithContent.length === 0) {
-    alert('None of your saved files contain text yet. Please write some content first.')
-    return
-  }
-
-  const printIframe = document.createElement('iframe')
-  printIframe.style.position = 'fixed'
-  printIframe.style.right = '0'
-  printIframe.style.bottom = '0'
-  printIframe.style.width = '0'
-  printIframe.style.height = '0'
-  printIframe.style.border = '0'
-  document.body.appendChild(printIframe)
-
-  let mergedSections = ''
-  filesWithContent.forEach((file, idx) => {
-    mergedSections += `
-      <section style="${idx < filesWithContent.length - 1 ? 'page-break-after: always;' : ''} margin-bottom: 40px;">
-        <h1 style="color: #1e293b; border-bottom: 2px solid #6366f1; padding-bottom: 8px; margin-bottom: 16px;">
-          ${file.title || `Document ${idx + 1}`}
-        </h1>
-        <div>${file.content || '<p></p>'}</div>
-      </section>
-    `
-  })
-
-  const doc = printIframe.contentWindow.document
-  doc.open()
-  doc.write(`
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="utf-8">
-        <title>Usil AI Joint Documents</title>
-        <style>
-          @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@400;500;600;700&display=swap');
-          @page { margin: 20mm 15mm; size: A4; }
-          body { font-family: 'Noto Sans Tamil', 'Catamaran', Arial, sans-serif; font-size: 15px; line-height: 1.7; color: #1e293b; padding: 20px; }
-          h1 { font-size: 22px; font-weight: 700; }
-          p { margin-bottom: 12px; }
-        </style>
-      </head>
-      <body>
-        ${mergedSections}
-      </body>
-    </html>
-  `)
-  doc.close()
-
-  setTimeout(() => {
-    printIframe.contentWindow.focus()
-    printIframe.contentWindow.print()
-    setTimeout(() => {
-      if (document.body.contains(printIframe)) {
-        document.body.removeChild(printIframe)
-      }
-    }, 2500)
-  }, 400)
 }
 
 // Clear editor content
@@ -3107,64 +2902,6 @@ onBeforeUnmount(() => {
 .file-action-icon-btn.delete-btn:hover {
   color: #dc2626;
   background: rgba(220, 38, 38, 0.12);
-}
-
-/* Files Sidebar Footer */
-.files-sidebar-footer {
-  padding: 12px 14px;
-  border-top: 1px solid var(--card-border, #e2e8f0);
-}
-
-.joint-download-btn {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 9px 12px;
-  background: #f0fdf4;
-  border: 1px solid #86efac;
-  border-radius: 9px;
-  color: #15803d;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.18s ease;
-}
-
-.joint-download-btn:hover {
-  background: #dcfce7;
-  border-color: #4ade80;
-  transform: translateY(-1px);
-}
-
-/* ── Download Dropdown Menu Sections ── */
-.download-section-tag {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-muted, #64748b);
-  padding: 8px 14px 4px;
-}
-
-.download-section-tag.joint-tag {
-  color: #059669;
-}
-
-.download-divider-line {
-  height: 1px;
-  background: var(--card-border, #e2e8f0);
-  margin: 6px 0;
-}
-
-.download-menu-item.joint-item:hover {
-  background: #f0fdf4;
-}
-
-.item-icon-badge.joint-badge {
-  background: #ecfdf5;
-  color: #059669;
 }
 
 /* ── AI Assistant Sidebar (Right Pane matching screenshot) ── */
