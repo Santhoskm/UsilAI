@@ -40,11 +40,6 @@
               <span class="feat-icon">🎬</span>
               <span class="feat-label">Subtitles</span>
             </div>
-            <span class="feat-divider">|</span>
-            <div class="feature-badge" @click="handleToolNavigate('/blog')">
-              <span class="feat-icon">📝</span>
-              <span class="feat-label">AI Blog & SEO</span>
-            </div>
           </div>
         </div>
 
@@ -194,27 +189,6 @@
                 <div class="tool-content">
                   <h4 class="tool-name">Tamil subtitles</h4>
                   <p class="tool-desc">Create, sync, and export SRT & VTT subtitles for videos.</p>
-                </div>
-                <div class="tool-arrow">›</div>
-              </div>
-
-              <!-- Tool 4: Tamil Blog & SEO -->
-              <div 
-                class="tool-feature-item blog-theme"
-                @click="handleToolNavigate('/blog')"
-              >
-                <div class="tool-icon-box">
-                  <svg class="tool-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                    <polyline points="14 2 14 8 20 8"/>
-                    <line x1="16" y1="13" x2="8" y2="13"/>
-                    <line x1="16" y1="17" x2="8" y2="17"/>
-                    <polyline points="10 9 9 9 8 9"/>
-                  </svg>
-                </div>
-                <div class="tool-content">
-                  <h4 class="tool-name">Tamil blog & SEO</h4>
-                  <p class="tool-desc">Generate blog posts, keywords and SEO content in Tamil.</p>
                 </div>
                 <div class="tool-arrow">›</div>
               </div>

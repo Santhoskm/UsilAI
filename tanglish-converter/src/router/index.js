@@ -3,7 +3,6 @@ import HomePage from '@/views/HomePage.vue'
 import TanglishEditorPage from '@/views/TanglishEditorPage.vue'
 import OCRPage from '@/views/OCRPage.vue'
 import AudioToTextPage from '@/views/AudioToTextPage.vue'
-import BlogGeneratorPage from '@/views/BlogGeneratorPage.vue'
 import SubtitleGeneratorPage from '@/views/SubtitleGeneratorPage.vue'
 import AdminDashboardPage from '@/views/AdminDashboardPage.vue'
 
@@ -44,12 +43,6 @@ const routes = [
         meta: { requiresAuth: true }
     },
     {
-        path: '/blog',
-        name: 'BlogGenerator',
-        component: BlogGeneratorPage,
-        meta: { requiresAuth: true }
-    },
-    {
         path: '/subtitle',
         name: 'SubtitleGenerator',
         component: SubtitleGeneratorPage,
@@ -59,6 +52,10 @@ const routes = [
         path: '/admin',
         name: 'AdminDashboard',
         component: AdminDashboardPage
+    },
+    {
+        path: '/:pathMatch(.*)*',
+        redirect: '/'
     }
 ]
 

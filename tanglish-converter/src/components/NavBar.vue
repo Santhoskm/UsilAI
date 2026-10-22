@@ -24,7 +24,6 @@
         <router-link to="/ocr" class="nav-link" active-class="active">OCR</router-link>
         <router-link to="/audio" class="nav-link" active-class="active">Audio</router-link>
         <router-link to="/subtitle" class="nav-link" active-class="active">Subtitles</router-link>
-        <router-link to="/blog" class="nav-link" active-class="active">Blog & SEO</router-link>
         <router-link to="/admin" class="nav-link" active-class="active">Admin</router-link>
       </div>
 
@@ -100,7 +99,6 @@
         <router-link to="/ocr" class="mobile-link" @click="mobileMenuOpen = false">OCR</router-link>
         <router-link to="/audio" class="mobile-link" @click="mobileMenuOpen = false">Audio</router-link>
         <router-link to="/subtitle" class="mobile-link" @click="mobileMenuOpen = false">Subtitles</router-link>
-        <router-link to="/blog" class="mobile-link" @click="mobileMenuOpen = false">Blog & SEO</router-link>
         <router-link to="/admin" class="mobile-link" @click="mobileMenuOpen = false">Admin</router-link>
       </div>
       <div v-if="!isAuthenticated" class="mobile-auth-wrapper">

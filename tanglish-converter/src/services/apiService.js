@@ -631,27 +631,6 @@ export async function checkGrammarAI(text) {
 }
 
 /**
- * Server-side Tamil SEO Blog Generator
- */
-export async function generateBlogAI({ topic, tone = 'conversational', wordCount = 500, instructions = '' }) {
-    const response = await fetch(`${API_BASE}/tools/blog`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            topic,
-            tone,
-            word_count: Number(wordCount) || 500,
-            instructions
-        })
-    })
-    if (!response.ok) {
-        const err = await response.json().catch(() => ({}))
-        throw new Error(err.detail || `Server error: ${response.status}`)
-    }
-    return await response.json()
-}
-
-/**
  * Server-side Tamil OCR Vision
  */
 export async function extractTamilOCRAI({ imageBase64, mimeType = 'image/jpeg' }) {
