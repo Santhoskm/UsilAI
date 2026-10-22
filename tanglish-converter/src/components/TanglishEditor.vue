@@ -1,5 +1,5 @@
 <template>
-  <div class="tanglish-editor-container">
+  <div class="tanglish-editor-container" :class="{ 'full-page-editor': fullPage, 'embedded-editor': !fullPage }">
     <!-- Toolbar -->
     <div class="toolbar" v-if="editor">
       <!-- Documents Sidebar Toggle (When logged in and sidebar enabled) -->
@@ -2121,13 +2121,22 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  min-height: 500px;
   font-family: 'Inter', 'Segoe UI', 'Noto Sans Tamil', sans-serif;
   background: var(--card-bg, #ffffff);
   border-radius: 14px;
   overflow: hidden;
   box-shadow: none;
   border: 1px solid var(--card-border, #e0e0e0);
+}
+
+.tanglish-editor-container.embedded-editor {
+  height: 520px;
+  max-height: 520px;
+}
+
+.tanglish-editor-container.full-page-editor {
+  height: 100%;
+  min-height: calc(100vh - 170px);
 }
 
 /* Toolbar */
@@ -2142,6 +2151,7 @@ onBeforeUnmount(() => {
   position: sticky;
   top: 0;
   z-index: 100;
+  flex-shrink: 0;
 }
 
 .toolbar-group {
@@ -2330,6 +2340,8 @@ onBeforeUnmount(() => {
   flex-direction: column;
   background: var(--card-inner-bg, #ffffff);
   overflow: hidden;
+  min-height: 0;
+  height: 100%;
 }
 
 .editor-content {
@@ -2339,6 +2351,7 @@ onBeforeUnmount(() => {
   line-height: 1.8;
   overflow-y: auto;
   color: var(--text-main, #111);
+  min-height: 0;
 }
 
 .editor-content :deep(.tiptap) {
@@ -2551,6 +2564,7 @@ onBeforeUnmount(() => {
   flex-direction: row;
   flex: 1;
   min-height: 0;
+  height: 100%;
   position: relative;
   background: var(--card-inner-bg, #ffffff);
   overflow: hidden;
@@ -2578,6 +2592,7 @@ onBeforeUnmount(() => {
   border-top: 1px solid var(--card-border, #e2e8f0);
   gap: 14px;
   flex-wrap: wrap;
+  flex-shrink: 0;
 }
 
 .engine-mode-pill {

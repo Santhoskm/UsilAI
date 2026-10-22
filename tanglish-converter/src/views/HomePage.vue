@@ -603,6 +603,8 @@ const scrollToEditor = () => {
 .editor-component-wrapper {
   border-radius: 14px;
   overflow: hidden;
+  height: 520px;
+  flex-shrink: 0;
 }
 
 /* Right: AI Tools Panel */
