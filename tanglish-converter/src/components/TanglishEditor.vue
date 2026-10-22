@@ -304,6 +304,153 @@
         </div>
       </div>
 
+      <!-- Full Page Document Tools: Text Color, Highlighting, Image Upload & Background (This Page Alone) -->
+      <template v-if="fullPage">
+        <div class="toolbar-divider"></div>
+
+        <!-- Text Color Picker -->
+        <div class="toolbar-group color-picker-wrapper" ref="textColorDropdownRef">
+          <button 
+            class="toolbar-btn color-toolbar-btn" 
+            @click="toggleTextColorDropdown" 
+            title="Text Color"
+          >
+            <span class="color-text-sample" :style="{ color: activeTextColor }">A</span>
+            <span class="color-underline-bar" :style="{ background: activeTextColor }"></span>
+          </button>
+          <div v-if="showTextColorDropdown" class="toolbar-dropdown-menu color-dropdown-menu">
+            <div class="dropdown-menu-header">Text Color</div>
+            <div class="color-swatch-grid">
+              <button 
+                v-for="color in TEXT_PALETTE" 
+                :key="color" 
+                class="color-swatch-circle" 
+                :style="{ background: color }"
+                :class="{ active: activeTextColor === color }"
+                @click="applyTextColor(color)"
+                :title="color"
+              ></button>
+            </div>
+            <div class="custom-color-row">
+              <label class="custom-color-label">Custom</label>
+              <input type="color" v-model="customColorInput" @input="applyTextColor(customColorInput)" class="native-color-picker" />
+              <button class="color-reset-action" @click="resetTextColor">Reset</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Text Highlighting -->
+        <div class="toolbar-group color-picker-wrapper" ref="highlightDropdownRef">
+          <button 
+            class="toolbar-btn highlight-toolbar-btn" 
+            @click="toggleHighlightDropdown" 
+            title="Highlight Text"
+          >
+            <span class="highlight-tool-icon">🖍️</span>
+            <span class="color-underline-bar" :style="{ background: activeHighlightColor || '#fde047' }"></span>
+          </button>
+          <div v-if="showHighlightDropdown" class="toolbar-dropdown-menu color-dropdown-menu">
+            <div class="dropdown-menu-header">Highlight Color</div>
+            <div class="color-swatch-grid">
+              <button 
+                v-for="h in HIGHLIGHT_PALETTE" 
+                :key="h.color" 
+                class="color-swatch-circle" 
+                :style="{ background: h.color }"
+                @click="applyHighlight(h.color)"
+                :title="h.label"
+              ></button>
+            </div>
+            <div class="custom-color-row">
+              <button class="color-reset-action full-width" @click="resetHighlight">Remove Highlight</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Insert Image (Upload & Paste) -->
+        <div class="toolbar-group">
+          <button 
+            class="toolbar-btn image-upload-btn" 
+            @click="triggerImageFileInput" 
+            title="Insert Image (or paste with Ctrl+V)"
+          >
+            <span class="toolbar-icon-span">🖼️</span>
+            <span class="btn-text-span">Image</span>
+          </button>
+          <input 
+            type="file" 
+            ref="imageFileInputRef" 
+            accept="image/*" 
+            @change="handleImageFileSelect" 
+            style="display: none;" 
+          />
+        </div>
+
+        <!-- Document Background Image (This Page Alone) -->
+        <div class="toolbar-group bg-picker-wrapper" ref="bgDropdownRef">
+          <button 
+            class="toolbar-btn bg-toolbar-btn" 
+            :class="{ active: !!currentDocBackground }"
+            @click="toggleBgDropdown" 
+            title="Document Background Image (This Page Alone)"
+          >
+            <span class="toolbar-icon-span">🎨</span>
+            <span class="btn-text-span">Background</span>
+            <span v-if="currentDocBackground" class="bg-active-dot"></span>
+          </button>
+
+          <div v-if="showBgDropdown" class="toolbar-dropdown-menu bg-dropdown-menu">
+            <div class="dropdown-menu-header">Document Background</div>
+            
+            <button class="bg-upload-main-btn" @click="triggerBgFileInput">
+              <span>📁 Upload Custom Background</span>
+            </button>
+            <input 
+              type="file" 
+              ref="bgFileInputRef" 
+              accept="image/*" 
+              @change="handleBgFileSelect" 
+              style="display: none;" 
+            />
+
+            <div class="bg-preset-title">Watermarks & Textures</div>
+            <div class="bg-preset-grid">
+              <button 
+                v-for="p in BG_PRESETS" 
+                :key="p.id" 
+                class="bg-preset-chip"
+                :class="{ active: currentDocBackground === p.value }"
+                @click="setDocumentBackground(p.value, p.mode)"
+              >
+                <span class="preset-icon">{{ p.icon }}</span>
+                <span class="preset-name">{{ p.name }}</span>
+              </button>
+            </div>
+
+            <!-- Opacity Control -->
+            <div v-if="currentDocBackground" class="bg-opacity-control">
+              <div class="opacity-label-row">
+                <span>Opacity</span>
+                <span class="opacity-val-badge">{{ Math.round(currentDocBackgroundOpacity * 100) }}%</span>
+              </div>
+              <input 
+                type="range" 
+                min="0.05" 
+                max="0.85" 
+                step="0.05" 
+                :value="currentDocBackgroundOpacity" 
+                @input="updateBackgroundOpacity($event.target.value)" 
+                class="bg-range-slider"
+              />
+            </div>
+
+            <div v-if="currentDocBackground" class="custom-color-row">
+              <button class="color-reset-action full-width" @click="removeDocumentBackground">Remove Background</button>
+            </div>
+          </div>
+        </div>
+      </template>
+
       <div class="toolbar-stats">
         <span>{{ wordCount }} words</span>
         <span>{{ charCount }} chars</span>
@@ -388,6 +535,19 @@
 
       <!-- Editor Area -->
       <div class="editor-wrapper" ref="editorWrapper">
+        <!-- Optional Document Background Layer (Full Page Editor Only) -->
+        <div 
+          v-if="fullPage && currentDocBackground" 
+          class="editor-background-layer"
+          :style="{
+            backgroundImage: currentDocBackground.startsWith('linear-gradient') ? currentDocBackground : `url('${currentDocBackground}')`,
+            opacity: currentDocBackgroundOpacity,
+            backgroundSize: currentDocBackgroundMode === 'contain' ? 'contain' : currentDocBackgroundMode === 'repeat' ? 'auto' : 'cover',
+            backgroundRepeat: currentDocBackgroundMode === 'repeat' ? 'repeat' : 'no-repeat',
+            backgroundPosition: 'center'
+          }"
+        ></div>
+
         <editor-content :editor="editor" class="editor-content" :style="{ fontFamily: selectedFont.value, fontSize: currentFontSize + 'px' }" />
 
         <!-- Suggestions Popup -->
@@ -652,6 +812,10 @@ import { useEditor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import TextAlign from '@tiptap/extension-text-align'
+import Image from '@tiptap/extension-image'
+import { TextStyle } from '@tiptap/extension-text-style'
+import { Color } from '@tiptap/extension-color'
+import Highlight from '@tiptap/extension-highlight'
 import { preloadCommonChunks } from '@/data/tamilEngine'
 import { useAuth, registerPreLogoutHook } from '@/composables/useAuth'
 import { useTanglishConverter } from '@/composables/useTanglishConverter'
@@ -693,6 +857,204 @@ const copiedSuccess = ref(false)
 let saveDebounceTimer = null
 let dbSyncDebounceTimer = null
 let isProgrammaticUpdate = false
+
+// ── Text Color, Highlight, and Background State (Full-Page Document Editor) ──
+const showTextColorDropdown = ref(false)
+const activeTextColor = ref('#0f172a')
+const customColorInput = ref('#2563eb')
+const textColorDropdownRef = ref(null)
+
+const showHighlightDropdown = ref(false)
+const activeHighlightColor = ref('')
+const highlightDropdownRef = ref(null)
+
+const showBgDropdown = ref(false)
+const bgDropdownRef = ref(null)
+const imageFileInputRef = ref(null)
+const bgFileInputRef = ref(null)
+
+const currentDocBackground = ref('')
+const currentDocBackgroundOpacity = ref(0.2)
+const currentDocBackgroundMode = ref('cover')
+
+const TEXT_PALETTE = [
+  '#0f172a', // Slate/Black
+  '#475569', // Slate Gray
+  '#2563eb', // Royal Blue
+  '#4f46e5', // Indigo
+  '#7c3aed', // Purple
+  '#db2777', // Rose Pink
+  '#dc2626', // Crimson Red
+  '#ea580c', // Bright Orange
+  '#d97706', // Warm Amber
+  '#16a34a', // Forest Green
+  '#0d9488'  // Teal
+]
+
+const HIGHLIGHT_PALETTE = [
+  { label: 'Yellow', color: '#fef08a' },
+  { label: 'Green', color: '#bbf7d0' },
+  { label: 'Cyan', color: '#a5f3fc' },
+  { label: 'Pink', color: '#fbcfe8' },
+  { label: 'Peach', color: '#fed7aa' },
+  { label: 'Lavender', color: '#e9d5ff' }
+]
+
+const BG_PRESETS = [
+  {
+    id: 'grid',
+    name: 'Graph Grid',
+    icon: '📐',
+    mode: 'repeat',
+    value: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'><path d='M 24 0 L 0 0 0 24' fill='none' stroke='%236366f1' stroke-width='0.5' stroke-opacity='0.25'/></svg>"
+  },
+  {
+    id: 'lines',
+    name: 'Notebook',
+    icon: '📝',
+    mode: 'repeat',
+    value: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='32' viewBox='0 0 100 32'><line x1='0' y1='31.5' x2='100' y2='31.5' stroke='%233b82f6' stroke-width='1' stroke-opacity='0.2'/></svg>"
+  },
+  {
+    id: 'parchment',
+    name: 'Parchment',
+    icon: '📜',
+    mode: 'cover',
+    value: "linear-gradient(135deg, #fef3c7 0%, #fffbeb 50%, #fde68a 100%)"
+  },
+  {
+    id: 'tamil',
+    name: 'Tamil Motif',
+    icon: 'அ',
+    mode: 'contain',
+    value: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'><text x='200' y='250' font-size='160' font-family='Noto Sans Tamil, Arial, sans-serif' font-weight='bold' fill='%236366f1' fill-opacity='0.15' text-anchor='middle'>அ</text></svg>"
+  },
+  {
+    id: 'aurora',
+    name: 'Soft Aurora',
+    icon: '✨',
+    mode: 'cover',
+    value: "linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(244,114,182,0.12) 50%, rgba(56,189,248,0.12) 100%)"
+  }
+]
+
+const toggleTextColorDropdown = () => {
+  showTextColorDropdown.value = !showTextColorDropdown.value
+  showHighlightDropdown.value = false
+  showBgDropdown.value = false
+}
+
+const toggleHighlightDropdown = () => {
+  showHighlightDropdown.value = !showHighlightDropdown.value
+  showTextColorDropdown.value = false
+  showBgDropdown.value = false
+}
+
+const toggleBgDropdown = () => {
+  showBgDropdown.value = !showBgDropdown.value
+  showTextColorDropdown.value = false
+  showHighlightDropdown.value = false
+}
+
+const applyTextColor = (color) => {
+  activeTextColor.value = color
+  if (editor.value) {
+    editor.value.chain().focus().setColor(color).run()
+  }
+}
+
+const resetTextColor = () => {
+  activeTextColor.value = '#0f172a'
+  if (editor.value) {
+    editor.value.chain().focus().unsetColor().run()
+  }
+}
+
+const applyHighlight = (color) => {
+  activeHighlightColor.value = color
+  if (editor.value) {
+    editor.value.chain().focus().toggleHighlight({ color }).run()
+  }
+}
+
+const resetHighlight = () => {
+  activeHighlightColor.value = ''
+  if (editor.value) {
+    editor.value.chain().focus().unsetHighlight().run()
+  }
+}
+
+const triggerImageFileInput = () => {
+  if (imageFileInputRef.value) {
+    imageFileInputRef.value.click()
+  }
+}
+
+const handleImageFileSelect = (event) => {
+  const file = event.target?.files?.[0]
+  if (!file) return
+  if (!file.type.startsWith('image/')) {
+    alert('Please select a valid image file.')
+    return
+  }
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    if (editor.value) {
+      editor.value.chain().focus().setImage({ src: e.target.result }).run()
+    }
+    if (imageFileInputRef.value) imageFileInputRef.value.value = ''
+  }
+  reader.readAsDataURL(file)
+}
+
+const triggerBgFileInput = () => {
+  if (bgFileInputRef.value) {
+    bgFileInputRef.value.click()
+  }
+}
+
+const handleBgFileSelect = (event) => {
+  const file = event.target?.files?.[0]
+  if (!file) return
+  if (!file.type.startsWith('image/')) {
+    alert('Please select an image file.')
+    return
+  }
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    setDocumentBackground(e.target.result, 'cover')
+    if (bgFileInputRef.value) bgFileInputRef.value.value = ''
+  }
+  reader.readAsDataURL(file)
+}
+
+const setDocumentBackground = (bgUrl, mode = 'cover') => {
+  currentDocBackground.value = bgUrl
+  currentDocBackgroundMode.value = mode
+  if (activeFile.value) {
+    activeFile.value.backgroundImage = bgUrl
+    activeFile.value.backgroundMode = mode
+    activeFile.value.backgroundOpacity = currentDocBackgroundOpacity.value
+    scheduleSaveCurrentFile()
+  }
+}
+
+const updateBackgroundOpacity = (val) => {
+  const num = Number(val)
+  currentDocBackgroundOpacity.value = num
+  if (activeFile.value) {
+    activeFile.value.backgroundOpacity = num
+    scheduleSaveCurrentFile()
+  }
+}
+
+const removeDocumentBackground = () => {
+  currentDocBackground.value = ''
+  if (activeFile.value) {
+    activeFile.value.backgroundImage = ''
+    scheduleSaveCurrentFile()
+  }
+}
 
 watch(() => props.enableSidebar, (newVal) => {
   showFilesSidebar.value = newVal
@@ -800,6 +1162,9 @@ const flushPendingSave = async () => {
   activeFile.value.content = html
   activeFile.value.plainText = text
   activeFile.value.wordCount = words
+  activeFile.value.backgroundImage = currentDocBackground.value
+  activeFile.value.backgroundMode = currentDocBackgroundMode.value
+  activeFile.value.backgroundOpacity = currentDocBackgroundOpacity.value
   activeFile.value.updatedAt = new Date().toISOString()
 
   const uid = currentUserId.value
@@ -816,6 +1181,7 @@ const loadSavedFiles = async () => {
   if (!props.fullPage && !props.enableSidebar) {
     savedFiles.value = []
     activeFileId.value = ''
+    currentDocBackground.value = ''
     setEditorTextSafely('')
     syncStatus.value = 'idle'
     return
@@ -836,6 +1202,7 @@ const loadSavedFiles = async () => {
   if (!isAuthenticated.value || !uid) {
     savedFiles.value = []
     activeFileId.value = ''
+    currentDocBackground.value = ''
     setEditorTextSafely('')
     syncStatus.value = 'idle'
     return
@@ -871,6 +1238,9 @@ const loadSavedFiles = async () => {
         content: d.content || '',
         plainText: d.plain_text || d.plainText || '',
         wordCount: d.word_count || d.wordCount || 0,
+        backgroundImage: d.background_image || d.backgroundImage || '',
+        backgroundMode: d.background_mode || d.backgroundMode || 'cover',
+        backgroundOpacity: d.background_opacity ?? d.backgroundOpacity ?? 0.2,
         createdAt: d.created_at || new Date().toISOString(),
         updatedAt: d.updated_at || new Date().toISOString()
       }))
@@ -878,6 +1248,9 @@ const loadSavedFiles = async () => {
       // Prioritize activating a document with content
       const targetDoc = savedFiles.value.find(f => f.plainText && f.plainText.trim().length > 0) || savedFiles.value[0]
       activeFileId.value = targetDoc.id
+      currentDocBackground.value = targetDoc.backgroundImage || ''
+      currentDocBackgroundMode.value = targetDoc.backgroundMode || 'cover'
+      currentDocBackgroundOpacity.value = targetDoc.backgroundOpacity ?? 0.2
       setEditorTextSafely(targetDoc.content || '')
       syncStatus.value = 'saved'
     } else {
@@ -889,11 +1262,15 @@ const loadSavedFiles = async () => {
         content: '',
         plainText: '',
         wordCount: 0,
+        backgroundImage: '',
+        backgroundMode: 'cover',
+        backgroundOpacity: 0.2,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       }
       savedFiles.value = [defaultFile]
       activeFileId.value = defaultFile.id
+      currentDocBackground.value = ''
       setEditorTextSafely('')
       syncStatus.value = 'saved'
     }
@@ -915,6 +1292,9 @@ const scheduleSaveCurrentFile = () => {
     activeFile.value.content = html
     activeFile.value.plainText = text
     activeFile.value.wordCount = words
+    activeFile.value.backgroundImage = currentDocBackground.value
+    activeFile.value.backgroundMode = currentDocBackgroundMode.value
+    activeFile.value.backgroundOpacity = currentDocBackgroundOpacity.value
     activeFile.value.updatedAt = new Date().toISOString()
     saveFilesToStorage()
   }, 250)
@@ -936,6 +1316,9 @@ const createNewFile = () => {
     activeFile.value.content = editor.value.getHTML()
     activeFile.value.plainText = editor.value.getText()
     activeFile.value.wordCount = wordCount.value
+    activeFile.value.backgroundImage = currentDocBackground.value
+    activeFile.value.backgroundMode = currentDocBackgroundMode.value
+    activeFile.value.backgroundOpacity = currentDocBackgroundOpacity.value
     activeFile.value.updatedAt = new Date().toISOString()
   }
 
@@ -946,6 +1329,9 @@ const createNewFile = () => {
     content: '',
     plainText: '',
     wordCount: 0,
+    backgroundImage: '',
+    backgroundMode: 'cover',
+    backgroundOpacity: 0.2,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   }
@@ -955,6 +1341,9 @@ const createNewFile = () => {
     savedFiles.value = savedFiles.value.slice(0, 5)
   }
   activeFileId.value = newFile.id
+  currentDocBackground.value = ''
+  currentDocBackgroundMode.value = 'cover'
+  currentDocBackgroundOpacity.value = 0.2
   saveFilesToStorage()
 
   if (editor.value) {
@@ -969,15 +1358,23 @@ const switchToFile = (fileId) => {
     activeFile.value.content = editor.value.getHTML()
     activeFile.value.plainText = editor.value.getText()
     activeFile.value.wordCount = wordCount.value
+    activeFile.value.backgroundImage = currentDocBackground.value
+    activeFile.value.backgroundMode = currentDocBackgroundMode.value
+    activeFile.value.backgroundOpacity = currentDocBackgroundOpacity.value
     activeFile.value.updatedAt = new Date().toISOString()
     saveFilesToStorage()
   }
 
   activeFileId.value = fileId
   const target = savedFiles.value.find(f => f.id === fileId)
-  if (target && editor.value) {
-    setEditorTextSafely(target.content || '')
-    editor.value.commands.focus()
+  if (target) {
+    currentDocBackground.value = target.backgroundImage || ''
+    currentDocBackgroundMode.value = target.backgroundMode || 'cover'
+    currentDocBackgroundOpacity.value = target.backgroundOpacity ?? 0.2
+    if (editor.value) {
+      setEditorTextSafely(target.content || '')
+      editor.value.commands.focus()
+    }
   }
 }
 
@@ -1428,12 +1825,33 @@ const selectSuggestion = (suggestion, index = -1, addSpace = false) => {
   }
 }
 
-// Handle paste event
-// Returns true → tells TipTap to skip its own default paste (prevents double paste)
-// Pastes raw text as-is. Each word converts on spacebar via handleTyping.
+// Handle paste event (supports both text and clipboard image pasting)
 const handlePaste = (view, event) => {
+  // 1. Check for clipboard image data (e.g. copied image, screenshot, or file)
+  const items = event.clipboardData?.items
+  if (items && items.length > 0) {
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i]
+      if (item.type.indexOf('image') !== -1) {
+        const file = item.getAsFile()
+        if (file) {
+          event.preventDefault()
+          const reader = new FileReader()
+          reader.onload = (e) => {
+            if (editor.value) {
+              editor.value.chain().focus().setImage({ src: e.target.result }).run()
+            }
+          }
+          reader.readAsDataURL(file)
+          return true
+        }
+      }
+    }
+  }
+
+  // 2. Normal text paste
   event.preventDefault()
-  const pastedText = event.clipboardData.getData('text/plain')
+  const pastedText = event.clipboardData?.getData('text/plain')
   if (!pastedText) return true
 
   const { state } = view
@@ -1462,6 +1880,25 @@ const handlePaste = (view, event) => {
   }, 50)
 
   return true  // ← CRITICAL: prevents TipTap default paste (stops double paste)
+}
+
+// Handle image drop event (drag and drop image directly onto editor)
+const handleDrop = (view, event, slice, moved) => {
+  if (!moved && event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files.length > 0) {
+    const file = event.dataTransfer.files[0]
+    if (file && file.type.startsWith('image/')) {
+      event.preventDefault()
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        if (editor.value) {
+          editor.value.chain().focus().setImage({ src: e.target.result }).run()
+        }
+      }
+      reader.readAsDataURL(file)
+      return true
+    }
+  }
+  return false
 }
 
 // ── DOWNLOAD & EXPORT FUNCTIONS ──────────────────────────
@@ -1986,7 +2423,7 @@ function stopVoiceTyping() {
 
 // ── END VOICE TYPING ────────────────────────────────────────────
 
-// Initialize editoritialize editor
+// Initialize editor
 const editor = useEditor({
   content: '',
   extensions: [
@@ -2001,12 +2438,23 @@ const editor = useEditor({
     TextAlign.configure({
       types: ['heading', 'paragraph'],
       defaultAlignment: 'left',
+    }),
+    TextStyle,
+    Color,
+    Highlight.configure({ multicolor: true }),
+    Image.configure({
+      inline: false,
+      allowBase64: true,
+      HTMLAttributes: {
+        class: 'editor-embedded-image',
+      }
     })
   ],
   editorProps: {
     handleTextInput: handleTyping,
     handleKeyDown: handleKeyDown,
-    handlePaste: handlePaste
+    handlePaste: handlePaste,
+    handleDrop: handleDrop
   },
   onUpdate: ({ editor }) => {
     if (isProgrammaticUpdate) return
@@ -2082,6 +2530,15 @@ onMounted(async () => {
     }
     if (downloadDropdownRef.value && !downloadDropdownRef.value.contains(e.target)) {
       showDownloadDropdown.value = false
+    }
+    if (textColorDropdownRef.value && !textColorDropdownRef.value.contains(e.target)) {
+      showTextColorDropdown.value = false
+    }
+    if (highlightDropdownRef.value && !highlightDropdownRef.value.contains(e.target)) {
+      showHighlightDropdown.value = false
+    }
+    if (bgDropdownRef.value && !bgDropdownRef.value.contains(e.target)) {
+      showBgDropdown.value = false
     }
   })
 
@@ -2333,6 +2790,303 @@ onBeforeUnmount(() => {
   font-weight: 500;
 }
 
+/* Color & Highlight Toolbar Buttons */
+.color-picker-wrapper,
+.bg-picker-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.color-toolbar-btn {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 3px 8px;
+  min-width: 32px;
+  height: 32px;
+}
+
+.color-text-sample {
+  font-weight: 800;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.color-underline-bar {
+  width: 16px;
+  height: 3px;
+  border-radius: 2px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+
+.highlight-toolbar-btn {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 3px 8px;
+  min-width: 32px;
+  height: 32px;
+}
+
+.highlight-tool-icon {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.image-upload-btn,
+.bg-toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  font-weight: 500;
+}
+
+.bg-active-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #4f46e5;
+  box-shadow: 0 0 0 2px #c7d2fe;
+}
+
+.btn-text-span {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.toolbar-icon-span {
+  font-size: 14px;
+  line-height: 1;
+}
+
+/* Color & Highlight Dropdown Menus */
+.color-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 100;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+  min-width: 190px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: fadeInMenu 0.15s ease;
+}
+
+.dropdown-menu-header {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #64748b;
+  margin-bottom: 2px;
+}
+
+.color-swatch-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+}
+
+.color-swatch-circle {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 0 1px #cbd5e1;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.color-swatch-circle:hover {
+  transform: scale(1.15);
+  box-shadow: 0 0 0 2px #6366f1;
+}
+
+.color-swatch-circle.active {
+  box-shadow: 0 0 0 2px #4f46e5, 0 2px 4px rgba(79, 70, 229, 0.3);
+}
+
+.custom-color-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 6px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.custom-color-label {
+  font-size: 12px;
+  color: #475569;
+  font-weight: 500;
+}
+
+.native-color-picker {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  background: transparent;
+}
+
+.color-reset-action {
+  margin-left: auto;
+  background: #f1f5f9;
+  color: #475569;
+  border: none;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.color-reset-action:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.color-reset-action.full-width {
+  width: 100%;
+  margin-left: 0;
+  padding: 6px;
+  text-align: center;
+}
+
+/* Background Dropdown Menu */
+.bg-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 100;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px;
+  box-shadow: 0 14px 30px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+  width: 250px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: fadeInMenu 0.15s ease;
+}
+
+.bg-upload-main-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #4f46e5;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.bg-upload-main-btn:hover {
+  background: #eff6ff;
+  border-color: #6366f1;
+}
+
+.bg-preset-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.bg-preset-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+
+.bg-preset-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+}
+
+.bg-preset-chip:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+}
+
+.bg-preset-chip.active {
+  background: #eef2ff;
+  border-color: #6366f1;
+  color: #4f46e5;
+  font-weight: 600;
+}
+
+.preset-icon {
+  font-size: 13px;
+}
+
+.preset-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bg-opacity-control {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.opacity-label-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.opacity-val-badge {
+  color: #4f46e5;
+  font-weight: 700;
+}
+
+.bg-range-slider {
+  width: 100%;
+  accent-color: #4f46e5;
+  cursor: pointer;
+}
+
 /* Editor Area */
 .editor-wrapper {
   position: relative;
@@ -2345,7 +3099,18 @@ onBeforeUnmount(() => {
   height: 100%;
 }
 
+.editor-background-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  transition: opacity 0.2s ease, background 0.3s ease;
+}
+
 .editor-content {
+  position: relative;
+  z-index: 1;
+  background: transparent;
   flex: 1;
   padding: 32px 40px;
   font-size: 17px;
@@ -2353,6 +3118,28 @@ onBeforeUnmount(() => {
   overflow-y: auto;
   color: var(--text-main, #111);
   min-height: 0;
+}
+
+.editor-content :deep(.editor-embedded-image) {
+  display: block;
+  max-width: 100%;
+  max-height: 520px;
+  object-fit: contain;
+  margin: 16px auto;
+  border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.editor-content :deep(.editor-embedded-image:hover) {
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+}
+
+.editor-content :deep(mark) {
+  background-color: #fef08a;
+  padding: 1px 4px;
+  border-radius: 3px;
+  color: inherit;
 }
 
 .editor-content :deep(.tiptap) {
