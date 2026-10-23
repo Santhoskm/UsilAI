@@ -1,381 +1,417 @@
 <template>
   <div class="tanglish-editor-container" :class="{ 'full-page-editor': fullPage, 'embedded-editor': !fullPage }">
-    <!-- Toolbar -->
-    <div class="toolbar" v-if="editor">
-      <!-- Documents Sidebar Toggle (When logged in and sidebar enabled) -->
-      <div v-if="isAuthenticated && enableSidebar" class="toolbar-group files-toggle-group">
+    <!-- Files Sidebar (Left) - Separate Standalone Panel/Card when logged in & sidebar enabled -->
+    <aside 
+      v-if="isAuthenticated && showFilesSidebar && enableSidebar" 
+      class="files-sidebar" 
+      :class="{ 'full-page-sidebar': fullPage }"
+    >
+      <!-- Files Sidebar Header with Collapse Button -->
+      <div class="files-sidebar-header">
+        <div class="files-sidebar-title-wrap">
+          <span class="files-folder-icon">📁</span>
+          <span class="files-sidebar-heading">My Documents</span>
+          <span class="files-count-badge" :class="{ 'at-limit': savedFiles.length >= 5 }">
+            {{ savedFiles.length }}/5
+          </span>
+        </div>
         <button 
-          @click="showFilesSidebar = !showFilesSidebar"
-          class="toolbar-btn btn-files-toggle"
-          :class="{ active: showFilesSidebar }"
-          :title="showFilesSidebar ? 'Hide Documents Sidebar' : 'Show Documents Sidebar'"
+          v-if="fullPage"
+          type="button" 
+          @click="showFilesSidebar = false" 
+          class="files-sidebar-collapse-btn" 
+          title="Collapse documents sidebar"
         >
-          <span class="files-toggle-icon">📁</span>
-          <span class="files-btn-title">{{ activeFile?.title || 'Documents' }}</span>
-          <span class="files-badge">{{ savedFiles.length }}/5</span>
+          ‹
         </button>
       </div>
 
-      <div v-if="isAuthenticated && enableSidebar" class="toolbar-divider"></div>
-
-      <div class="toolbar-group">
-        <button
-          @click="editor.chain().focus().toggleBold().run()"
-          :class="{ active: editor.isActive('bold') }"
-          class="toolbar-btn"
-          title="Bold"
+      <!-- New File Action Button (Matches Screenshot) -->
+      <div class="files-sidebar-top">
+        <button 
+          class="new-file-main-btn" 
+          @click="createNewFile"
+          :disabled="savedFiles.length >= 5"
+          :title="savedFiles.length >= 5 ? '5/5 files limit reached' : 'Create new document'"
         >
-          <strong>B</strong>
+          <span class="plus-symbol">+</span>
+          <span class="new-file-label">New File</span>
+          <span class="file-count-badge" :class="{ 'at-limit': savedFiles.length >= 5 }">
+            {{ savedFiles.length }}/5
+          </span>
         </button>
-        <button
-          @click="editor.chain().focus().toggleItalic().run()"
-          :class="{ active: editor.isActive('italic') }"
-          class="toolbar-btn"
-          title="Italic"
-        >
-          <em>I</em>
-        </button>
-        <button
-          @click="editor.chain().focus().toggleStrike().run()"
-          :class="{ active: editor.isActive('strike') }"
-          class="toolbar-btn"
-          title="Strikethrough"
-        >
-          <s>S</s>
-        </button>
-        <button
-          @click="editor.chain().focus().toggleCode().run()"
-          :class="{ active: editor.isActive('code') }"
-          class="toolbar-btn"
-          title="Inline Code"
-        >
-          &lt;/&gt;
-        </button>
+        <div class="files-sync-status-row" :title="syncStatus === 'syncing' ? 'Syncing to PostgreSQL database...' : syncStatus === 'error' ? 'Saved locally (offline)' : 'Stored in PostgreSQL Database'">
+          <span class="sync-dot" :class="syncStatus"></span>
+          <span class="sync-status-text">
+            {{ syncStatus === 'syncing' ? 'Syncing to DB...' : syncStatus === 'error' ? 'Local only' : 'PostgreSQL Synced' }}
+          </span>
+        </div>
       </div>
 
-      <div class="toolbar-divider"></div>
-
-      <div class="toolbar-group">
-        <button
-          @click="editor.chain().focus().toggleHeading({ level: 1 }).run()"
-          :class="{ active: editor.isActive('heading', { level: 1 }) }"
-          class="toolbar-btn"
-          title="Heading 1"
-        >
-          H1
-        </button>
-        <button
-          @click="editor.chain().focus().toggleHeading({ level: 2 }).run()"
-          :class="{ active: editor.isActive('heading', { level: 2 }) }"
-          class="toolbar-btn"
-          title="Heading 2"
-        >
-          H2
-        </button>
-        <button
-          @click="editor.chain().focus().toggleHeading({ level: 3 }).run()"
-          :class="{ active: editor.isActive('heading', { level: 3 }) }"
-          class="toolbar-btn"
-          title="Heading 3"
-        >
-          H3
-        </button>
-      </div>
-
-      <div class="toolbar-divider"></div>
-
-      <div class="toolbar-group">
-        <button
-          @click="editor.chain().focus().toggleBulletList().run()"
-          :class="{ active: editor.isActive('bulletList') }"
-          class="toolbar-btn"
-          title="Bullet List"
-        >
-          ☰
-        </button>
-        <button
-          @click="editor.chain().focus().toggleOrderedList().run()"
-          :class="{ active: editor.isActive('orderedList') }"
-          class="toolbar-btn"
-          title="Ordered List"
-        >
-          1.
-        </button>
-        <button
-          @click="editor.chain().focus().toggleBlockquote().run()"
-          :class="{ active: editor.isActive('blockquote') }"
-          class="toolbar-btn"
-          title="Quote"
-        >
-          ❝
-        </button>
-        <button
-          @click="editor.chain().focus().setHorizontalRule().run()"
-          class="toolbar-btn"
-          title="Horizontal Rule"
-        >
-          ─
-        </button>
-      </div>
-
-      <div class="toolbar-divider"></div>
-
-      <div class="toolbar-group">
-        <button
-          @click="editor.chain().focus().undo().run()"
-          :disabled="!editor.can().undo()"
-          class="toolbar-btn"
-          title="Undo"
-        >
-          ↩
-        </button>
-        <button
-          @click="editor.chain().focus().redo().run()"
-          :disabled="!editor.can().redo()"
-          class="toolbar-btn"
-          title="Redo"
-        >
-          ↪
-        </button>
-      </div>
-
-      <div class="toolbar-divider"></div>
-
-      <!-- Text Alignment -->
-      <div class="toolbar-group">
-        <button
-          @click="editor.chain().focus().setTextAlign('left').run()"
-          :class="{ active: editor.isActive({ textAlign: 'left' }) }"
-          class="toolbar-btn"
-          title="Align Left"
-        >
-          ⬛︎
-        </button>
-        <button
-          @click="editor.chain().focus().setTextAlign('center').run()"
-          :class="{ active: editor.isActive({ textAlign: 'center' }) }"
-          class="toolbar-btn"
-          title="Align Center"
-        >
-          ▣
-        </button>
-        <button
-          @click="editor.chain().focus().setTextAlign('right').run()"
-          :class="{ active: editor.isActive({ textAlign: 'right' }) }"
-          class="toolbar-btn"
-          title="Align Right"
-        >
-          ▤
-        </button>
-        <button
-          @click="editor.chain().focus().setTextAlign('justify').run()"
-          :class="{ active: editor.isActive({ textAlign: 'justify' }) }"
-          class="toolbar-btn"
-          title="Justify"
-        >
-          ☰
-        </button>
-      </div>
-
-      <div class="toolbar-divider"></div>
-
-      <!-- Font Size -->
-      <div class="toolbar-group">
-        <div class="font-size-wrapper" ref="fontSizeRef">
-          <button class="toolbar-btn font-size-btn" @click="showFontSizeDropdown = !showFontSizeDropdown" title="Font Size">
-            <span>{{ currentFontSize }}px</span>
-            <span class="font-caret">▾</span>
-          </button>
-          <div v-if="showFontSizeDropdown" class="font-size-dropdown">
-            <div
-              v-for="size in FONT_SIZES"
-              :key="size"
-              class="font-size-option"
-              :class="{ active: currentFontSize === size }"
-              @click="applyFontSize(size)"
+      <!-- Files Scroll List -->
+      <div class="files-scroll-list">
+        <div class="file-group-section">
+          <div class="group-header-label">Today</div>
+          <div class="group-items-stack">
+            <div 
+              v-for="file in savedFiles" 
+              :key="file.id"
+              class="file-item-card"
+              :class="{ 'active': file.id === activeFileId }"
+              @click="switchToFile(file.id)"
             >
-              <span :style="{ fontSize: Math.min(size, 22) + 'px', lineHeight: '1' }">அ</span>
-              <span class="size-label">{{ size }}px</span>
+              <div class="file-item-main">
+                <input 
+                  v-if="editingFileId === file.id"
+                  :id="`rename-input-${file.id}`"
+                  v-model="editingTitleText"
+                  @blur="saveRenameFile(file)"
+                  @keydown.enter="saveRenameFile(file)"
+                  @keydown.esc="editingFileId = null"
+                  @click.stop
+                  class="file-rename-input"
+                />
+                <span v-else class="file-item-title" :title="file.title">
+                  {{ file.title }}
+                </span>
+              </div>
+              <div class="file-item-actions" @click.stop>
+                <button 
+                  type="button"
+                  class="file-action-icon-btn rename-btn" 
+                  @click.stop="startRenameFile(file, $event)" 
+                  title="Rename File"
+                >
+                  ✎
+                </button>
+                <button 
+                  type="button"
+                  class="file-action-icon-btn delete-btn" 
+                  @click.stop.prevent="deleteFile(file.id, $event)" 
+                  title="Delete File"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  </svg>
+                </button>
+              </div>
             </div>
           </div>
         </div>
-        <button class="toolbar-btn" title="Decrease Font Size" @click="changeFontSize(-2)">A−</button>
-        <button class="toolbar-btn" title="Increase Font Size" @click="changeFontSize(+2)">A+</button>
       </div>
+    </aside>
 
-      <div class="toolbar-divider"></div>
-
-      <div class="toolbar-group">
-        <button @click="clearEditor" class="toolbar-btn btn-clear" title="Clear Editor Content">
-          Clear
-        </button>
-        <button 
-          @click="toggleAIHelp" 
-          class="toolbar-btn btn-ai"
-          :class="{ active: aiHelpEnabled }"
-          title="AI Grammar Checker"
-        >
-          <svg class="grammar-sparkle-svg" width="14" height="14" viewBox="0 0 24 24" fill="none">
-            <path d="M12 2L14.4 8.6L21 11L14.4 13.4L12 20L9.6 13.4L3 11L9.6 8.6L12 2Z" fill="currentColor"/>
-            <circle cx="18.5" cy="5.5" r="2.2" fill="currentColor"/>
-          </svg>
-          <span>Grammar Checker</span>
-        </button>
-
-        <!-- Download / Export Dropdown -->
-        <div class="download-dropdown-wrapper" ref="downloadDropdownRef">
+    <!-- Document Workspace Stage Panel (Separate Card on Right) -->
+    <div class="document-stage-panel" :class="{ 'full-page-stage': fullPage, 'embedded-stage': !fullPage }">
+      <!-- Toolbar: Floating & Sticky in Full-Page Mode -->
+      <div class="toolbar" :class="{ 'floating-sticky-toolbar': fullPage }" v-if="editor">
+        <!-- Documents Sidebar Toggle (Only show if sidebar is collapsed or embedded) -->
+        <div v-if="isAuthenticated && enableSidebar && (!fullPage || !showFilesSidebar)" class="toolbar-group files-toggle-group">
           <button 
-            @click="showDownloadDropdown = !showDownloadDropdown" 
-            class="toolbar-btn btn-download"
-            title="Download / Export Content"
+            @click="showFilesSidebar = !showFilesSidebar"
+            class="toolbar-btn btn-files-toggle compact"
+            :class="{ active: showFilesSidebar }"
+            :title="showFilesSidebar ? 'Hide Documents Sidebar' : 'Show Documents Sidebar'"
           >
-            <svg class="download-svg-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 2.5V15.5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
-              <path d="M5.5 10.5L12 16.5L18.5 10.5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M3.5 21H20.5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
-            </svg>
-            <span class="download-btn-text">Download</span>
-            <span class="font-caret">▾</span>
+            <span class="files-toggle-icon">📁</span>
+            <span class="files-badge">{{ savedFiles.length }}/5</span>
           </button>
-          
-          <div v-if="showDownloadDropdown" class="download-dropdown-menu">
-            <button @click="downloadAsDocx" class="download-menu-item">
-              <div class="item-icon-badge">
-                <svg class="format-download-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M12 2.5V15.5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
-                  <path d="M5.5 10.5L12 16.5L18.5 10.5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
-                  <path d="M3.5 21H20.5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
-                </svg>
-              </div>
-              <div class="item-info">
-                <span class="item-title">Word Document (.doc)</span>
-                <span class="item-desc">Current file in Word format</span>
-              </div>
-            </button>
-            <button @click="downloadAsTxt" class="download-menu-item">
-              <div class="item-icon-badge">
-                <svg class="format-download-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M12 2.5V15.5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
-                  <path d="M5.5 10.5L12 16.5L18.5 10.5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
-                  <path d="M3.5 21H20.5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
-                </svg>
-              </div>
-              <div class="item-info">
-                <span class="item-title">Plain Text (.txt)</span>
-                <span class="item-desc">Current file as standard text</span>
-              </div>
-            </button>
-            <button @click="downloadAsPDF" class="download-menu-item">
-              <div class="item-icon-badge">
-                <svg class="format-download-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M12 2.5V15.5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
-                  <path d="M5.5 10.5L12 16.5L18.5 10.5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
-                  <path d="M3.5 21H20.5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
-                </svg>
-              </div>
-              <div class="item-info">
-                <span class="item-title">PDF Document (.pdf)</span>
-                <span class="item-desc">Print / Save current file</span>
-              </div>
-            </button>
-          </div>
         </div>
-      </div>
 
-      <!-- Font Selector -->
-      <div class="toolbar-font-selector" ref="fontSelectorRef">
-        <button class="font-selector-btn" @click="showFontDropdown = !showFontDropdown" title="Change Tamil Font">
-          <span class="font-preview">அ</span>
-          <span class="font-name">{{ selectedFont.label }}</span>
-          <span class="font-caret">▾</span>
-        </button>
-        <div v-if="showFontDropdown" class="font-dropdown">
-          <div
-            v-for="font in TAMIL_FONTS"
-            :key="font.label"
-            class="font-option"
-            :class="{ active: selectedFont.label === font.label }"
-            @click="applyFont(font)"
-            :style="{ fontFamily: font.value }"
+        <div v-if="isAuthenticated && enableSidebar && (!fullPage || !showFilesSidebar)" class="toolbar-divider"></div>
+
+        <!-- 1. History Segment (Undo / Redo) -->
+        <div class="toolbar-group">
+          <button
+            @click="editor.chain().focus().undo().run()"
+            :disabled="!editor.can().undo()"
+            class="toolbar-btn"
+            title="Undo (Ctrl+Z)"
           >
-            <span class="font-sample">அ ஆ </span>
-            <span class="font-label">{{ font.label }}</span>
-          </div>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"></path><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path></svg>
+          </button>
+          <button
+            @click="editor.chain().focus().redo().run()"
+            :disabled="!editor.can().redo()"
+            class="toolbar-btn"
+            title="Redo (Ctrl+Y)"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7v6h-6"></path><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"></path></svg>
+          </button>
         </div>
-      </div>
 
-      <!-- Full Page Document Tools: Text Color, Highlighting, Image Upload & Background (This Page Alone) -->
-      <template v-if="fullPage">
         <div class="toolbar-divider"></div>
 
-        <!-- Text Color Picker -->
-        <div class="toolbar-group color-picker-wrapper" ref="textColorDropdownRef">
-          <button 
-            class="toolbar-btn color-toolbar-btn" 
-            @click="toggleTextColorDropdown" 
-            title="Text Color"
-          >
-            <span class="color-text-sample" :style="{ color: activeTextColor }">A</span>
-            <span class="color-underline-bar" :style="{ background: activeTextColor }"></span>
-          </button>
-          <div v-if="showTextColorDropdown" class="toolbar-dropdown-menu color-dropdown-menu">
-            <div class="dropdown-menu-header">Text Color</div>
-            <div class="color-swatch-grid">
-              <button 
-                v-for="color in TEXT_PALETTE" 
-                :key="color" 
-                class="color-swatch-circle" 
-                :style="{ background: color }"
-                :class="{ active: activeTextColor === color }"
-                @click="applyTextColor(color)"
-                :title="color"
-              ></button>
+        <!-- 2. Typography Segment (Font & Size) -->
+        <div class="toolbar-group font-controls-group">
+          <!-- Font Selector -->
+          <div class="toolbar-font-selector" ref="fontSelectorRef">
+            <button class="font-selector-btn" @click="showFontDropdown = !showFontDropdown" title="Change Tamil Font">
+              <span class="font-preview">அ</span>
+              <span class="font-name">{{ selectedFont.label }}</span>
+              <span class="font-caret">▾</span>
+            </button>
+            <div v-if="showFontDropdown" class="font-dropdown">
+              <div
+                v-for="font in TAMIL_FONTS"
+                :key="font.label"
+                class="font-option"
+                :class="{ active: selectedFont.label === font.label }"
+                @click="applyFont(font)"
+                :style="{ fontFamily: font.value }"
+              >
+                <span class="font-sample">அ ஆ </span>
+                <span class="font-label">{{ font.label }}</span>
+              </div>
             </div>
-            <div class="custom-color-row">
-              <label class="custom-color-label">Custom</label>
-              <input type="color" v-model="customColorInput" @input="applyTextColor(customColorInput)" class="native-color-picker" />
-              <button class="color-reset-action" @click="resetTextColor">Reset</button>
+          </div>
+
+          <!-- Font Size Dropdown -->
+          <div class="font-size-wrapper" ref="fontSizeRef">
+            <button class="toolbar-btn font-size-btn" @click="showFontSizeDropdown = !showFontSizeDropdown" title="Font Size">
+              <span>{{ currentFontSize }}px</span>
+              <span class="font-caret">▾</span>
+            </button>
+            <div v-if="showFontSizeDropdown" class="font-size-dropdown">
+              <div
+                v-for="size in FONT_SIZES"
+                :key="size"
+                class="font-size-option"
+                :class="{ active: currentFontSize === size }"
+                @click="applyFontSize(size)"
+              >
+                <span :style="{ fontSize: Math.min(size, 22) + 'px', lineHeight: '1' }">அ</span>
+                <span class="size-label">{{ size }}px</span>
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- Text Highlighting -->
-        <div class="toolbar-group color-picker-wrapper" ref="highlightDropdownRef">
-          <button 
-            class="toolbar-btn highlight-toolbar-btn" 
-            @click="toggleHighlightDropdown" 
-            title="Highlight Text"
+        <div class="toolbar-divider"></div>
+
+        <!-- 3. Character Formatting Segment (B, I, S, Code, Text Color, Highlight) -->
+        <div class="toolbar-group format-controls-group">
+          <button
+            @click="editor.chain().focus().toggleBold().run()"
+            :class="{ active: editor.isActive('bold') }"
+            class="toolbar-btn"
+            title="Bold"
           >
-            <span class="highlight-tool-icon">🖍️</span>
-            <span class="color-underline-bar" :style="{ background: activeHighlightColor || '#fde047' }"></span>
+            <strong>B</strong>
           </button>
-          <div v-if="showHighlightDropdown" class="toolbar-dropdown-menu color-dropdown-menu">
-            <div class="dropdown-menu-header">Highlight Color</div>
-            <div class="color-swatch-grid">
-              <button 
-                v-for="h in HIGHLIGHT_PALETTE" 
-                :key="h.color" 
-                class="color-swatch-circle" 
-                :style="{ background: h.color }"
-                @click="applyHighlight(h.color)"
-                :title="h.label"
-              ></button>
+          <button
+            @click="editor.chain().focus().toggleItalic().run()"
+            :class="{ active: editor.isActive('italic') }"
+            class="toolbar-btn"
+            title="Italic"
+          >
+            <em>I</em>
+          </button>
+          <button
+            @click="editor.chain().focus().toggleStrike().run()"
+            :class="{ active: editor.isActive('strike') }"
+            class="toolbar-btn"
+            title="Strikethrough"
+          >
+            <s>S</s>
+          </button>
+          <button
+            @click="editor.chain().focus().toggleCode().run()"
+            :class="{ active: editor.isActive('code') }"
+            class="toolbar-btn"
+            title="Inline Code"
+          >
+            &lt;/&gt;
+          </button>
+
+          <!-- Text Color Picker -->
+          <div v-if="fullPage" class="color-picker-wrapper" ref="textColorDropdownRef">
+            <button 
+              class="toolbar-btn color-toolbar-btn" 
+              @click="toggleTextColorDropdown" 
+              title="Text Color"
+            >
+              <span class="color-text-sample" :style="{ color: activeTextColor }">A</span>
+              <span class="color-underline-bar" :style="{ background: activeTextColor }"></span>
+            </button>
+            <div v-if="showTextColorDropdown" class="toolbar-dropdown-menu color-dropdown-menu">
+              <div class="dropdown-menu-header">Text Color</div>
+              <div class="color-swatch-grid">
+                <button 
+                  v-for="color in TEXT_PALETTE" 
+                  :key="color" 
+                  class="color-swatch-circle" 
+                  :style="{ background: color }"
+                  :class="{ active: activeTextColor === color }"
+                  @click="applyTextColor(color)"
+                  :title="color"
+                ></button>
+              </div>
+              <div class="custom-color-row">
+                <label class="custom-color-label">Custom</label>
+                <input type="color" v-model="customColorInput" @input="applyTextColor(customColorInput)" class="native-color-picker" />
+                <button class="color-reset-action" @click="resetTextColor">Reset</button>
+              </div>
             </div>
-            <div class="custom-color-row">
-              <button class="color-reset-action full-width" @click="resetHighlight">Remove Highlight</button>
+          </div>
+
+          <!-- Text Highlighting -->
+          <div v-if="fullPage" class="color-picker-wrapper" ref="highlightDropdownRef">
+            <button 
+              class="toolbar-btn highlight-toolbar-btn" 
+              @click="toggleHighlightDropdown" 
+              title="Highlight Text"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m9 11-6 6v3h3l6-6"/>
+                <path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"/>
+              </svg>
+              <span class="color-underline-bar" :style="{ background: activeHighlightColor || '#fde047' }"></span>
+            </button>
+            <div v-if="showHighlightDropdown" class="toolbar-dropdown-menu color-dropdown-menu">
+              <div class="dropdown-menu-header">Highlight Color</div>
+              <div class="color-swatch-grid">
+                <button 
+                  v-for="h in HIGHLIGHT_PALETTE" 
+                  :key="h.color" 
+                  class="color-swatch-circle" 
+                  :style="{ background: h.color }"
+                  @click="applyHighlight(h.color)"
+                  :title="h.label"
+                ></button>
+              </div>
+              <div class="custom-color-row">
+                <button class="color-reset-action full-width" @click="resetHighlight">Remove Highlight</button>
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- Insert Image (Upload & Paste) -->
+        <div class="toolbar-divider"></div>
+
+        <!-- 4. Paragraph & Headings Segment -->
         <div class="toolbar-group">
+          <button
+            @click="editor.chain().focus().toggleHeading({ level: 1 }).run()"
+            :class="{ active: editor.isActive('heading', { level: 1 }) }"
+            class="toolbar-btn heading-btn"
+            title="Heading 1"
+          >
+            H1
+          </button>
+          <button
+            @click="editor.chain().focus().toggleHeading({ level: 2 }).run()"
+            :class="{ active: editor.isActive('heading', { level: 2 }) }"
+            class="toolbar-btn heading-btn"
+            title="Heading 2"
+          >
+            H2
+          </button>
+          <button
+            @click="editor.chain().focus().toggleHeading({ level: 3 }).run()"
+            :class="{ active: editor.isActive('heading', { level: 3 }) }"
+            class="toolbar-btn heading-btn"
+            title="Heading 3"
+          >
+            H3
+          </button>
+        </div>
+
+        <div class="toolbar-divider"></div>
+
+        <!-- 5. Alignment Segment -->
+        <div class="toolbar-group">
+          <button
+            @click="editor.chain().focus().setTextAlign('left').run()"
+            :class="{ active: editor.isActive({ textAlign: 'left' }) }"
+            class="toolbar-btn"
+            title="Align Left"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="17" y1="10" x2="3" y2="10"></line><line x1="21" y1="6" x2="3" y2="6"></line><line x1="21" y1="14" x2="3" y2="14"></line><line x1="17" y1="18" x2="3" y2="18"></line></svg>
+          </button>
+          <button
+            @click="editor.chain().focus().setTextAlign('center').run()"
+            :class="{ active: editor.isActive({ textAlign: 'center' }) }"
+            class="toolbar-btn"
+            title="Align Center"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="10" x2="6" y2="10"></line><line x1="21" y1="6" x2="3" y2="6"></line><line x1="21" y1="14" x2="3" y2="14"></line><line x1="18" y1="18" x2="6" y2="18"></line></svg>
+          </button>
+          <button
+            @click="editor.chain().focus().setTextAlign('right').run()"
+            :class="{ active: editor.isActive({ textAlign: 'right' }) }"
+            class="toolbar-btn"
+            title="Align Right"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="21" y1="10" x2="7" y2="10"></line><line x1="21" y1="6" x2="3" y2="6"></line><line x1="21" y1="14" x2="3" y2="14"></line><line x1="21" y1="18" x2="7" y2="18"></line></svg>
+          </button>
+          <button
+            @click="editor.chain().focus().setTextAlign('justify').run()"
+            :class="{ active: editor.isActive({ textAlign: 'justify' }) }"
+            class="toolbar-btn"
+            title="Justify"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="21" y1="10" x2="3" y2="10"></line><line x1="21" y1="6" x2="3" y2="6"></line><line x1="21" y1="14" x2="3" y2="14"></line><line x1="21" y1="18" x2="3" y2="18"></line></svg>
+          </button>
+        </div>
+
+        <div class="toolbar-divider"></div>
+
+        <!-- 6. Lists & Divider Segment -->
+        <div class="toolbar-group">
+          <button
+            @click="editor.chain().focus().toggleBulletList().run()"
+            :class="{ active: editor.isActive('bulletList') }"
+            class="toolbar-btn"
+            title="Bullet List"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="9" y1="6" x2="20" y2="6"></line><line x1="9" y1="12" x2="20" y2="12"></line><line x1="9" y1="18" x2="20" y2="18"></line><circle cx="4" cy="6" r="1.5" fill="currentColor"></circle><circle cx="4" cy="12" r="1.5" fill="currentColor"></circle><circle cx="4" cy="18" r="1.5" fill="currentColor"></circle></svg>
+          </button>
+          <button
+            @click="editor.chain().focus().toggleOrderedList().run()"
+            :class="{ active: editor.isActive('orderedList') }"
+            class="toolbar-btn"
+            title="Numbered List"
+          >
+            <span style="font-size: 12px; font-weight: 700; letter-spacing: -0.05em;">1.</span>
+          </button>
+          <button
+            @click="editor.chain().focus().toggleBlockquote().run()"
+            :class="{ active: editor.isActive('blockquote') }"
+            class="toolbar-btn"
+            title="Blockquote"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z"/>
+            </svg>
+          </button>
+          <button
+            @click="editor.chain().focus().setHorizontalRule().run()"
+            class="toolbar-btn"
+            title="Horizontal Divider"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+            </svg>
+          </button>
+        </div>
+
+        <div v-if="fullPage" class="toolbar-divider"></div>
+
+        <!-- 7. Media Insert Segment (Image, Background) -->
+        <div v-if="fullPage" class="toolbar-group">
+          <!-- Insert Image (Upload & Paste) -->
           <button 
             class="toolbar-btn image-upload-btn" 
             @click="triggerImageFileInput" 
             title="Insert Image (or paste with Ctrl+V)"
           >
-            <span class="toolbar-icon-span">🖼️</span>
-            <span class="btn-text-span">Image</span>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+              <circle cx="8.5" cy="8.5" r="1.5"></circle>
+              <polyline points="21 15 16 10 5 21"></polyline>
+            </svg>
           </button>
           <input 
             type="file" 
@@ -384,171 +420,230 @@
             @change="handleImageFileSelect" 
             style="display: none;" 
           />
-        </div>
 
-        <!-- Document Background Image (This Page Alone) -->
-        <div class="toolbar-group bg-picker-wrapper" ref="bgDropdownRef">
-          <button 
-            class="toolbar-btn bg-toolbar-btn" 
-            :class="{ active: !!currentDocBackground }"
-            @click="toggleBgDropdown" 
-            title="Document Background Image (This Page Alone)"
-          >
-            <span class="toolbar-icon-span">🎨</span>
-            <span class="btn-text-span">Background</span>
-            <span v-if="currentDocBackground" class="bg-active-dot"></span>
-          </button>
-
-          <div v-if="showBgDropdown" class="toolbar-dropdown-menu bg-dropdown-menu">
-            <div class="dropdown-menu-header">Document Background</div>
-            
-            <button class="bg-upload-main-btn" @click="triggerBgFileInput">
-              <span>📁 Upload Custom Background</span>
+          <!-- Document Background Image -->
+          <div class="bg-picker-wrapper" ref="bgDropdownRef">
+            <button 
+              class="toolbar-btn bg-toolbar-btn" 
+              :class="{ active: !!currentDocBackground }"
+              @click="toggleBgDropdown" 
+              title="Document Background Image (This Page Alone)"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.37-.61-.37-.99 0-.83.67-1.5 1.5-1.5H16c3.31 0 6-2.69 6-6 0-4.96-4.49-9-10-9z"></path>
+                <circle cx="6.5" cy="11.5" r="1.5" fill="currentColor"></circle>
+                <circle cx="9.5" cy="7.5" r="1.5" fill="currentColor"></circle>
+                <circle cx="14.5" cy="7.5" r="1.5" fill="currentColor"></circle>
+                <circle cx="17.5" cy="11.5" r="1.5" fill="currentColor"></circle>
+              </svg>
+              <span v-if="currentDocBackground" class="bg-active-dot"></span>
             </button>
-            <input 
-              type="file" 
-              ref="bgFileInputRef" 
-              accept="image/*" 
-              @change="handleBgFileSelect" 
-              style="display: none;" 
-            />
 
-            <div class="bg-preset-title">Watermarks & Textures</div>
-            <div class="bg-preset-grid">
-              <button 
-                v-for="p in BG_PRESETS" 
-                :key="p.id" 
-                class="bg-preset-chip"
-                :class="{ active: currentDocBackground === p.value }"
-                @click="setDocumentBackground(p.value, p.mode)"
-              >
-                <span class="preset-icon">{{ p.icon }}</span>
-                <span class="preset-name">{{ p.name }}</span>
+            <div v-if="showBgDropdown" class="toolbar-dropdown-menu bg-dropdown-menu">
+              <div class="dropdown-menu-header">Document Background</div>
+              <button class="bg-upload-main-btn" @click="triggerBgFileInput">
+                <span>📁 Upload Custom Background</span>
               </button>
-            </div>
-
-            <!-- Opacity Control -->
-            <div v-if="currentDocBackground" class="bg-opacity-control">
-              <div class="opacity-label-row">
-                <span>Opacity</span>
-                <span class="opacity-val-badge">{{ Math.round(currentDocBackgroundOpacity * 100) }}%</span>
-              </div>
               <input 
-                type="range" 
-                min="0.05" 
-                max="0.85" 
-                step="0.05" 
-                :value="currentDocBackgroundOpacity" 
-                @input="updateBackgroundOpacity($event.target.value)" 
-                class="bg-range-slider"
+                type="file" 
+                ref="bgFileInputRef" 
+                accept="image/*" 
+                @change="handleBgFileSelect" 
+                style="display: none;" 
               />
-            </div>
-
-            <div v-if="currentDocBackground" class="custom-color-row">
-              <button class="color-reset-action full-width" @click="removeDocumentBackground">Remove Background</button>
-            </div>
-          </div>
-        </div>
-      </template>
-
-      <div class="toolbar-stats">
-        <span>{{ wordCount }} words</span>
-        <span>{{ charCount }} chars</span>
-      </div>
-    </div>
-
-    <!-- Main Workspace Layout: Files Sidebar Left, Editor Center, AI Assistant Right -->
-    <div class="editor-workspace" :class="{ 'with-sidebar': aiHelpEnabled, 'with-files-sidebar': isAuthenticated && showFilesSidebar && enableSidebar, 'is-full-page': fullPage }">
-      <!-- Files Sidebar (Left) - Visible when logged in (Matches user screenshot) -->
-      <aside v-if="isAuthenticated && showFilesSidebar && enableSidebar" class="files-sidebar" :class="{ 'full-page-sidebar': fullPage }">
-        <!-- New File Action Button (Matches Screenshot) -->
-        <div class="files-sidebar-top">
-          <button 
-            class="new-file-main-btn" 
-            @click="createNewFile"
-            :disabled="savedFiles.length >= 5"
-            :title="savedFiles.length >= 5 ? '5/5 files limit reached' : 'Create new document'"
-          >
-            <span class="plus-symbol">+</span>
-            <span class="new-file-label">New File</span>
-            <span class="file-count-badge" :class="{ 'at-limit': savedFiles.length >= 5 }">
-              {{ savedFiles.length }}/5
-            </span>
-          </button>
-          <div class="files-sync-status-row" :title="syncStatus === 'syncing' ? 'Syncing to PostgreSQL database...' : syncStatus === 'error' ? 'Saved locally (offline)' : 'Stored in PostgreSQL Database'">
-            <span class="sync-dot" :class="syncStatus"></span>
-            <span class="sync-status-text">
-              {{ syncStatus === 'syncing' ? 'Syncing to DB...' : syncStatus === 'error' ? 'Local only' : 'PostgreSQL Synced' }}
-            </span>
-          </div>
-        </div>
-
-        <!-- Files Scroll List -->
-        <div class="files-scroll-list">
-          <div class="file-group-section">
-            <div class="group-header-label">Today</div>
-            <div class="group-items-stack">
-              <div 
-                v-for="file in savedFiles" 
-                :key="file.id"
-                class="file-item-card"
-                :class="{ 'active': file.id === activeFileId }"
-                @click="switchToFile(file.id)"
-              >
-                <div class="file-item-main">
-                  <input 
-                    v-if="editingFileId === file.id"
-                    :id="`rename-input-${file.id}`"
-                    v-model="editingTitleText"
-                    @blur="saveRenameFile(file)"
-                    @keydown.enter="saveRenameFile(file)"
-                    @keydown.esc="editingFileId = null"
-                    @click.stop
-                    class="file-rename-input"
-                  />
-                  <span v-else class="file-item-title" :title="file.title">
-                    {{ file.title }}
-                  </span>
+              <div class="bg-preset-title">Watermarks & Textures</div>
+              <div class="bg-preset-grid">
+                <button 
+                  v-for="p in BG_PRESETS" 
+                  :key="p.id" 
+                  class="bg-preset-chip"
+                  :class="{ active: currentDocBackground === p.value }"
+                  @click="setDocumentBackground(p.value, p.mode)"
+                >
+                  <span class="preset-icon">{{ p.icon }}</span>
+                  <span class="preset-name">{{ p.name }}</span>
+                </button>
+              </div>
+              <div v-if="currentDocBackground" class="bg-opacity-control">
+                <div class="opacity-label-row">
+                  <span>Opacity</span>
+                  <span class="opacity-val-badge">{{ Math.round(currentDocBackgroundOpacity * 100) }}%</span>
                 </div>
-                <div class="file-item-actions" @click.stop>
-                  <button 
-                    class="file-action-icon-btn" 
-                    @click="startRenameFile(file, $event)" 
-                    title="Rename File"
-                  >
-                    ✎
-                  </button>
-                  <button 
-                    class="file-action-icon-btn delete-btn" 
-                    @click="deleteFile(file.id, $event)" 
-                    title="Delete File"
-                  >
-                    🗑
-                  </button>
-                </div>
+                <input 
+                  type="range" 
+                  min="0.05" 
+                  max="0.85" 
+                  step="0.05" 
+                  :value="currentDocBackgroundOpacity" 
+                  @input="updateBackgroundOpacity($event.target.value)" 
+                  class="bg-range-slider"
+                />
+              </div>
+              <div v-if="currentDocBackground" class="custom-color-row">
+                <button class="color-reset-action full-width" @click="removeDocumentBackground">Remove Background</button>
               </div>
             </div>
           </div>
         </div>
 
-      </aside>
+        <div class="toolbar-divider"></div>
 
-      <!-- Editor Area -->
-      <div class="editor-wrapper" ref="editorWrapper">
-        <!-- Optional Document Background Layer (Full Page Editor Only) -->
+        <!-- 8. Right Action Tools Segment (Clear, Grammar Checker, Download) -->
+        <div class="toolbar-group actions-tools-group">
+          <button @click="clearEditor" class="toolbar-btn btn-clear" title="Clear Editor Content">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+            <span>Clear</span>
+          </button>
+          <button 
+            @click="toggleAIHelp" 
+            class="toolbar-btn btn-ai"
+            :class="{ active: aiHelpEnabled }"
+            title="AI Grammar Checker"
+          >
+            <svg class="grammar-sparkle-svg" width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <path d="M12 2L14.4 8.6L21 11L14.4 13.4L12 20L9.6 13.4L3 11L9.6 8.6L12 2Z" fill="currentColor"/>
+              <circle cx="18.5" cy="5.5" r="2.2" fill="currentColor"/>
+            </svg>
+            <span>Grammar</span>
+          </button>
+
+          <!-- Download / Export Dropdown (Icon Alone with Scrollable Options) -->
+          <div class="download-dropdown-wrapper" ref="downloadDropdownRef">
+            <button 
+              @click="showDownloadDropdown = !showDownloadDropdown" 
+              class="toolbar-btn btn-download"
+              :class="{ active: showDownloadDropdown }"
+              title="Download / Export Document"
+            >
+              <svg class="download-svg-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 3v12"/>
+                <path d="m8 11 4 4 4-4"/>
+                <path d="M4 20h16"/>
+              </svg>
+            </button>
+            <div v-if="showDownloadDropdown" class="download-dropdown-menu">
+              <div class="dropdown-menu-header">Download Options</div>
+              <div class="download-options-scroll">
+                <button @click="downloadAsDocx" class="download-menu-item">
+                  <div class="item-icon-badge docx-badge">
+                    <svg class="format-download-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                      <polyline points="14 2 14 8 20 8"></polyline>
+                      <line x1="16" y1="13" x2="8" y2="13"></line>
+                      <line x1="16" y1="17" x2="8" y2="17"></line>
+                    </svg>
+                  </div>
+                  <div class="item-info">
+                    <span class="item-title">Word Document (.doc)</span>
+                    <span class="item-desc">Formatted Microsoft Word file</span>
+                  </div>
+                </button>
+                <button @click="downloadAsTxt" class="download-menu-item">
+                  <div class="item-icon-badge txt-badge">
+                    <svg class="format-download-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                      <polyline points="14 2 14 8 20 8"></polyline>
+                      <line x1="16" y1="13" x2="8" y2="13"></line>
+                      <line x1="16" y1="17" x2="8" y2="17"></line>
+                    </svg>
+                  </div>
+                  <div class="item-info">
+                    <span class="item-title">Plain Text (.txt)</span>
+                    <span class="item-desc">Standard plain text file</span>
+                  </div>
+                </button>
+                <button @click="downloadAsPDF" class="download-menu-item">
+                  <div class="item-icon-badge pdf-badge">
+                    <svg class="format-download-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                      <polyline points="14 2 14 8 20 8"></polyline>
+                      <path d="M9 15h6"></path>
+                    </svg>
+                  </div>
+                  <div class="item-info">
+                    <span class="item-title">PDF Document (.pdf)</span>
+                    <span class="item-desc">Print-ready PDF / Print page</span>
+                  </div>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="!fullPage" class="toolbar-stats">
+          <span>{{ wordCount }} words</span>
+          <span>{{ charCount }} chars</span>
+        </div>
+      </div>
+
+      <!-- Document Workspace Canvas -->
+      <div 
+        class="editor-wrapper" 
+        :class="{ 'a4-desk-canvas': fullPage }" 
+        ref="editorWrapper"
+        @click="handleEditorClick"
+      >
+        <!-- In fullPage mode, render inside an A4 Sheet Card with Zoom Scale -->
         <div 
-          v-if="fullPage && currentDocBackground" 
-          class="editor-background-layer"
-          :style="{
-            backgroundImage: currentDocBackground.startsWith('linear-gradient') ? currentDocBackground : `url('${currentDocBackground}')`,
-            opacity: currentDocBackgroundOpacity,
-            backgroundSize: currentDocBackgroundMode === 'contain' ? 'contain' : currentDocBackgroundMode === 'repeat' ? 'auto' : 'cover',
-            backgroundRepeat: currentDocBackgroundMode === 'repeat' ? 'repeat' : 'no-repeat',
-            backgroundPosition: 'center'
-          }"
-        ></div>
+          :class="{ 'a4-document-sheet': fullPage, 'embedded-sheet': !fullPage }"
+          :style="fullPage ? { transform: `scale(${zoomLevel / 100})`, transformOrigin: 'top center', transition: 'transform 0.15s ease' } : {}"
+        >
+          <!-- Optional Document Background Layer -->
+          <div 
+            v-if="fullPage && currentDocBackground" 
+            class="editor-background-layer"
+            :style="{
+              backgroundImage: currentDocBackground.startsWith('linear-gradient') ? currentDocBackground : `url('${currentDocBackground}')`,
+              opacity: currentDocBackgroundOpacity,
+              backgroundSize: currentDocBackgroundMode === 'contain' ? 'contain' : currentDocBackgroundMode === 'repeat' ? 'auto' : 'cover',
+              backgroundRepeat: currentDocBackgroundMode === 'repeat' ? 'repeat' : 'no-repeat',
+              backgroundPosition: 'center',
+              borderRadius: '6px'
+            }"
+          ></div>
 
-        <editor-content :editor="editor" class="editor-content" :style="{ fontFamily: selectedFont.value, fontSize: currentFontSize + 'px' }" />
+          <editor-content 
+            :editor="editor" 
+            class="editor-content" 
+            :class="{ 'a4-editor-content': fullPage }"
+            :style="{ fontFamily: selectedFont.value, fontSize: currentFontSize + 'px' }" 
+          />
+        </div>
+
+        <!-- Interactive Floating Image Action Bar (Move / Align / Resize / Remove) -->
+        <div 
+          v-if="selectedImageNode" 
+          class="image-action-overlay" 
+          :style="imageToolbarStyle"
+          @click.stop
+        >
+          <div class="img-tool-group">
+            <span class="img-tool-label">Align:</span>
+            <button type="button" class="img-tool-btn" :class="{ active: currentImgAlign === 'left' }" @click="setImageAlignment('left')" title="Align Left">⬅ Left</button>
+            <button type="button" class="img-tool-btn" :class="{ active: currentImgAlign === 'center' }" @click="setImageAlignment('center')" title="Center">⏺ Center</button>
+            <button type="button" class="img-tool-btn" :class="{ active: currentImgAlign === 'right' }" @click="setImageAlignment('right')" title="Align Right">Right ➡</button>
+            <button type="button" class="img-tool-btn" :class="{ active: currentImgAlign === 'float-left' }" @click="setImageAlignment('float-left')" title="Wrap Text (Float Left)">Wrap Text</button>
+          </div>
+          <div class="img-tool-sep"></div>
+          <div class="img-tool-group">
+            <span class="img-tool-label">Size:</span>
+            <button type="button" class="img-tool-btn" :class="{ active: currentImgSize === '30%' }" @click="setImageSize('30%')">30%</button>
+            <button type="button" class="img-tool-btn" :class="{ active: currentImgSize === '60%' }" @click="setImageSize('60%')">60%</button>
+            <button type="button" class="img-tool-btn" :class="{ active: currentImgSize === '100%' }" @click="setImageSize('100%')">100%</button>
+          </div>
+          <div class="img-tool-sep"></div>
+          <button type="button" class="img-tool-btn delete-img-btn" @click="deleteSelectedImage" title="Delete Image">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+            <span>Remove</span>
+          </button>
+          <button type="button" class="img-tool-btn close-img-btn" @click="selectedImageNode = null" title="Close Toolbar">✕</button>
+        </div>
 
         <!-- Suggestions Popup -->
         <div v-show="showSuggestions && suggestionsList.length > 0"
@@ -564,7 +659,7 @@
           </div>
         </div>
 
-        <!-- Bottom Action Bar (Image 3: Desh Tamil Keyboard layout) -->
+        <!-- Bottom Action Bar (Docked / Sticky at Bottom of Canvas) -->
         <div class="editor-bottom-bar" :class="{ 'full-page-dock': fullPage }">
           <!-- Left: Tamil / English Engine Mode Toggle -->
           <div class="engine-mode-pill" title="Toggle Tanglish transliteration or English typing">
@@ -593,6 +688,13 @@
             <span>{{ charCount }} chars</span>
           </div>
 
+          <!-- Zoom Controls (A4 Sheet Zoom In / Out) -->
+          <div v-if="fullPage" class="zoom-controls-dock" title="Page Zoom">
+            <button type="button" class="zoom-btn" @click="zoomOut" :disabled="zoomLevel <= 50" title="Zoom Out (−)">−</button>
+            <button type="button" class="zoom-value-btn" @click="resetZoom" title="Click to reset zoom to 100%">{{ zoomLevel }}%</button>
+            <button type="button" class="zoom-btn" @click="zoomIn" :disabled="zoomLevel >= 200" title="Zoom In (+)">+</button>
+          </div>
+
           <!-- Right: Voice Typing & Copy Actions -->
           <div class="bottom-tools-group">
             <button 
@@ -619,9 +721,10 @@
           </div>
         </div>
       </div>
+    </div>
 
-      <!-- AI Assistant / Grammar Checker Sidebar (Matches screenshot) -->
-      <aside v-if="aiHelpEnabled" class="ai-assistant-sidebar">
+    <!-- AI Assistant / Grammar Checker Sidebar (Companion Drawer) -->
+    <aside v-if="aiHelpEnabled" class="ai-assistant-sidebar">
         <!-- Sidebar Header -->
         <div class="sidebar-header">
           <div class="sidebar-title-group">
@@ -769,7 +872,6 @@
           </div>
         </div>
       </aside>
-    </div>
 
     <!-- Quick Action Modal (Translate / Summarize Results) -->
     <Teleport to="body">
@@ -1399,28 +1501,150 @@ const saveRenameFile = (file) => {
   editingFileId.value = null
 }
 
+// Zoom controls for the Document Stage
+const zoomLevel = ref(100)
+const zoomIn = () => {
+  if (zoomLevel.value < 200) {
+    zoomLevel.value = Math.min(200, zoomLevel.value + 10)
+  }
+}
+const zoomOut = () => {
+  if (zoomLevel.value > 50) {
+    zoomLevel.value = Math.max(50, zoomLevel.value - 10)
+  }
+}
+const resetZoom = () => {
+  zoomLevel.value = 100
+}
+
+// Interactive Image Management (Move, Align, Resize, Remove)
+const selectedImageNode = ref(null)
+const currentImgAlign = ref('center')
+const currentImgSize = ref('100%')
+const imageToolbarStyle = ref({ top: '0px', left: '0px' })
+
+const updateImageToolbarPosition = (imgEl) => {
+  if (!imgEl || !editorWrapper.value) return
+  const wrapperRect = editorWrapper.value.getBoundingClientRect()
+  const imgRect = imgEl.getBoundingClientRect()
+  const scrollTop = editorWrapper.value.scrollTop || 0
+  const scrollLeft = editorWrapper.value.scrollLeft || 0
+  
+  const top = (imgRect.top - wrapperRect.top + scrollTop) - 52
+  const left = Math.max(16, (imgRect.left - wrapperRect.left + scrollLeft) + (imgRect.width / 2) - 180)
+  
+  imageToolbarStyle.value = {
+    top: `${Math.max(8, top)}px`,
+    left: `${Math.max(10, left)}px`
+  }
+}
+
+const handleEditorClick = (e) => {
+  const target = e.target
+  if (target && target.tagName === 'IMG' && target.classList.contains('editor-embedded-image')) {
+    selectedImageNode.value = target
+    currentImgAlign.value = target.dataset.align || 'center'
+    currentImgSize.value = target.style.width || '100%'
+    nextTick(() => updateImageToolbarPosition(target))
+  } else {
+    if (!e.target.closest('.image-action-overlay')) {
+      selectedImageNode.value = null
+    }
+  }
+}
+
+const deleteSelectedImage = () => {
+  if (!selectedImageNode.value || !editor.value) return
+  const img = selectedImageNode.value
+  
+  const { state } = editor.value.view
+  let targetPos = null
+  state.doc.descendants((node, pos) => {
+    if (node.type.name === 'image' && (node.attrs.src === img.src || node.attrs.src === img.getAttribute('src'))) {
+      targetPos = pos
+      return false
+    }
+  })
+  
+  if (targetPos !== null) {
+    editor.value.commands.deleteRange({ from: targetPos, to: targetPos + 1 })
+  } else {
+    img.remove()
+  }
+  
+  selectedImageNode.value = null
+  scheduleSaveCurrentFile()
+}
+
+const setImageAlignment = (align) => {
+  if (!selectedImageNode.value) return
+  const img = selectedImageNode.value
+  currentImgAlign.value = align
+  img.dataset.align = align
+  
+  if (align === 'left') {
+    img.style.display = 'block'
+    img.style.float = 'none'
+    img.style.marginLeft = '0'
+    img.style.marginRight = 'auto'
+  } else if (align === 'center') {
+    img.style.display = 'block'
+    img.style.float = 'none'
+    img.style.marginLeft = 'auto'
+    img.style.marginRight = 'auto'
+  } else if (align === 'right') {
+    img.style.display = 'block'
+    img.style.float = 'none'
+    img.style.marginLeft = 'auto'
+    img.style.marginRight = '0'
+  } else if (align === 'float-left') {
+    img.style.display = 'inline-block'
+    img.style.float = 'left'
+    img.style.margin = '8px 16px 8px 0'
+  }
+  
+  scheduleSaveCurrentFile()
+  nextTick(() => updateImageToolbarPosition(img))
+}
+
+const setImageSize = (size) => {
+  if (!selectedImageNode.value) return
+  const img = selectedImageNode.value
+  currentImgSize.value = size
+  img.style.width = size
+  img.style.maxWidth = size
+  scheduleSaveCurrentFile()
+  nextTick(() => updateImageToolbarPosition(img))
+}
+
 const deleteFile = (fileId, e) => {
-  if (e) e.stopPropagation()
+  if (e) {
+    e.stopPropagation()
+    e.preventDefault()
+  }
+  
+  const wasActive = activeFileId.value === fileId
+  
   if (savedFiles.value.length <= 1) {
-    if (confirm('Clear the content of this file?')) {
-      const file = savedFiles.value[0]
-      file.title = 'New File'
-      file.content = ''
-      file.plainText = ''
-      file.wordCount = 0
-      file.updatedAt = new Date().toISOString()
-      saveFilesToStorage()
-      setEditorTextSafely('')
+    // Reset the last remaining file cleanly
+    const file = savedFiles.value[0]
+    file.title = 'New File'
+    file.content = ''
+    file.plainText = ''
+    file.wordCount = 0
+    file.backgroundImage = ''
+    file.updatedAt = new Date().toISOString()
+    currentDocBackground.value = ''
+    saveFilesToStorage()
+    setEditorTextSafely('')
+    const uid = currentUserId.value
+    if (isAuthenticated.value && uid) {
+      deleteUserDocument(fileId, uid)
     }
     return
   }
 
-  const target = savedFiles.value.find(f => f.id === fileId)
-  if (!confirm(`Delete "${target?.title || 'this file'}"?`)) {
-    return
-  }
-
-  const wasActive = activeFileId.value === fileId
+  // Remove file from list immediately
   savedFiles.value = savedFiles.value.filter(f => f.id !== fileId)
   saveFilesToStorage()
 
@@ -1432,8 +1656,11 @@ const deleteFile = (fileId, e) => {
   if (wasActive && savedFiles.value.length > 0) {
     const nextFile = savedFiles.value[0]
     activeFileId.value = nextFile.id
+    currentDocBackground.value = nextFile.backgroundImage || ''
+    currentDocBackgroundMode.value = nextFile.backgroundMode || 'cover'
+    currentDocBackgroundOpacity.value = nextFile.backgroundOpacity ?? 0.2
     if (editor.value) {
-      editor.value.commands.setContent(nextFile.content || '')
+      setEditorTextSafely(nextFile.content || '')
     }
   }
 }
@@ -1582,16 +1809,18 @@ const updatePopupPosition = (view) => {
   const wrapperRect = editorWrapper.value?.getBoundingClientRect()
 
   if (wrapperRect) {
-    let top = coords.top - wrapperRect.top + 30
-    let left = coords.left - wrapperRect.left
+    const scrollOffsetTop = editorWrapper.value?.scrollTop || 0
+    const scrollOffsetLeft = editorWrapper.value?.scrollLeft || 0
+    let top = coords.top - wrapperRect.top + scrollOffsetTop + 30
+    let left = coords.left - wrapperRect.left + scrollOffsetLeft
     
     const popupWidth = 260
-    const wrapperWidth = wrapperRect.width
+    const wrapperWidth = wrapperRect.clientWidth || wrapperRect.width
     
     if (left + popupWidth > wrapperWidth) {
       left = wrapperWidth - popupWidth - 10
     }
-    if (left < 0) left = 10
+    if (left < 10) left = 10
     
     popupStyle.value = {
       top: `${top}px`,
@@ -2592,9 +2821,40 @@ onBeforeUnmount(() => {
 }
 
 .tanglish-editor-container.full-page-editor {
+  display: flex;
+  flex-direction: row;
   height: 100%;
   min-height: 0;
   flex: 1;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  gap: 14px;
+  overflow: hidden;
+}
+
+/* Document Stage Panel (Right Side Workspace) */
+.document-stage-panel {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+.document-stage-panel.full-page-stage {
+  background: #f1f3f6;
+  border: 1px solid var(--card-border, #e2e8f0);
+  border-radius: 16px;
+  box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.04);
+}
+
+.document-stage-panel.embedded-stage {
+  background: var(--card-bg, #ffffff);
+  height: 100%;
 }
 
 /* Toolbar */
@@ -2610,6 +2870,257 @@ onBeforeUnmount(() => {
   top: 0;
   z-index: 100;
   flex-shrink: 0;
+}
+
+/* Floating Sticky Toolbar (Full Page Mode) - Modern, Airy, Spacious & Unified */
+.toolbar.floating-sticky-toolbar {
+  position: sticky;
+  top: 8px;
+  z-index: 50;
+  margin: 8px 10px 10px 10px;
+  height: 44px;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05), 0 2px 4px -1px rgba(15, 23, 42, 0.03);
+  padding: 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-wrap: nowrap;
+  overflow: visible;
+  box-sizing: border-box;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.toolbar.floating-sticky-toolbar:hover {
+  box-shadow: 0 8px 26px -4px rgba(15, 23, 42, 0.08), 0 3px 8px -1px rgba(15, 23, 42, 0.04);
+}
+
+.toolbar.floating-sticky-toolbar .toolbar-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 1.5px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.toolbar.floating-sticky-toolbar .toolbar-divider {
+  display: block;
+  width: 1px;
+  height: 18px;
+  background: #e2e8f0;
+  margin: 0 3.5px;
+  flex-shrink: 0;
+}
+
+.toolbar.floating-sticky-toolbar .toolbar-btn {
+  min-width: 29px;
+  height: 29px;
+  padding: 0 4px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #475569;
+  background: transparent;
+  border: none;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.toolbar.floating-sticky-toolbar .toolbar-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.toolbar.floating-sticky-toolbar .toolbar-btn.active {
+  background: #ede9fe;
+  color: #4f46e5;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(79, 70, 229, 0.15);
+}
+
+.toolbar.floating-sticky-toolbar .toolbar-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.toolbar.floating-sticky-toolbar .font-selector-btn {
+  height: 29px;
+  padding: 0 7px;
+  font-size: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  gap: 4px;
+  color: #334155;
+  font-weight: 500;
+  max-width: 120px;
+  transition: all 0.15s ease;
+}
+
+.toolbar.floating-sticky-toolbar .font-selector-btn .font-name {
+  max-width: 68px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.toolbar.floating-sticky-toolbar .font-selector-btn:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+.toolbar.floating-sticky-toolbar .font-size-btn {
+  height: 29px;
+  padding: 0 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  color: #334155;
+  transition: all 0.15s ease;
+}
+
+.toolbar.floating-sticky-toolbar .font-size-btn:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+.toolbar.floating-sticky-toolbar .btn-files-toggle.compact {
+  padding: 0 7px;
+  font-size: 11px;
+  height: 29px;
+  border-radius: 6px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+}
+
+.toolbar.floating-sticky-toolbar .btn-files-toggle.compact:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.toolbar.floating-sticky-toolbar .heading-btn {
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: -0.02em;
+}
+
+.toolbar.floating-sticky-toolbar .color-toolbar-btn,
+.toolbar.floating-sticky-toolbar .highlight-toolbar-btn {
+  min-width: 29px;
+  height: 29px;
+  padding: 2px 4px;
+  gap: 2px;
+}
+
+.toolbar.floating-sticky-toolbar .image-upload-btn,
+.toolbar.floating-sticky-toolbar .bg-toolbar-btn {
+  min-width: 29px;
+  height: 29px;
+  padding: 0 5px;
+  color: #475569;
+}
+
+.toolbar.floating-sticky-toolbar .image-upload-btn:hover,
+.toolbar.floating-sticky-toolbar .bg-toolbar-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+/* Right Action Segment */
+.toolbar.floating-sticky-toolbar .actions-tools-group {
+  background: transparent;
+  border: none;
+  padding: 0;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.toolbar.floating-sticky-toolbar .btn-clear {
+  color: #64748b;
+  font-weight: 500;
+  padding: 0 7px;
+  height: 29px;
+  border-radius: 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+}
+
+.toolbar.floating-sticky-toolbar .btn-clear:hover {
+  color: #ef4444;
+  background: #fee2e2;
+  border-color: #fca5a5;
+}
+
+.toolbar.floating-sticky-toolbar .btn-ai {
+  background: #f5f3ff !important;
+  color: #7c3aed !important;
+  border: 1px solid #ddd6fe !important;
+  font-weight: 600;
+  padding: 0 8px;
+  height: 29px;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(124, 58, 237, 0.08);
+  font-size: 11.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.toolbar.floating-sticky-toolbar .btn-ai:hover {
+  background: #ede9fe !important;
+  border-color: #c4b5fd !important;
+  box-shadow: 0 3px 8px rgba(124, 58, 237, 0.15);
+}
+
+.toolbar.floating-sticky-toolbar .btn-download {
+  min-width: 29px;
+  height: 29px;
+  padding: 0 5px;
+  border-radius: 6px;
+  background: transparent !important;
+  color: #475569 !important;
+  border: 1px solid transparent !important;
+  box-shadow: none !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.toolbar.floating-sticky-toolbar .btn-download:hover {
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+  border-color: transparent !important;
+}
+
+.toolbar.floating-sticky-toolbar .btn-download.active {
+  background: #ede9fe !important;
+  color: #4f46e5 !important;
+  border-color: #ddd6fe !important;
+}
+
+.toolbar.floating-sticky-toolbar .download-dropdown-menu {
+  right: 0;
+  left: auto;
 }
 
 .toolbar-group {
@@ -2664,60 +3175,70 @@ onBeforeUnmount(() => {
   display: inline-block;
 }
 
-.btn-download {
-  background: var(--toolbar-btn-bg, #f8fafc) !important;
-  color: var(--text-main, #1e293b) !important;
-  border: 1px solid var(--toolbar-border, #e2e8f0) !important;
-  font-weight: 600 !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  gap: 7px !important;
-  padding: 5px 12px !important;
-  border-radius: 8px !important;
-  cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-}
-
-.btn-download:hover {
-  background: var(--toolbar-btn-hover, #f1f5f9) !important;
-  border-color: #5b92f7 !important;
-  transform: translateY(-1px);
-  box-shadow: 0 3px 8px rgba(91, 146, 247, 0.22);
-}
-
 .download-svg-icon {
-  width: 17px;
-  height: 17px;
-  color: #5b92f7;
+  width: 15px;
+  height: 15px;
   flex-shrink: 0;
   transition: transform 0.2s ease;
 }
 
-.btn-download:hover .download-svg-icon {
+.toolbar-btn:hover .download-svg-icon {
   transform: translateY(1px);
-}
-
-.download-btn-text {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-main, #1e293b);
 }
 
 .download-dropdown-menu {
   position: absolute;
   top: calc(100% + 6px);
-  left: 0;
+  right: 0;
+  left: auto;
   background: var(--card-bg, #ffffff);
   border: 1px solid var(--card-inner-border, #e2e8f0);
   border-radius: 12px;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-  min-width: 230px;
+  box-shadow: 0 12px 30px -4px rgba(15, 23, 42, 0.12), 0 4px 10px -2px rgba(15, 23, 42, 0.05);
+  min-width: 240px;
+  max-width: 280px;
   z-index: 1000;
   padding: 6px;
   display: flex;
   flex-direction: column;
+  animation: fadeInMenu 0.15s ease;
+}
+
+.dropdown-menu-header {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #64748b;
+  padding: 6px 10px 4px 10px;
+}
+
+.download-options-scroll {
+  max-height: 250px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
   gap: 3px;
+  padding-right: 2px;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+.download-options-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+
+.download-options-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.download-options-scroll::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.download-options-scroll::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
 .download-menu-item {
@@ -2725,7 +3246,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 12px;
   width: 100%;
-  padding: 8px 12px;
+  padding: 8px 10px;
   background: transparent;
   border: none;
   border-radius: 8px;
@@ -2736,20 +3257,51 @@ onBeforeUnmount(() => {
 }
 
 .download-menu-item:hover {
-  background: var(--card-inner-bg, #f1f5f9);
+  background: #f8fafc;
 }
 
 .item-icon-badge {
   width: 32px;
   height: 32px;
   border-radius: 8px;
-  background: rgba(91, 146, 247, 0.12);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  color: #5b92f7;
   transition: all 0.2s ease;
+}
+
+.docx-badge {
+  background: rgba(37, 99, 235, 0.1);
+  color: #2563eb;
+}
+
+.download-menu-item:hover .docx-badge {
+  background: #2563eb;
+  color: #ffffff;
+  transform: scale(1.05);
+}
+
+.txt-badge {
+  background: rgba(100, 116, 139, 0.12);
+  color: #475569;
+}
+
+.download-menu-item:hover .txt-badge {
+  background: #475569;
+  color: #ffffff;
+  transform: scale(1.05);
+}
+
+.pdf-badge {
+  background: rgba(225, 29, 72, 0.1);
+  color: #e11d48;
+}
+
+.download-menu-item:hover .pdf-badge {
+  background: #e11d48;
+  color: #ffffff;
+  transform: scale(1.05);
 }
 
 .download-menu-item:hover .item-icon-badge {
@@ -3099,12 +3651,63 @@ onBeforeUnmount(() => {
   height: 100%;
 }
 
+/* A4 Desk Canvas (Scrollable Document Workspace) */
+.editor-wrapper.a4-desk-canvas {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 10px 24px 60px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  scroll-behavior: smooth;
+  background: transparent;
+}
+
+/* A4 Document Sheet (Authentic A4 Paper dimensions, margins & shadow) */
+.a4-document-sheet {
+  width: 100%;
+  max-width: 816px; /* Standard A4 page width at 96 DPI: 8.5in = 816px */
+  min-height: 1056px; /* Standard A4 page height at 96 DPI: 11in = 1056px */
+  margin: 6px auto 40px auto;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 6px;
+  box-shadow: 
+    0 1px 3px rgba(0, 0, 0, 0.04),
+    0 12px 32px -4px rgba(0, 0, 0, 0.08),
+    0 0 0 1px rgba(0, 0, 0, 0.02);
+  padding: 64px 72px; /* Standard 1-inch printable margins */
+  box-sizing: border-box;
+  position: relative;
+  transition: box-shadow 0.2s ease;
+  flex-shrink: 0;
+}
+
+.a4-document-sheet:hover {
+  box-shadow: 
+    0 2px 4px rgba(0, 0, 0, 0.04),
+    0 16px 36px -4px rgba(0, 0, 0, 0.11),
+    0 0 0 1px rgba(0, 0, 0, 0.03);
+}
+
+.embedded-sheet {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
 .editor-background-layer {
   position: absolute;
   inset: 0;
   pointer-events: none;
   z-index: 0;
   transition: opacity 0.2s ease, background 0.3s ease;
+  border-radius: inherit;
 }
 
 .editor-content {
@@ -3120,6 +3723,29 @@ onBeforeUnmount(() => {
   min-height: 0;
 }
 
+/* Inside A4 Document Sheet */
+.editor-content.a4-editor-content {
+  padding: 0;
+  min-height: 920px;
+  font-size: 16.5px;
+  line-height: 1.85;
+  color: var(--text-main, #0f172a);
+  overflow: visible;
+}
+
+@media (max-width: 900px) {
+  .a4-document-sheet {
+    max-width: 100%;
+    min-height: 550px;
+    padding: 32px 20px;
+    margin: 4px auto 20px auto;
+    border-radius: 8px;
+  }
+  .toolbar.floating-sticky-toolbar {
+    margin: 6px 8px 4px 8px;
+  }
+}
+
 .editor-content :deep(.editor-embedded-image) {
   display: block;
   max-width: 100%;
@@ -3128,11 +3754,111 @@ onBeforeUnmount(() => {
   margin: 16px auto;
   border-radius: 8px;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, outline 0.15s ease;
+  cursor: pointer;
+  user-select: all;
 }
 
 .editor-content :deep(.editor-embedded-image:hover) {
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14);
+  outline: 2px dashed #818cf8;
+  outline-offset: 3px;
+}
+
+/* Floating Image Action Overlay */
+.image-action-overlay {
+  position: absolute;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #1e293b;
+  color: #f8fafc;
+  padding: 5px 10px;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px -2px rgba(0, 0, 0, 0.25), 0 2px 6px rgba(0, 0, 0, 0.15);
+  animation: fadeInImageBar 0.15s ease;
+  font-family: 'Inter', sans-serif;
+  user-select: none;
+}
+
+@keyframes fadeInImageBar {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.img-tool-group {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.img-tool-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #94a3b8;
+  margin-right: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.img-tool-btn {
+  background: rgba(255, 255, 255, 0.1);
+  color: #f1f5f9;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.12s ease;
+}
+
+.img-tool-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+.img-tool-btn.active {
+  background: #6366f1;
+  border-color: #818cf8;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.img-tool-sep {
+  width: 1px;
+  height: 16px;
+  background: rgba(255, 255, 255, 0.2);
+  margin: 0 4px;
+}
+
+.delete-img-btn {
+  background: rgba(239, 68, 68, 0.25) !important;
+  color: #fca5a5 !important;
+  border-color: rgba(239, 68, 68, 0.4) !important;
+  font-weight: 600;
+}
+
+.delete-img-btn:hover {
+  background: #ef4444 !important;
+  color: #ffffff !important;
+}
+
+.close-img-btn {
+  padding: 3px 6px;
+  font-size: 12px;
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+}
+
+.close-img-btn:hover {
+  color: #ffffff;
 }
 
 .editor-content :deep(mark) {
@@ -3384,6 +4110,78 @@ onBeforeUnmount(() => {
   flex-shrink: 0;
 }
 
+.editor-bottom-bar.full-page-dock {
+  position: sticky;
+  bottom: 12px;
+  margin: 0 auto;
+  max-width: fit-content;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  border-radius: 9999px;
+  box-shadow: 0 10px 25px -4px rgba(0, 0, 0, 0.1), 0 2px 6px -1px rgba(0, 0, 0, 0.04);
+  padding: 6px 18px;
+  gap: 16px;
+  z-index: 40;
+}
+
+/* Zoom Controls Dock */
+.zoom-controls-dock {
+  display: inline-flex;
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 9999px;
+  padding: 2px 4px;
+  gap: 2px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.zoom-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: #475569;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.12s ease;
+  line-height: 1;
+}
+
+.zoom-btn:hover:not(:disabled) {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.zoom-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.zoom-value-btn {
+  border: none;
+  background: transparent;
+  padding: 2px 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+  border-radius: 4px;
+  min-width: 44px;
+  text-align: center;
+}
+
+.zoom-value-btn:hover {
+  background: #f1f5f9;
+}
+
 .engine-mode-pill {
   display: inline-flex;
   align-items: center;
@@ -3471,11 +4269,7 @@ onBeforeUnmount(() => {
   color: #15803d;
 }
 
-.full-page-sidebar {
-  width: 270px !important;
-}
-
-/* ── Files Sidebar (Left Pane matching screenshot) ── */
+/* ── Files Sidebar (Left Standalone Panel) ── */
 .files-sidebar {
   width: 250px;
   flex-shrink: 0;
@@ -3487,6 +4281,77 @@ onBeforeUnmount(() => {
   animation: slideFilesSidebar 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   overflow: hidden;
   user-select: none;
+}
+
+.files-sidebar.full-page-sidebar {
+  width: 280px !important;
+  background: #ffffff;
+  border: 1px solid var(--card-border, #e2e8f0);
+  border-radius: 16px;
+  box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.04);
+  height: 100%;
+  border-right: 1px solid var(--card-border, #e2e8f0);
+}
+
+.files-sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 10px 16px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.files-sidebar-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.files-folder-icon {
+  font-size: 16px;
+}
+
+.files-sidebar-heading {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #1e293b;
+  letter-spacing: -0.01em;
+}
+
+.files-count-badge {
+  font-size: 11px;
+  font-weight: 700;
+  color: #166534;
+  background: #dcfce7;
+  padding: 1px 7px;
+  border-radius: 10px;
+}
+
+.files-count-badge.at-limit {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.files-sidebar-collapse-btn {
+  background: #f1f5f9;
+  border: none;
+  border-radius: 6px;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 700;
+  color: #64748b;
+  cursor: pointer;
+  line-height: 1;
+  transition: all 0.15s ease;
+}
+
+.files-sidebar-collapse-btn:hover {
+  background: #e2e8f0;
+  color: #0f172a;
 }
 
 @keyframes slideFilesSidebar {
@@ -3691,10 +4556,13 @@ onBeforeUnmount(() => {
   border: none;
   font-size: 13px;
   color: inherit;
-  opacity: 0.6;
-  padding: 3px 5px;
-  border-radius: 4px;
+  opacity: 0.65;
+  padding: 4px;
+  border-radius: 6px;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   transition: all 0.12s;
 }
 
@@ -3703,9 +4571,14 @@ onBeforeUnmount(() => {
   background: rgba(0, 0, 0, 0.08);
 }
 
+.file-action-icon-btn.delete-btn {
+  color: #64748b;
+}
+
 .file-action-icon-btn.delete-btn:hover {
-  color: #dc2626;
-  background: rgba(220, 38, 38, 0.12);
+  color: #ef4444;
+  background: #fee2e2;
+  opacity: 1;
 }
 
 /* ── AI Assistant Sidebar (Right Pane matching screenshot) ── */
