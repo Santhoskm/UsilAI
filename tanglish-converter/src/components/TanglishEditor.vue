@@ -104,10 +104,10 @@
 
     <!-- Document Workspace Stage Panel (Separate Card on Right) -->
     <div class="document-stage-panel" :class="{ 'full-page-stage': fullPage, 'embedded-stage': !fullPage }">
-      <!-- Toolbar: Floating & Sticky in Full-Page Mode -->
-      <div class="toolbar" :class="{ 'floating-sticky-toolbar': fullPage }" v-if="editor">
+      <!-- 1. FULL-PAGE FLOATING STICKY TOOLBAR (Used on /editor) -->
+      <div class="toolbar floating-sticky-toolbar" v-if="editor && fullPage">
         <!-- Documents Sidebar Toggle (Only show if sidebar is collapsed or embedded) -->
-        <div v-if="isAuthenticated && enableSidebar && (!fullPage || !showFilesSidebar)" class="toolbar-group files-toggle-group">
+        <div v-if="isAuthenticated && enableSidebar && !showFilesSidebar" class="toolbar-group files-toggle-group">
           <button 
             @click="showFilesSidebar = !showFilesSidebar"
             class="toolbar-btn btn-files-toggle compact"
@@ -573,7 +573,323 @@
           </div>
         </div>
 
-        <div v-if="!fullPage" class="toolbar-stats">
+      </div>
+
+      <!-- 2. HOME PAGE EMBEDDED TOOLBAR (Used on Home Page alone - exactly matches original 2-row layout) -->
+      <div v-else-if="editor" class="toolbar embedded-home-toolbar">
+        <!-- Documents Sidebar Toggle (When logged in and sidebar enabled) -->
+        <div v-if="isAuthenticated && enableSidebar" class="toolbar-group files-toggle-group">
+          <button 
+            @click="showFilesSidebar = !showFilesSidebar"
+            class="toolbar-btn btn-files-toggle"
+            :class="{ active: showFilesSidebar }"
+            :title="showFilesSidebar ? 'Hide Documents Sidebar' : 'Show Documents Sidebar'"
+          >
+            <span class="files-toggle-icon">📁</span>
+            <span class="files-btn-title">{{ activeFile?.title || 'Documents' }}</span>
+            <span class="files-badge">{{ savedFiles.length }}/5</span>
+          </button>
+        </div>
+
+        <div v-if="isAuthenticated && enableSidebar" class="toolbar-divider"></div>
+
+        <!-- 1. Formatting: Bold, Italic, Strikethrough, Code -->
+        <div class="toolbar-group">
+          <button
+            @click="editor.chain().focus().toggleBold().run()"
+            :class="{ active: editor.isActive('bold') }"
+            class="toolbar-btn"
+            title="Bold"
+          >
+            <strong>B</strong>
+          </button>
+          <button
+            @click="editor.chain().focus().toggleItalic().run()"
+            :class="{ active: editor.isActive('italic') }"
+            class="toolbar-btn"
+            title="Italic"
+          >
+            <em>I</em>
+          </button>
+          <button
+            @click="editor.chain().focus().toggleStrike().run()"
+            :class="{ active: editor.isActive('strike') }"
+            class="toolbar-btn"
+            title="Strikethrough"
+          >
+            <s>S</s>
+          </button>
+          <button
+            @click="editor.chain().focus().toggleCode().run()"
+            :class="{ active: editor.isActive('code') }"
+            class="toolbar-btn"
+            title="Inline Code"
+          >
+            &lt;/&gt;
+          </button>
+        </div>
+
+        <div class="toolbar-divider"></div>
+
+        <!-- 2. Headings: H1, H2, H3 -->
+        <div class="toolbar-group">
+          <button
+            @click="editor.chain().focus().toggleHeading({ level: 1 }).run()"
+            :class="{ active: editor.isActive('heading', { level: 1 }) }"
+            class="toolbar-btn"
+            title="Heading 1"
+          >
+            H1
+          </button>
+          <button
+            @click="editor.chain().focus().toggleHeading({ level: 2 }).run()"
+            :class="{ active: editor.isActive('heading', { level: 2 }) }"
+            class="toolbar-btn"
+            title="Heading 2"
+          >
+            H2
+          </button>
+          <button
+            @click="editor.chain().focus().toggleHeading({ level: 3 }).run()"
+            :class="{ active: editor.isActive('heading', { level: 3 }) }"
+            class="toolbar-btn"
+            title="Heading 3"
+          >
+            H3
+          </button>
+        </div>
+
+        <div class="toolbar-divider"></div>
+
+        <!-- 3. Lists & Quotes -->
+        <div class="toolbar-group">
+          <button
+            @click="editor.chain().focus().toggleBulletList().run()"
+            :class="{ active: editor.isActive('bulletList') }"
+            class="toolbar-btn"
+            title="Bullet List"
+          >
+            ☰
+          </button>
+          <button
+            @click="editor.chain().focus().toggleOrderedList().run()"
+            :class="{ active: editor.isActive('orderedList') }"
+            class="toolbar-btn"
+            title="Ordered List"
+          >
+            1.
+          </button>
+          <button
+            @click="editor.chain().focus().toggleBlockquote().run()"
+            :class="{ active: editor.isActive('blockquote') }"
+            class="toolbar-btn"
+            title="Quote"
+          >
+            ❝
+          </button>
+          <button
+            @click="editor.chain().focus().setHorizontalRule().run()"
+            class="toolbar-btn"
+            title="Horizontal Rule"
+          >
+            ─
+          </button>
+        </div>
+
+        <div class="toolbar-divider"></div>
+
+        <!-- 4. History: Undo, Redo -->
+        <div class="toolbar-group">
+          <button
+            @click="editor.chain().focus().undo().run()"
+            :disabled="!editor.can().undo()"
+            class="toolbar-btn"
+            title="Undo"
+          >
+            ↩
+          </button>
+          <button
+            @click="editor.chain().focus().redo().run()"
+            :disabled="!editor.can().redo()"
+            class="toolbar-btn"
+            title="Redo"
+          >
+            ↪
+          </button>
+        </div>
+
+        <div class="toolbar-divider"></div>
+
+        <!-- 5. Alignment -->
+        <div class="toolbar-group">
+          <button
+            @click="editor.chain().focus().setTextAlign('left').run()"
+            :class="{ active: editor.isActive({ textAlign: 'left' }) }"
+            class="toolbar-btn"
+            title="Align Left"
+          >
+            ⬛︎
+          </button>
+          <button
+            @click="editor.chain().focus().setTextAlign('center').run()"
+            :class="{ active: editor.isActive({ textAlign: 'center' }) }"
+            class="toolbar-btn"
+            title="Align Center"
+          >
+            ▣
+          </button>
+          <button
+            @click="editor.chain().focus().setTextAlign('right').run()"
+            :class="{ active: editor.isActive({ textAlign: 'right' }) }"
+            class="toolbar-btn"
+            title="Align Right"
+          >
+            ▤
+          </button>
+          <button
+            @click="editor.chain().focus().setTextAlign('justify').run()"
+            :class="{ active: editor.isActive({ textAlign: 'justify' }) }"
+            class="toolbar-btn"
+            title="Justify"
+          >
+            ☰
+          </button>
+        </div>
+
+        <div class="toolbar-divider"></div>
+
+        <!-- 6. Font Size & Increments -->
+        <div class="toolbar-group">
+          <div class="font-size-wrapper" ref="fontSizeRef">
+            <button class="toolbar-btn font-size-btn" @click="showFontSizeDropdown = !showFontSizeDropdown" title="Font Size">
+              <span>{{ currentFontSize }}px</span>
+              <span class="font-caret">▾</span>
+            </button>
+            <div v-if="showFontSizeDropdown" class="font-size-dropdown">
+              <div
+                v-for="size in FONT_SIZES"
+                :key="size"
+                class="font-size-option"
+                :class="{ active: currentFontSize === size }"
+                @click="applyFontSize(size)"
+              >
+                <span :style="{ fontSize: Math.min(size, 22) + 'px', lineHeight: '1' }">அ</span>
+                <span class="size-label">{{ size }}px</span>
+              </div>
+            </div>
+          </div>
+          <button class="toolbar-btn" title="Decrease Font Size" @click="changeFontSize(-2)">A−</button>
+          <button class="toolbar-btn" title="Increase Font Size" @click="changeFontSize(+2)">A+</button>
+        </div>
+
+        <div class="toolbar-divider"></div>
+
+        <!-- Row 2 Actions: Clear, Grammar Checker, Download, Font Selector -->
+        <div class="toolbar-group">
+          <button @click="clearEditor" class="toolbar-btn btn-clear" title="Clear Editor Content">
+            Clear
+          </button>
+          <button 
+            @click="toggleAIHelp" 
+            class="toolbar-btn btn-ai"
+            :class="{ active: aiHelpEnabled }"
+            title="AI Grammar Checker"
+          >
+            <svg class="grammar-sparkle-svg" width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <path d="M12 2L14.4 8.6L21 11L14.4 13.4L12 20L9.6 13.4L3 11L9.6 8.6L12 2Z" fill="currentColor"/>
+              <circle cx="18.5" cy="5.5" r="2.2" fill="currentColor"/>
+            </svg>
+            <span>Grammar Checker</span>
+          </button>
+
+          <!-- Download / Export Dropdown with Text -->
+          <div class="download-dropdown-wrapper" ref="downloadDropdownRef">
+            <button 
+              @click="showDownloadDropdown = !showDownloadDropdown" 
+              class="toolbar-btn btn-download-home"
+              title="Download / Export Content"
+            >
+              <svg class="download-svg-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 2.5V15.5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+                <path d="M5.5 10.5L12 16.5L18.5 10.5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M3.5 21H20.5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+              </svg>
+              <span class="download-btn-text">Download</span>
+              <span class="font-caret">▾</span>
+            </button>
+            <div v-if="showDownloadDropdown" class="download-dropdown-menu">
+              <div class="dropdown-menu-header">Download Options</div>
+              <div class="download-options-scroll">
+                <button @click="downloadAsDocx" class="download-menu-item">
+                  <div class="item-icon-badge docx-badge">
+                    <svg class="format-download-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                      <polyline points="14 2 14 8 20 8"></polyline>
+                      <line x1="16" y1="13" x2="8" y2="13"></line>
+                      <line x1="16" y1="17" x2="8" y2="17"></line>
+                    </svg>
+                  </div>
+                  <div class="item-info">
+                    <span class="item-title">Word Document (.doc)</span>
+                    <span class="item-desc">Formatted Microsoft Word file</span>
+                  </div>
+                </button>
+                <button @click="downloadAsTxt" class="download-menu-item">
+                  <div class="item-icon-badge txt-badge">
+                    <svg class="format-download-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                      <polyline points="14 2 14 8 20 8"></polyline>
+                      <line x1="16" y1="13" x2="8" y2="13"></line>
+                      <line x1="16" y1="17" x2="8" y2="17"></line>
+                    </svg>
+                  </div>
+                  <div class="item-info">
+                    <span class="item-title">Plain Text (.txt)</span>
+                    <span class="item-desc">Standard plain text file</span>
+                  </div>
+                </button>
+                <button @click="downloadAsPDF" class="download-menu-item">
+                  <div class="item-icon-badge pdf-badge">
+                    <svg class="format-download-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                      <polyline points="14 2 14 8 20 8"></polyline>
+                      <path d="M9 15h6"></path>
+                    </svg>
+                  </div>
+                  <div class="item-info">
+                    <span class="item-title">PDF Document (.pdf)</span>
+                    <span class="item-desc">Print-ready PDF / Print page</span>
+                  </div>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Font Selector -->
+        <div class="toolbar-font-selector" ref="fontSelectorRef">
+          <button class="font-selector-btn" @click="showFontDropdown = !showFontDropdown" title="Change Tamil Font">
+            <span class="font-preview">அ</span>
+            <span class="font-name">{{ selectedFont.label }}</span>
+            <span class="font-caret">▾</span>
+          </button>
+          <div v-if="showFontDropdown" class="font-dropdown">
+            <div
+              v-for="font in TAMIL_FONTS"
+              :key="font.label"
+              class="font-option"
+              :class="{ active: selectedFont.label === font.label }"
+              @click="applyFont(font)"
+              :style="{ fontFamily: font.value }"
+            >
+              <span class="font-sample">அ ஆ </span>
+              <span class="font-label">{{ font.label }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Stats on Right -->
+        <div class="toolbar-stats">
           <span>{{ wordCount }} words</span>
           <span>{{ charCount }} chars</span>
         </div>
@@ -3173,6 +3489,47 @@ onBeforeUnmount(() => {
 .download-dropdown-wrapper {
   position: relative;
   display: inline-block;
+}
+
+/* Home Page Download Button with Label */
+.btn-download-home {
+  background: var(--toolbar-btn-bg, #f8fafc) !important;
+  color: var(--text-main, #1e293b) !important;
+  border: 1px solid var(--toolbar-border, #e2e8f0) !important;
+  font-weight: 600 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 7px !important;
+  padding: 5px 12px !important;
+  border-radius: 8px !important;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.btn-download-home:hover {
+  background: var(--toolbar-btn-hover, #f1f5f9) !important;
+  border-color: #5b92f7 !important;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(91, 146, 247, 0.22);
+}
+
+.btn-download-home .download-svg-icon {
+  width: 17px;
+  height: 17px;
+  color: #5b92f7;
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.btn-download-home:hover .download-svg-icon {
+  transform: translateY(1px);
+}
+
+.btn-download-home .download-btn-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main, #1e293b);
 }
 
 .download-svg-icon {
