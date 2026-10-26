@@ -1319,9 +1319,11 @@ const { suggestions: aiSuggestions, convertWord, convertSentence, getSuggestions
 const { checkGrammar, isChecking: aiChecking, error: aiError, correctionResult } = useClaudeGrammarChecker()
 
 const showAuthModal = ref(false)
-const onAuthSuccess = () => {
+const onAuthSuccess = async () => {
   showAuthModal.value = false
-  loadFilesFromStorage()
+  if (props.fullPage || props.enableSidebar) {
+    await loadSavedFiles()
+  }
 }
 
 const props = defineProps({
@@ -1492,6 +1494,22 @@ const handleImageFileSelect = async (event) => {
   }
   const dataUrl = await compressImageFile(file, 1200, 1200, 0.85)
   if (dataUrl && editor.value) {
+    if (!activeFile.value) {
+      const draft = {
+        id: 'file_' + Date.now(),
+        title: 'New File',
+        content: '',
+        plainText: '',
+        wordCount: 0,
+        backgroundImage: currentDocBackground.value || '',
+        backgroundMode: currentDocBackgroundMode.value || 'cover',
+        backgroundOpacity: currentDocBackgroundOpacity.value ?? 0.2,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }
+      savedFiles.value = [draft]
+      activeFileId.value = draft.id
+    }
     const defaultStyle = 'width: 100%; max-width: 100%; display: block; margin-left: auto; margin-right: auto;'
     editor.value.chain().focus().setImage({ 
       src: dataUrl,
@@ -1531,6 +1549,22 @@ const setDocumentBackground = (bgUrl, mode = 'cover') => {
     activeFile.value.backgroundImage = bgUrl
     activeFile.value.backgroundMode = mode
     activeFile.value.backgroundOpacity = currentDocBackgroundOpacity.value
+    scheduleSaveCurrentFile()
+  } else {
+    const draft = {
+      id: 'file_' + Date.now(),
+      title: 'New File',
+      content: editor.value ? editor.value.getHTML() : '',
+      plainText: editor.value ? editor.value.getText() : '',
+      wordCount: 0,
+      backgroundImage: bgUrl,
+      backgroundMode: mode,
+      backgroundOpacity: currentDocBackgroundOpacity.value,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }
+    savedFiles.value = [draft]
+    activeFileId.value = draft.id
     scheduleSaveCurrentFile()
   }
 }
@@ -1695,11 +1729,34 @@ const loadSavedFiles = async () => {
   const uid = currentUserId.value
   const altUid = user.value?.sub || null
 
+  // Capture any active draft content before querying PostgreSQL
+  const draftContent = editor.value ? editor.value.getHTML() : ''
+  const draftText = editor.value ? editor.value.getText() : ''
+  const draftBg = currentDocBackground.value || ''
+  const draftBgMode = currentDocBackgroundMode.value || 'cover'
+  const draftBgOpacity = currentDocBackgroundOpacity.value ?? 0.2
+  const hasDraft = (draftText && draftText.trim().length > 0) || 
+                   (draftContent && draftContent.includes('<img')) || 
+                   (draftBg && draftBg.trim().length > 0)
+
   if (!isAuthenticated.value || !uid) {
-    savedFiles.value = []
-    activeFileId.value = ''
-    currentDocBackground.value = ''
-    setEditorTextSafely('')
+    // Unauthenticated user on /editor: keep a local in-memory draft so activeFile is never null
+    if (savedFiles.value.length === 0) {
+      const guestDraft = {
+        id: 'draft_' + Date.now(),
+        title: 'New File',
+        content: draftContent,
+        plainText: draftText,
+        wordCount: draftText ? draftText.trim().split(/\s+/).filter(w => w.length > 0).length : 0,
+        backgroundImage: draftBg,
+        backgroundMode: draftBgMode,
+        backgroundOpacity: draftBgOpacity,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }
+      savedFiles.value = [guestDraft]
+      activeFileId.value = guestDraft.id
+    }
     syncStatus.value = 'idle'
     return
   }
@@ -1733,7 +1790,7 @@ const loadSavedFiles = async () => {
       }
 
       // Strictly enforce total max 5 files (including previous logins)
-      savedFiles.value = validDocs.slice(0, 5).map(d => ({
+      const loaded = validDocs.slice(0, 5).map(d => ({
         id: d.id,
         title: d.title || 'New File',
         content: d.content || '',
@@ -1745,6 +1802,26 @@ const loadSavedFiles = async () => {
         createdAt: d.created_at || new Date().toISOString(),
         updatedAt: d.updated_at || new Date().toISOString()
       }))
+
+      // If user just drafted something prior to logging in, and had < 5 files, preserve their draft!
+      if (hasDraft && loaded.length < 5 && !loaded.some(d => d.content === draftContent && d.backgroundImage === draftBg)) {
+        const migratedDraft = {
+          id: 'file_' + Date.now(),
+          title: 'Draft Document',
+          content: draftContent,
+          plainText: draftText,
+          wordCount: draftText ? draftText.trim().split(/\s+/).filter(w => w.length > 0).length : 0,
+          backgroundImage: draftBg,
+          backgroundMode: draftBgMode,
+          backgroundOpacity: draftBgOpacity,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }
+        loaded.unshift(migratedDraft)
+        syncUserDocuments(uid, loaded.slice(0, 5))
+      }
+
+      savedFiles.value = loaded
 
       // Prioritize activating a document with content or custom background
       const targetDoc = savedFiles.value.find(f => 
@@ -1759,25 +1836,32 @@ const loadSavedFiles = async () => {
       setEditorTextSafely(targetDoc.content || '')
       syncStatus.value = 'saved'
     } else {
-      // Brand new user with 0 files in PostgreSQL: create 1 default in-memory file for them
-      // Do NOT sync to DB yet until user writes or explicitly saves
-      const defaultFile = {
+      // Brand new user with 0 files in PostgreSQL:
+      // If they had a draft with background or images, use it as their first real file in PostgreSQL!
+      const initialFile = {
         id: 'file_' + Date.now(),
-        title: 'New File',
-        content: '',
-        plainText: '',
-        wordCount: 0,
-        backgroundImage: '',
-        backgroundMode: 'cover',
-        backgroundOpacity: 0.2,
+        title: hasDraft ? 'My Document' : 'New File',
+        content: draftContent || '',
+        plainText: draftText || '',
+        wordCount: draftText ? draftText.trim().split(/\s+/).filter(w => w.length > 0).length : 0,
+        backgroundImage: draftBg || '',
+        backgroundMode: draftBgMode || 'cover',
+        backgroundOpacity: draftBgOpacity ?? 0.2,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       }
-      savedFiles.value = [defaultFile]
-      activeFileId.value = defaultFile.id
-      currentDocBackground.value = ''
-      setEditorTextSafely('')
-      syncStatus.value = 'saved'
+      savedFiles.value = [initialFile]
+      activeFileId.value = initialFile.id
+      currentDocBackground.value = initialFile.backgroundImage || ''
+      currentDocBackgroundMode.value = initialFile.backgroundMode || 'cover'
+      currentDocBackgroundOpacity.value = initialFile.backgroundOpacity ?? 0.2
+      setEditorTextSafely(initialFile.content || '')
+
+      if (hasDraft) {
+        saveFilesToStorage()
+      } else {
+        syncStatus.value = 'saved'
+      }
     }
   } catch (err) {
     console.warn('Could not load user documents from PostgreSQL:', err)
@@ -3154,19 +3238,20 @@ watch(autoConvert, (newValue) => {
 // Watch for authentication changes (login, logout, or account switch)
 watch([isAuthenticated, currentUserId], async ([newAuth, newUid], [oldAuth, oldUid]) => {
   if (!newAuth || !newUid) {
-    // User logged out: clear all editor state and document data immediately (zero cross-user leakage)
+    // User logged out: clear private documents
     savedFiles.value = []
     activeFileId.value = ''
+    currentDocBackground.value = ''
     setEditorTextSafely('')
     syncStatus.value = 'idle'
+    if (props.fullPage || props.enableSidebar) {
+      await loadSavedFiles()
+    }
     return
   }
 
   if (newUid !== oldUid || (newAuth && !oldAuth)) {
-    // User logged in or switched accounts: reset editor
-    savedFiles.value = []
-    activeFileId.value = ''
-    setEditorTextSafely('')
+    // User logged in or switched accounts: load their documents from PostgreSQL
     if (props.fullPage || props.enableSidebar) {
       await loadSavedFiles()
     }
@@ -3189,6 +3274,9 @@ onMounted(async () => {
     await loadSavedFiles()
     setTimeout(() => {
       if (editor.value && activeFile.value) {
+        currentDocBackground.value = activeFile.value.backgroundImage || ''
+        currentDocBackgroundMode.value = activeFile.value.backgroundMode || 'cover'
+        currentDocBackgroundOpacity.value = activeFile.value.backgroundOpacity ?? 0.2
         setEditorTextSafely(activeFile.value.content || '')
       }
     }, 150)

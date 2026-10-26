@@ -729,11 +729,18 @@ export async function syncUserDocuments(userId, documents) {
             }))
         }
 
-        const response = await fetch(`${API_BASE}/documents/sync`, {
+        const bodyStr = JSON.stringify(payload)
+        const fetchOptions = {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        })
+            body: bodyStr
+        }
+        // Browsers limit keepalive to 64KB; only attach for payloads under 60KB
+        if (bodyStr.length < 60000) {
+            fetchOptions.keepalive = true
+        }
+
+        const response = await fetch(`${API_BASE}/documents/sync`, fetchOptions)
 
         if (!response.ok) {
             const err = await response.json().catch(() => ({}))
