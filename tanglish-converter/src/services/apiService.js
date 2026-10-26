@@ -720,7 +720,12 @@ export async function syncUserDocuments(userId, documents) {
                 title: doc.title || 'New File',
                 content: doc.content || '',
                 plain_text: doc.plainText || doc.plain_text || '',
-                word_count: doc.wordCount || doc.word_count || 0
+                word_count: doc.wordCount || doc.word_count || 0,
+                background_image: doc.backgroundImage || doc.background_image || '',
+                background_mode: doc.backgroundMode || doc.background_mode || 'cover',
+                background_opacity: (doc.backgroundOpacity !== undefined && doc.backgroundOpacity !== null)
+                    ? Number(doc.backgroundOpacity)
+                    : (doc.background_opacity !== undefined ? Number(doc.background_opacity) : 0.2)
             }))
         }
 

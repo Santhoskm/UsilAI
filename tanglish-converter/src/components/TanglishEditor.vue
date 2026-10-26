@@ -1234,6 +1234,77 @@ import Image from '@tiptap/extension-image'
 import { TextStyle } from '@tiptap/extension-text-style'
 import { Color } from '@tiptap/extension-color'
 import Highlight from '@tiptap/extension-highlight'
+
+// Custom TipTap Image extension that preserves width, style, and data-align attributes in ProseMirror HTML
+const CustomImage = Image.extend({
+  name: 'image',
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      style: {
+        default: 'width: 100%; max-width: 100%; display: block; margin-left: auto; margin-right: auto;',
+        parseHTML: element => element.getAttribute('style'),
+        renderHTML: attributes => {
+          if (!attributes.style) return {}
+          return { style: attributes.style }
+        }
+      },
+      align: {
+        default: 'center',
+        parseHTML: element => element.getAttribute('data-align') || element.dataset?.align || 'center',
+        renderHTML: attributes => {
+          return { 'data-align': attributes.align || 'center' }
+        }
+      },
+      width: {
+        default: '100%',
+        parseHTML: element => element.getAttribute('data-size') || element.style?.width || '100%',
+        renderHTML: attributes => {
+          return { 'data-size': attributes.width || '100%' }
+        }
+      }
+    }
+  }
+})
+
+// Compress and downscale uploaded or pasted images to ensure fast rendering & smooth DB persistence
+const compressImageFile = (file, maxWidth = 1200, maxHeight = 1200, quality = 0.85) => {
+  return new Promise((resolve) => {
+    if (!file) return resolve('')
+    if (file.type === 'image/svg+xml' || (file.size && file.size < 80 * 1024)) {
+      const reader = new FileReader()
+      reader.onload = (e) => resolve(e.target.result)
+      reader.onerror = () => resolve('')
+      reader.readAsDataURL(file)
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const img = new window.Image()
+      img.onload = () => {
+        let width = img.width
+        let height = img.height
+        if (width > maxWidth || height > maxHeight) {
+          const ratio = Math.min(maxWidth / width, maxHeight / height)
+          width = Math.round(width * ratio)
+          height = Math.round(height * ratio)
+        }
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')
+        ctx.drawImage(img, 0, 0, width, height)
+        const outputType = (file.type === 'image/png') ? 'image/png' : 'image/jpeg'
+        resolve(canvas.toDataURL(outputType, quality))
+      }
+      img.onerror = () => resolve(e.target.result)
+      img.src = e.target.result
+    }
+    reader.onerror = () => resolve('')
+    reader.readAsDataURL(file)
+  })
+}
 import { preloadCommonChunks } from '@/data/tamilEngine'
 import { useAuth, registerPreLogoutHook } from '@/composables/useAuth'
 import { useTanglishConverter } from '@/composables/useTanglishConverter'
@@ -1378,6 +1449,7 @@ const applyTextColor = (color) => {
   activeTextColor.value = color
   if (editor.value) {
     editor.value.chain().focus().setColor(color).run()
+    scheduleSaveCurrentFile()
   }
 }
 
@@ -1385,6 +1457,7 @@ const resetTextColor = () => {
   activeTextColor.value = '#0f172a'
   if (editor.value) {
     editor.value.chain().focus().unsetColor().run()
+    scheduleSaveCurrentFile()
   }
 }
 
@@ -1392,6 +1465,7 @@ const applyHighlight = (color) => {
   activeHighlightColor.value = color
   if (editor.value) {
     editor.value.chain().focus().toggleHighlight({ color }).run()
+    scheduleSaveCurrentFile()
   }
 }
 
@@ -1399,6 +1473,7 @@ const resetHighlight = () => {
   activeHighlightColor.value = ''
   if (editor.value) {
     editor.value.chain().focus().unsetHighlight().run()
+    scheduleSaveCurrentFile()
   }
 }
 
@@ -1408,21 +1483,25 @@ const triggerImageFileInput = () => {
   }
 }
 
-const handleImageFileSelect = (event) => {
+const handleImageFileSelect = async (event) => {
   const file = event.target?.files?.[0]
   if (!file) return
   if (!file.type.startsWith('image/')) {
     alert('Please select a valid image file.')
     return
   }
-  const reader = new FileReader()
-  reader.onload = (e) => {
-    if (editor.value) {
-      editor.value.chain().focus().setImage({ src: e.target.result }).run()
-    }
-    if (imageFileInputRef.value) imageFileInputRef.value.value = ''
+  const dataUrl = await compressImageFile(file, 1200, 1200, 0.85)
+  if (dataUrl && editor.value) {
+    const defaultStyle = 'width: 100%; max-width: 100%; display: block; margin-left: auto; margin-right: auto;'
+    editor.value.chain().focus().setImage({ 
+      src: dataUrl,
+      style: defaultStyle,
+      align: 'center',
+      width: '100%'
+    }).run()
+    scheduleSaveCurrentFile()
   }
-  reader.readAsDataURL(file)
+  if (imageFileInputRef.value) imageFileInputRef.value.value = ''
 }
 
 const triggerBgFileInput = () => {
@@ -1431,19 +1510,18 @@ const triggerBgFileInput = () => {
   }
 }
 
-const handleBgFileSelect = (event) => {
+const handleBgFileSelect = async (event) => {
   const file = event.target?.files?.[0]
   if (!file) return
   if (!file.type.startsWith('image/')) {
     alert('Please select an image file.')
     return
   }
-  const reader = new FileReader()
-  reader.onload = (e) => {
-    setDocumentBackground(e.target.result, 'cover')
-    if (bgFileInputRef.value) bgFileInputRef.value.value = ''
+  const dataUrl = await compressImageFile(file, 1600, 1600, 0.82)
+  if (dataUrl) {
+    setDocumentBackground(dataUrl, 'cover')
   }
-  reader.readAsDataURL(file)
+  if (bgFileInputRef.value) bgFileInputRef.value.value = ''
 }
 
 const setDocumentBackground = (bgUrl, mode = 'cover') => {
@@ -1635,11 +1713,16 @@ const loadSavedFiles = async () => {
       let validDocs = dbDocs
       const hasRealDocs = dbDocs.some(d => 
         (d.plain_text && d.plain_text.trim().length > 0) || 
+        (d.content && d.content.includes('<img')) ||
+        (d.background_image && d.background_image.trim().length > 0) ||
         (d.title && d.title !== 'New File' && d.title.trim().length > 0)
       )
       if (hasRealDocs) {
         const filtered = dbDocs.filter(d => {
-          const isEmptyNew = d.title === 'New File' && (!d.plain_text || !d.plain_text.trim()) && (!d.content || !d.content.replace(/<[^>]*>/g, '').trim())
+          const isEmptyNew = d.title === 'New File' && 
+            (!d.plain_text || !d.plain_text.trim()) && 
+            (!d.content || (!d.content.includes('<img') && !d.content.replace(/<[^>]*>/g, '').trim())) &&
+            (!d.background_image || !d.background_image.trim())
           if (isEmptyNew) {
             deleteUserDocument(d.id, uid)
             return false
@@ -1663,8 +1746,12 @@ const loadSavedFiles = async () => {
         updatedAt: d.updated_at || new Date().toISOString()
       }))
 
-      // Prioritize activating a document with content
-      const targetDoc = savedFiles.value.find(f => f.plainText && f.plainText.trim().length > 0) || savedFiles.value[0]
+      // Prioritize activating a document with content or custom background
+      const targetDoc = savedFiles.value.find(f => 
+        (f.plainText && f.plainText.trim().length > 0) || 
+        (f.content && f.content.includes('<img')) ||
+        (f.backgroundImage && f.backgroundImage.trim().length > 0)
+      ) || savedFiles.value[0]
       activeFileId.value = targetDoc.id
       currentDocBackground.value = targetDoc.backgroundImage || ''
       currentDocBackgroundMode.value = targetDoc.backgroundMode || 'cover'
@@ -1859,12 +1946,33 @@ const handleEditorClick = (e) => {
   const target = e.target
   if (target && target.tagName === 'IMG' && target.classList.contains('editor-embedded-image')) {
     selectedImageNode.value = target
-    currentImgAlign.value = target.dataset.align || 'center'
-    currentImgSize.value = target.style.width || '100%'
+    currentImgAlign.value = target.dataset.align || target.getAttribute('data-align') || 'center'
+    currentImgSize.value = target.dataset.size || target.getAttribute('data-size') || target.style.width || '100%'
     nextTick(() => updateImageToolbarPosition(target))
   } else {
     if (!e.target.closest('.image-action-overlay')) {
       selectedImageNode.value = null
+    }
+  }
+}
+
+const updateSelectedImageAttributes = (attrsToUpdate) => {
+  if (!selectedImageNode.value || !editor.value) return
+  const img = selectedImageNode.value
+  const { state } = editor.value.view
+  let targetPos = null
+  state.doc.descendants((node, pos) => {
+    if (node.type.name === 'image' && (node.attrs.src === img.src || node.attrs.src === img.getAttribute('src'))) {
+      targetPos = pos
+      return false
+    }
+  })
+  if (targetPos !== null) {
+    const node = state.doc.nodeAt(targetPos)
+    if (node) {
+      const mergedAttrs = { ...node.attrs, ...attrsToUpdate }
+      const tr = state.tr.setNodeMarkup(targetPos, undefined, mergedAttrs)
+      editor.value.view.dispatch(tr)
     }
   }
 }
@@ -1898,27 +2006,24 @@ const setImageAlignment = (align) => {
   currentImgAlign.value = align
   img.dataset.align = align
   
+  let styleStr = `width: ${currentImgSize.value}; max-width: ${currentImgSize.value};`
   if (align === 'left') {
-    img.style.display = 'block'
-    img.style.float = 'none'
-    img.style.marginLeft = '0'
-    img.style.marginRight = 'auto'
+    styleStr += ' display: block; float: none; margin-left: 0; margin-right: auto;'
   } else if (align === 'center') {
-    img.style.display = 'block'
-    img.style.float = 'none'
-    img.style.marginLeft = 'auto'
-    img.style.marginRight = 'auto'
+    styleStr += ' display: block; float: none; margin-left: auto; margin-right: auto;'
   } else if (align === 'right') {
-    img.style.display = 'block'
-    img.style.float = 'none'
-    img.style.marginLeft = 'auto'
-    img.style.marginRight = '0'
+    styleStr += ' display: block; float: none; margin-left: auto; margin-right: 0;'
   } else if (align === 'float-left') {
-    img.style.display = 'inline-block'
-    img.style.float = 'left'
-    img.style.margin = '8px 16px 8px 0'
+    styleStr += ' display: inline-block; float: left; margin: 8px 16px 8px 0;'
   }
-  
+  img.setAttribute('style', styleStr)
+
+  updateSelectedImageAttributes({
+    align,
+    style: styleStr,
+    width: currentImgSize.value
+  })
+
   scheduleSaveCurrentFile()
   nextTick(() => updateImageToolbarPosition(img))
 }
@@ -1927,8 +2032,27 @@ const setImageSize = (size) => {
   if (!selectedImageNode.value) return
   const img = selectedImageNode.value
   currentImgSize.value = size
-  img.style.width = size
-  img.style.maxWidth = size
+  img.dataset.size = size
+  
+  const align = currentImgAlign.value || 'center'
+  let styleStr = `width: ${size}; max-width: ${size};`
+  if (align === 'left') {
+    styleStr += ' display: block; float: none; margin-left: 0; margin-right: auto;'
+  } else if (align === 'center') {
+    styleStr += ' display: block; float: none; margin-left: auto; margin-right: auto;'
+  } else if (align === 'right') {
+    styleStr += ' display: block; float: none; margin-left: auto; margin-right: 0;'
+  } else if (align === 'float-left') {
+    styleStr += ' display: inline-block; float: left; margin: 8px 16px 8px 0;'
+  }
+  img.setAttribute('style', styleStr)
+
+  updateSelectedImageAttributes({
+    align,
+    style: styleStr,
+    width: size
+  })
+
   scheduleSaveCurrentFile()
   nextTick(() => updateImageToolbarPosition(img))
 }
@@ -2381,13 +2505,18 @@ const handlePaste = (view, event) => {
         const file = item.getAsFile()
         if (file) {
           event.preventDefault()
-          const reader = new FileReader()
-          reader.onload = (e) => {
-            if (editor.value) {
-              editor.value.chain().focus().setImage({ src: e.target.result }).run()
+          compressImageFile(file, 1200, 1200, 0.85).then((dataUrl) => {
+            if (dataUrl && editor.value) {
+              const defaultStyle = 'width: 100%; max-width: 100%; display: block; margin-left: auto; margin-right: auto;'
+              editor.value.chain().focus().setImage({ 
+                src: dataUrl,
+                style: defaultStyle,
+                align: 'center',
+                width: '100%'
+              }).run()
+              scheduleSaveCurrentFile()
             }
-          }
-          reader.readAsDataURL(file)
+          })
           return true
         }
       }
@@ -2433,13 +2562,18 @@ const handleDrop = (view, event, slice, moved) => {
     const file = event.dataTransfer.files[0]
     if (file && file.type.startsWith('image/')) {
       event.preventDefault()
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        if (editor.value) {
-          editor.value.chain().focus().setImage({ src: e.target.result }).run()
+      compressImageFile(file, 1200, 1200, 0.85).then((dataUrl) => {
+        if (dataUrl && editor.value) {
+          const defaultStyle = 'width: 100%; max-width: 100%; display: block; margin-left: auto; margin-right: auto;'
+          editor.value.chain().focus().setImage({ 
+            src: dataUrl,
+            style: defaultStyle,
+            align: 'center',
+            width: '100%'
+          }).run()
+          scheduleSaveCurrentFile()
         }
-      }
-      reader.readAsDataURL(file)
+      })
       return true
     }
   }
@@ -2987,7 +3121,7 @@ const editor = useEditor({
     TextStyle,
     Color,
     Highlight.configure({ multicolor: true }),
-    Image.configure({
+    CustomImage.configure({
       inline: false,
       allowBase64: true,
       HTMLAttributes: {

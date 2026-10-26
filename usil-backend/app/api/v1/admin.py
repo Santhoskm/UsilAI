@@ -589,6 +589,9 @@ async def get_admin_documents(
                 "plain_text": doc.plain_text,
                 "content": doc.content,
                 "word_count": doc.word_count,
+                "background_image": doc.background_image or "",
+                "background_mode": doc.background_mode or "cover",
+                "background_opacity": float(doc.background_opacity) if doc.background_opacity is not None else 0.2,
                 "created_at": doc.created_at.isoformat() if doc.created_at else None,
                 "updated_at": doc.updated_at.isoformat() if doc.updated_at else None,
             }

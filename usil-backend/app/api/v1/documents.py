@@ -16,6 +16,9 @@ class DocumentItem(BaseModel):
     content: str = ""
     plain_text: str = ""
     word_count: int = 0
+    background_image: Optional[str] = ""
+    background_mode: Optional[str] = "cover"
+    background_opacity: Optional[float] = 0.2
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -53,6 +56,9 @@ async def get_user_documents(
             "content": doc.content,
             "plain_text": doc.plain_text,
             "word_count": doc.word_count,
+            "background_image": doc.background_image or "",
+            "background_mode": doc.background_mode or "cover",
+            "background_opacity": float(doc.background_opacity) if doc.background_opacity is not None else 0.2,
             "created_at": doc.created_at.isoformat() if doc.created_at else None,
             "updated_at": doc.updated_at.isoformat() if doc.updated_at else None,
         }
@@ -110,6 +116,10 @@ async def sync_user_documents(
         )
 
     for item in payload.documents:
+        bg_img = item.background_image or ""
+        bg_mode = item.background_mode or "cover"
+        bg_opacity = item.background_opacity if item.background_opacity is not None else 0.2
+
         if item.id in existing_ids:
             # Update existing document
             stmt = select(UserDocument).where(
@@ -123,6 +133,9 @@ async def sync_user_documents(
                 existing_doc.content = item.content
                 existing_doc.plain_text = item.plain_text
                 existing_doc.word_count = item.word_count
+                existing_doc.background_image = bg_img
+                existing_doc.background_mode = bg_mode
+                existing_doc.background_opacity = bg_opacity
         else:
             new_doc = UserDocument(
                 id=item.id,
@@ -130,7 +143,10 @@ async def sync_user_documents(
                 title=item.title,
                 content=item.content,
                 plain_text=item.plain_text,
-                word_count=item.word_count
+                word_count=item.word_count,
+                background_image=bg_img,
+                background_mode=bg_mode,
+                background_opacity=bg_opacity
             )
             db.add(new_doc)
             existing_ids.add(item.id)
