@@ -3295,9 +3295,16 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 2px;
   flex-wrap: nowrap;
-  overflow: visible;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
   box-sizing: border-box;
   transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.toolbar.floating-sticky-toolbar::-webkit-scrollbar {
+  display: none;
 }
 
 .toolbar.floating-sticky-toolbar:hover {
@@ -5981,6 +5988,41 @@ onBeforeUnmount(() => {
 
 
 
+
+/* Responsive Toolbar for Compact Laptop & Desktop Screens (e.g. 1366x768, 1280x800, 125% DPI scale) */
+@media (max-width: 1366px) {
+  .toolbar.floating-sticky-toolbar {
+    margin: 6px 6px 8px 6px;
+    padding: 0 6px;
+    gap: 1.5px;
+  }
+
+  .toolbar.floating-sticky-toolbar .toolbar-divider {
+    margin: 0 2px;
+  }
+
+  .toolbar.floating-sticky-toolbar .font-selector-btn {
+    max-width: 95px;
+    padding: 0 5px;
+  }
+
+  .toolbar.floating-sticky-toolbar .font-selector-btn .font-name {
+    max-width: 50px;
+  }
+
+  .toolbar.floating-sticky-toolbar .btn-clear span,
+  .toolbar.floating-sticky-toolbar .btn-ai span {
+    display: none;
+  }
+
+  .toolbar.floating-sticky-toolbar .btn-clear,
+  .toolbar.floating-sticky-toolbar .btn-ai {
+    padding: 0;
+    min-width: 29px;
+    width: 29px;
+    justify-content: center;
+  }
+}
 
 /* Responsive */
 @media (max-width: 768px) {
