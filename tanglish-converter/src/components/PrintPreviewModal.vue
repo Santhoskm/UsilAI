@@ -224,7 +224,6 @@
                 <!-- Sheet Header (Clean non-editable title heading) -->
                 <div class="sheet-header-block">
                   <div class="sheet-title-text">{{ previewTitle || 'Tamil Document' }}</div>
-                  <div class="sheet-date-text">{{ currentDateStr }}</div>
                 </div>
                 <div class="sheet-divider"></div>
 
@@ -234,11 +233,6 @@
                   class="sheet-content-render"
                   :style="sheetTextStyle"
                 ></div>
-
-                <!-- Sheet Footer (Watermark-free) -->
-                <div class="sheet-footer-block">
-                  <span class="sheet-page-info">Page 1 of 1</span>
-                </div>
               </div>
             </div>
           </div>
@@ -493,15 +487,6 @@ const downloadAsPDF = () => {
             border-radius: 6px;
             margin: 12px 0;
           }
-          .print-footer {
-            margin-top: 48px;
-            padding-top: 12px;
-            border-top: 1px solid #e2e8f0;
-            font-size: 11px;
-            color: #94a3b8;
-            display: flex;
-            justify-content: space-between;
-          }
         </style>
       </head>
       <body>
@@ -510,10 +495,6 @@ const downloadAsPDF = () => {
           <h1 class="print-title">${titleToPrint}</h1>
         </div>
         <div class="print-content">${htmlToPrint}</div>
-        <div class="print-footer">
-          <span>${new Date().toLocaleDateString()}</span>
-          <span>Page 1 of 1</span>
-        </div>
       </body>
     </html>
   `)
