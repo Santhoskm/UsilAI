@@ -2,30 +2,6 @@
   <Teleport to="body">
     <div v-if="isOpen" class="modal-overlay" @click.self="closeModal">
       <div class="split-download-modal" role="dialog" aria-modal="true">
-        <!-- Header -->
-        <header class="modal-header">
-          <div class="header-branding">
-            <div class="header-icon-badge">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                <polyline points="7 10 12 15 17 10"></polyline>
-                <line x1="12" y1="15" x2="12" y2="3"></line>
-              </svg>
-            </div>
-            <div>
-              <h2 class="header-title">Download Document</h2>
-              <p class="header-subtitle">Format & layout settings • A4 preview on the right</p>
-            </div>
-          </div>
-
-          <button @click="closeModal" class="btn-close-modal" aria-label="Close dialog">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
-          </button>
-        </header>
-
         <!-- Split Body: Left = Format & Layout Controls | Right = A4 Preview -->
         <div class="modal-split-body">
           <!-- LEFT: Format & Layout Controls Only -->
@@ -208,14 +184,22 @@
 
           <!-- RIGHT: A4 Document Sheet Preview (Read-only format preview) -->
           <div class="right-panel">
-            <!-- Stage Top Bar: Controls & Zoom -->
+            <!-- Stage Top Bar: Controls, Zoom & Close Button -->
             <div class="stage-topbar">
               <span class="preview-badge">A4 Sheet Preview</span>
-              <div class="zoom-stepper">
-                <button @click="zoomOut" class="btn-zoom" :disabled="zoomLevel <= 60" title="Zoom Out">−</button>
-                <span class="zoom-text">{{ zoomLevel }}%</span>
-                <button @click="zoomIn" class="btn-zoom" :disabled="zoomLevel >= 140" title="Zoom In">+</button>
-                <button @click="resetZoom" class="btn-zoom-reset" title="Reset Zoom">Reset</button>
+              <div class="topbar-controls">
+                <div class="zoom-stepper">
+                  <button @click="zoomOut" class="btn-zoom" :disabled="zoomLevel <= 60" title="Zoom Out">−</button>
+                  <span class="zoom-text">{{ zoomLevel }}%</span>
+                  <button @click="zoomIn" class="btn-zoom" :disabled="zoomLevel >= 140" title="Zoom In">+</button>
+                  <button @click="resetZoom" class="btn-zoom-reset" title="Reset Zoom">Reset</button>
+                </div>
+                <button @click="closeModal" class="btn-close-modal-topbar" aria-label="Close dialog" title="Close">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
+                </button>
               </div>
             </div>
 
@@ -251,10 +235,9 @@
                   :style="sheetTextStyle"
                 ></div>
 
-                <!-- Sheet Footer -->
+                <!-- Sheet Footer (Watermark-free) -->
                 <div class="sheet-footer-block">
-                  <span>Created with Usil AI (Tanglish to Tamil)</span>
-                  <span>Page 1 of 1</span>
+                  <span class="sheet-page-info">Page 1 of 1</span>
                 </div>
               </div>
             </div>
@@ -528,8 +511,8 @@ const downloadAsPDF = () => {
         </div>
         <div class="print-content">${htmlToPrint}</div>
         <div class="print-footer">
-          <span>Created with Usil AI (Tanglish to Tamil)</span>
           <span>${new Date().toLocaleDateString()}</span>
+          <span>Page 1 of 1</span>
         </div>
       </body>
     </html>
@@ -592,7 +575,7 @@ const downloadAsTxt = () => {
   const titleToPrint = previewTitle.value || 'Tamil Document'
   const cleanTitle = titleToPrint.replace(/[\\/:*?"<>|]/g, '_').trim() || 'tamil_document'
 
-  const fullText = `${titleToPrint}\n${'='.repeat(Math.max(12, titleToPrint.length))}\n\n${textContent}\n\n---\nCreated with Usil AI\n`
+  const fullText = `${titleToPrint}\n${'='.repeat(Math.max(12, titleToPrint.length))}\n\n${textContent}\n`
   const blob = new Blob(['\ufeff' + fullText], { type: 'text/plain;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -631,8 +614,8 @@ const downloadAsTxt = () => {
 .split-download-modal {
   width: 94%;
   max-width: 980px;
-  height: 84vh;
-  max-height: 680px;
+  height: 82vh;
+  max-height: 650px;
   background: #ffffff;
   border: 1px solid #e2e8f0;
   border-radius: 18px;
@@ -655,75 +638,13 @@ const downloadAsTxt = () => {
   }
 }
 
-/* Header */
-.modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 22px;
-  border-bottom: 1px solid #e2e8f0;
-  background: #ffffff;
-  flex-shrink: 0;
-}
-
-.header-branding {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.header-icon-badge {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  background: #eef2ff;
-  color: #4f46e5;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.header-title {
-  font-size: 16px;
-  font-weight: 700;
-  color: #0f172a;
-  margin: 0;
-  line-height: 1.25;
-}
-
-.header-subtitle {
-  font-size: 12px;
-  color: #64748b;
-  margin: 2px 0 0 0;
-  line-height: 1.2;
-}
-
-.btn-close-modal {
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
-  border: none;
-  background: #f8fafc;
-  color: #64748b;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.btn-close-modal:hover {
-  background: #f1f5f9;
-  color: #0f172a;
-}
-
 /* Split Body */
 .modal-split-body {
   flex: 1;
   display: flex;
   overflow: hidden;
   background: #ffffff;
+  height: 100%;
 }
 
 /* ── LEFT: Formats & Layout Panel ───────────────────────── */
@@ -735,8 +656,8 @@ const downloadAsTxt = () => {
   flex-direction: column;
   overflow-y: auto;
   background: #ffffff;
-  padding: 18px 22px;
-  gap: 18px;
+  padding: 22px 22px 18px;
+  gap: 16px;
 }
 
 .panel-section {
@@ -1029,6 +950,12 @@ const downloadAsTxt = () => {
   letter-spacing: 0.04em;
 }
 
+.topbar-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .zoom-stepper {
   display: inline-flex;
   align-items: center;
@@ -1081,6 +1008,26 @@ const downloadAsTxt = () => {
 .btn-zoom-reset:hover {
   background: #f8fafc;
   color: #0f172a;
+}
+
+.btn-close-modal-topbar {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-close-modal-topbar:hover {
+  background: #f8fafc;
+  color: #0f172a;
+  border-color: #94a3b8;
 }
 
 /* Canvas Stage */
@@ -1204,7 +1151,11 @@ const downloadAsTxt = () => {
   font-size: 10px;
   color: #94a3b8;
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
+}
+
+.sheet-page-info {
+  font-weight: 500;
 }
 
 /* Responsive for smaller screens */
