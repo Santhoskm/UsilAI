@@ -1,25 +1,192 @@
 <template>
   <Teleport to="body">
-    <div v-if="isOpen" class="print-preview-backdrop" @click.self="closeModal">
-      <div class="print-preview-modal" role="dialog" aria-modal="true">
-        <!-- Modal Top Bar -->
-        <header class="preview-modal-header">
-          <div class="header-left">
-            <div class="header-icon-badge">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <div v-if="isOpen" class="modal-overlay" @click.self="closeModal">
+      <div class="compact-print-modal" role="dialog" aria-modal="true">
+        <!-- Header -->
+        <header class="modal-top">
+          <div class="top-title-group">
+            <div class="modal-icon-badge">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="6 9 6 2 18 2 18 9"></polyline>
                 <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
                 <rect x="6" y="14" width="12" height="8"></rect>
               </svg>
             </div>
             <div>
-              <h2 class="preview-modal-title">Print & Download Preview</h2>
-              <p class="preview-modal-subtitle">Interactive A4 printable sheet • Click anywhere on the sheet to edit text before printing</p>
+              <h2 class="modal-heading">Print & Download</h2>
+              <p class="modal-subheading">Live printable preview • Click text or title to edit</p>
             </div>
           </div>
 
-          <div class="header-actions">
-            <!-- Quick Print Primary Button -->
+          <button @click="closeModal" class="btn-close-modal" aria-label="Close dialog">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </header>
+
+        <!-- Compact Page Layout Options Bar -->
+        <div class="options-strip">
+          <!-- Orientation -->
+          <div class="option-pill-group">
+            <span class="group-label">Layout:</span>
+            <div class="seg-control">
+              <button 
+                @click="previewOrientation = 'portrait'" 
+                class="seg-pill" 
+                :class="{ active: previewOrientation === 'portrait' }"
+              >
+                Portrait
+              </button>
+              <button 
+                @click="previewOrientation = 'landscape'" 
+                class="seg-pill" 
+                :class="{ active: previewOrientation === 'landscape' }"
+              >
+                Landscape
+              </button>
+            </div>
+          </div>
+
+          <!-- Margins -->
+          <div class="option-pill-group">
+            <span class="group-label">Margins:</span>
+            <div class="seg-control">
+              <button 
+                @click="previewMargin = 'compact'" 
+                class="seg-pill" 
+                :class="{ active: previewMargin === 'compact' }"
+              >
+                Narrow
+              </button>
+              <button 
+                @click="previewMargin = 'normal'" 
+                class="seg-pill" 
+                :class="{ active: previewMargin === 'normal' }"
+              >
+                Normal
+              </button>
+              <button 
+                @click="previewMargin = 'wide'" 
+                class="seg-pill" 
+                :class="{ active: previewMargin === 'wide' }"
+              >
+                Wide
+              </button>
+            </div>
+          </div>
+
+          <!-- Font Size Controls -->
+          <div class="option-pill-group font-stepper-group">
+            <span class="group-label">Size:</span>
+            <div class="stepper-control">
+              <button @click="decreaseFontSize" class="stepper-btn" :disabled="previewFontSize <= 12">−</button>
+              <span class="stepper-val">{{ previewFontSize }}px</span>
+              <button @click="increaseFontSize" class="stepper-btn" :disabled="previewFontSize >= 28">+</button>
+            </div>
+          </div>
+
+          <!-- Watermark toggle (if background image exists) -->
+          <div v-if="docBackground" class="option-pill-group bg-toggle-group">
+            <label class="toggle-label" title="Toggle background watermark for printing">
+              <input type="checkbox" v-model="previewIncludeBackground" class="checkbox-input" />
+              <span>Background</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Middle Canvas & Live Editable Sheet Preview -->
+        <div class="sheet-viewport">
+          <div class="edit-hint-strip">
+            <span class="hint-icon">✏️</span>
+            <span>Click directly on the sheet below to edit text or title before printing</span>
+          </div>
+
+          <div class="sheet-scroll-wrap">
+            <div 
+              class="a4-preview-sheet"
+              :class="[
+                `margin-${previewMargin}`, 
+                `orientation-${previewOrientation}`,
+                { 'with-bg': previewIncludeBackground && docBackground }
+              ]"
+              :style="sheetStyle"
+            >
+              <!-- Optional Document Background Layer -->
+              <div 
+                v-if="previewIncludeBackground && docBackground" 
+                class="sheet-bg-layer"
+                :style="sheetBgStyle"
+              ></div>
+
+              <!-- Sheet Header (Editable Title) -->
+              <div class="sheet-title-row">
+                <input 
+                  type="text"
+                  v-model="previewTitle"
+                  class="sheet-title-input"
+                  placeholder="Document Title..."
+                  title="Click to edit document title"
+                  @input="onContentEdited"
+                />
+                <span class="sheet-date-tag">{{ currentDateStr }}</span>
+              </div>
+              <div class="sheet-rule"></div>
+
+              <!-- Sheet Body (Live Contenteditable) -->
+              <div 
+                ref="contentAreaRef"
+                contenteditable="true"
+                class="sheet-content-editable"
+                @input="onContentEdited"
+                spellcheck="false"
+                title="Click anywhere to edit content"
+              ></div>
+
+              <!-- Sheet Footer -->
+              <div class="sheet-footer-row">
+                <span>Created with Usil AI (Tanglish to Tamil)</span>
+                <span>Page 1 of 1</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Unsynced Edits Sync Notification -->
+        <div v-if="hasUnsyncedEdits" class="sync-reminder-bar">
+          <span class="reminder-text">💡 You made changes in the preview sheet</span>
+          <button @click="applyEditsToEditor" class="btn-sync-to-editor">
+            Save to Document
+          </button>
+        </div>
+
+        <!-- Modal Footer Actions Bar -->
+        <footer class="modal-footer">
+          <div class="export-formats">
+            <button @click="downloadAsWord" class="btn-format btn-format-word" title="Download as formatted Word .doc">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+              </svg>
+              <span>Word (.doc)</span>
+            </button>
+
+            <button @click="downloadAsTxt" class="btn-format btn-format-txt" title="Download as plain text file">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+              </svg>
+              <span>Text (.txt)</span>
+            </button>
+          </div>
+
+          <div class="primary-actions">
+            <button @click="closeModal" class="btn-cancel">
+              Cancel
+            </button>
             <button @click="printDocument" class="btn-primary-print" title="Print document or save as PDF">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="6 9 6 2 18 2 18 9"></polyline>
@@ -28,254 +195,8 @@
               </svg>
               <span>Print / Save as PDF</span>
             </button>
-
-            <!-- Close Button -->
-            <button @click="closeModal" class="btn-close-preview" aria-label="Close preview">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
-            </button>
           </div>
-        </header>
-
-        <!-- Modal Body: Main Stage & Controls Sidebar -->
-        <div class="preview-modal-body">
-          <!-- Left: Scrollable Paper Stage -->
-          <main class="preview-paper-stage">
-            <!-- Stage Zoom & Utility Bar -->
-            <div class="stage-toolbar">
-              <div class="zoom-controls">
-                <button @click="zoomOut" class="btn-stage-tool" title="Zoom Out" :disabled="zoomLevel <= 50">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                </button>
-                <span class="zoom-badge">{{ zoomLevel }}%</span>
-                <button @click="zoomIn" class="btn-stage-tool" title="Zoom In" :disabled="zoomLevel >= 150">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                </button>
-                <button @click="resetZoom" class="btn-stage-tool-text">Reset</button>
-              </div>
-
-              <div class="edit-hint-badge">
-                <span class="hint-dot"></span>
-                <span>Editable Preview: Click text or title to make last-minute edits</span>
-              </div>
-            </div>
-
-            <!-- Scroll Container -->
-            <div class="sheet-scroll-container">
-              <!-- Printable Sheet (A4 Dimensions scaled by zoom) -->
-              <div 
-                class="printable-a4-sheet"
-                :class="[
-                  `margin-${previewMargin}`, 
-                  `orientation-${previewOrientation}`,
-                  { 'with-bg': previewIncludeBackground && docBackground }
-                ]"
-                :style="sheetStyle"
-              >
-                <!-- Optional Document Background Layer -->
-                <div 
-                  v-if="previewIncludeBackground && docBackground" 
-                  class="sheet-bg-layer"
-                  :style="sheetBgStyle"
-                ></div>
-
-                <!-- Printable Sheet Header (Title) -->
-                <div v-if="previewIncludeHeaderFooter" class="sheet-header">
-                  <div class="title-edit-wrapper">
-                    <input 
-                      type="text"
-                      v-model="previewTitle"
-                      class="sheet-title-input"
-                      placeholder="Click to edit document title..."
-                      title="Editable Document Title"
-                    />
-                    <span class="edit-icon-indicator" title="Edit title">✏️</span>
-                  </div>
-                  <div class="sheet-header-line"></div>
-                </div>
-
-                <!-- Printable Sheet Content (Editable contenteditable) -->
-                <div 
-                  ref="contentAreaRef"
-                  contenteditable="true"
-                  class="sheet-content-editable"
-                  @input="onContentEdited"
-                  spellcheck="false"
-                  title="Click anywhere to edit content before printing"
-                ></div>
-
-                <!-- Printable Sheet Footer -->
-                <div v-if="previewIncludeHeaderFooter" class="sheet-footer">
-                  <span class="footer-brand">Created with Usil AI (Tanglish to Tamil)</span>
-                  <span class="footer-date">{{ currentDateStr }}</span>
-                  <span class="footer-page">Page 1 of 1</span>
-                </div>
-              </div>
-            </div>
-          </main>
-
-          <!-- Right: Print & Export Control Sidebar -->
-          <aside class="preview-settings-sidebar">
-            <!-- Section: Primary Actions -->
-            <div class="settings-card primary-actions-card">
-              <h3 class="settings-card-title">Export Actions</h3>
-              
-              <button @click="printDocument" class="action-btn-main print-action">
-                <div class="action-icon print-icon">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="6 9 6 2 18 2 18 9"></polyline>
-                    <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
-                    <rect x="6" y="14" width="12" height="8"></rect>
-                  </svg>
-                </div>
-                <div class="action-details">
-                  <span class="action-name">Print / Save as PDF</span>
-                  <span class="action-desc">High quality print or vector PDF</span>
-                </div>
-              </button>
-
-              <button @click="downloadAsWord" class="action-btn-main word-action">
-                <div class="action-icon doc-icon">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                    <polyline points="14 2 14 8 20 8"></polyline>
-                    <line x1="16" y1="13" x2="8" y2="13"></line>
-                    <line x1="16" y1="17" x2="8" y2="17"></line>
-                  </svg>
-                </div>
-                <div class="action-details">
-                  <span class="action-name">Word Document (.doc)</span>
-                  <span class="action-desc">Formatted Microsoft Word</span>
-                </div>
-              </button>
-
-              <button @click="downloadAsTxt" class="action-btn-main txt-action">
-                <div class="action-icon txt-icon">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                    <polyline points="14 2 14 8 20 8"></polyline>
-                    <line x1="16" y1="13" x2="8" y2="13"></line>
-                    <line x1="16" y1="17" x2="8" y2="17"></line>
-                  </svg>
-                </div>
-                <div class="action-details">
-                  <span class="action-name">Plain Text (.txt)</span>
-                  <span class="action-desc">Standard unformatted text</span>
-                </div>
-              </button>
-
-              <div v-if="hasUnsyncedEdits" class="sync-edits-banner">
-                <div class="sync-banner-text">You edited this preview</div>
-                <button @click="applyEditsToEditor" class="btn-apply-sync">
-                  <span>🔄 Save Changes to Document</span>
-                </button>
-              </div>
-            </div>
-
-            <!-- Section: Layout & Page Settings -->
-            <div class="settings-card">
-              <h3 class="settings-card-title">Page Layout</h3>
-
-              <!-- Orientation Toggle -->
-              <div class="control-row">
-                <label class="control-label">Orientation</label>
-                <div class="segmented-control">
-                  <button 
-                    @click="previewOrientation = 'portrait'" 
-                    class="seg-btn" 
-                    :class="{ active: previewOrientation === 'portrait' }"
-                  >
-                    Portrait
-                  </button>
-                  <button 
-                    @click="previewOrientation = 'landscape'" 
-                    class="seg-btn" 
-                    :class="{ active: previewOrientation === 'landscape' }"
-                  >
-                    Landscape
-                  </button>
-                </div>
-              </div>
-
-              <!-- Margins -->
-              <div class="control-row">
-                <label class="control-label">Margins</label>
-                <div class="segmented-control">
-                  <button 
-                    @click="previewMargin = 'compact'" 
-                    class="seg-btn" 
-                    :class="{ active: previewMargin === 'compact' }"
-                  >
-                    Narrow
-                  </button>
-                  <button 
-                    @click="previewMargin = 'normal'" 
-                    class="seg-btn" 
-                    :class="{ active: previewMargin === 'normal' }"
-                  >
-                    Normal
-                  </button>
-                  <button 
-                    @click="previewMargin = 'wide'" 
-                    class="seg-btn" 
-                    :class="{ active: previewMargin === 'wide' }"
-                  >
-                    Wide
-                  </button>
-                </div>
-              </div>
-
-              <!-- Font Size -->
-              <div class="control-row">
-                <div class="label-with-val">
-                  <label class="control-label">Font Size</label>
-                  <span class="value-chip">{{ previewFontSize }}px</span>
-                </div>
-                <div class="slider-wrapper">
-                  <input 
-                    type="range" 
-                    min="12" 
-                    max="24" 
-                    step="1" 
-                    v-model.number="previewFontSize" 
-                    class="preview-slider"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <!-- Section: Elements Toggle -->
-            <div class="settings-card">
-              <h3 class="settings-card-title">Display Elements</h3>
-
-              <!-- Background Watermark Toggle -->
-              <div class="toggle-row">
-                <div class="toggle-info">
-                  <span class="toggle-title">Document Background</span>
-                  <span class="toggle-subtitle">Print watermark or texture</span>
-                </div>
-                <label class="toggle-switch">
-                  <input type="checkbox" v-model="previewIncludeBackground" :disabled="!docBackground" />
-                  <span class="toggle-slider"></span>
-                </label>
-              </div>
-
-              <!-- Header & Footer Toggle -->
-              <div class="toggle-row">
-                <div class="toggle-info">
-                  <span class="toggle-title">Header & Footer</span>
-                  <span class="toggle-subtitle">Include title, date & page info</span>
-                </div>
-                <label class="toggle-switch">
-                  <input type="checkbox" v-model="previewIncludeHeaderFooter" />
-                  <span class="toggle-slider"></span>
-                </label>
-              </div>
-            </div>
-          </aside>
-        </div>
+        </footer>
       </div>
     </div>
   </Teleport>
@@ -326,10 +247,7 @@ const previewTitle = ref('')
 const previewFontSize = ref(16)
 const previewMargin = ref('normal') // 'compact' | 'normal' | 'wide'
 const previewOrientation = ref('portrait') // 'portrait' | 'landscape'
-const previewPaperSize = ref('A4')
 const previewIncludeBackground = ref(true)
-const previewIncludeHeaderFooter = ref(true)
-const zoomLevel = ref(100)
 const hasUnsyncedEdits = ref(false)
 
 const currentDateStr = computed(() => {
@@ -341,8 +259,6 @@ const currentDateStr = computed(() => {
 })
 
 const sheetStyle = computed(() => ({
-  transform: `scale(${zoomLevel.value / 100})`,
-  transformOrigin: 'top center',
   fontFamily: props.selectedFont?.value || "'Noto Sans Tamil', sans-serif",
   fontSize: `${previewFontSize.value}px`
 }))
@@ -359,14 +275,12 @@ const sheetBgStyle = computed(() => {
   }
 })
 
-const zoomIn = () => {
-  if (zoomLevel.value < 150) zoomLevel.value += 10
+const increaseFontSize = () => {
+  if (previewFontSize.value < 28) previewFontSize.value += 2
 }
-const zoomOut = () => {
-  if (zoomLevel.value > 50) zoomLevel.value -= 10
-}
-const resetZoom = () => {
-  zoomLevel.value = 100
+
+const decreaseFontSize = () => {
+  if (previewFontSize.value > 12) previewFontSize.value -= 2
 }
 
 const onContentEdited = () => {
@@ -394,8 +308,6 @@ watch(() => props.isOpen, async (newVal) => {
     previewMargin.value = 'normal'
     previewOrientation.value = 'portrait'
     previewIncludeBackground.value = Boolean(props.docBackground)
-    previewIncludeHeaderFooter.value = true
-    zoomLevel.value = 100
     hasUnsyncedEdits.value = false
 
     await nextTick()
@@ -426,7 +338,6 @@ const printDocument = () => {
   }
   const chosenMargin = marginMap[previewMargin.value] || '20mm'
   const chosenOrientation = previewOrientation.value === 'landscape' ? 'landscape' : 'portrait'
-  const chosenSize = `${previewPaperSize.value || 'A4'} ${chosenOrientation}`
 
   let bgCss = ''
   if (previewIncludeBackground.value && props.docBackground) {
@@ -456,7 +367,7 @@ const printDocument = () => {
         <style>
           @page {
             margin: ${chosenMargin};
-            size: ${chosenSize};
+            size: A4 ${chosenOrientation};
           }
           * {
             box-sizing: border-box;
@@ -466,44 +377,45 @@ const printDocument = () => {
           }
           body {
             font-family: ${props.selectedFont?.value || "'Noto Sans Tamil', sans-serif"};
-            font-size: ${previewFontSize.value || 16}px;
+            font-size: ${previewFontSize.value}px;
             line-height: 1.8;
             color: #0f172a;
             margin: 0;
             padding: 0;
-            position: relative;
             background: white;
+            position: relative;
           }
-          ${previewIncludeBackground.value && bgCss ? `
-            .print-bg-layer {
-              position: fixed;
-              top: 0; left: 0; right: 0; bottom: 0;
-              z-index: -1;
-              pointer-events: none;
-              ${bgCss}
-            }
-          ` : ''}
+          .print-bg-layer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            z-index: -1;
+            ${bgCss}
+          }
           .print-header {
-            border-bottom: 2px solid #6366f1;
+            border-bottom: 2px solid #e2e8f0;
             padding-bottom: 10px;
             margin-bottom: 24px;
           }
           .print-title {
             font-size: 24px;
             font-weight: 700;
-            color: #1e293b;
+            color: #0f172a;
             margin: 0;
           }
           .print-content {
             min-height: 200px;
           }
-          .print-content h1 { font-size: 24px; margin-top: 1.2em; margin-bottom: 0.5em; color: #1e293b; }
-          .print-content h2 { font-size: 20px; margin-top: 1.1em; margin-bottom: 0.4em; color: #1e293b; }
-          .print-content h3 { font-size: 18px; margin-top: 1em; margin-bottom: 0.3em; color: #1e293b; }
+          .print-content h1 { font-size: 24px; margin-top: 1.2em; margin-bottom: 0.5em; color: #0f172a; }
+          .print-content h2 { font-size: 20px; margin-top: 1.1em; margin-bottom: 0.4em; color: #0f172a; }
+          .print-content h3 { font-size: 18px; margin-top: 1em; margin-bottom: 0.3em; color: #0f172a; }
           .print-content p { margin: 0.8em 0; }
           .print-content blockquote { border-left: 3px solid #6366f1; margin: 1em 0; padding-left: 14px; color: #475569; font-style: italic; }
           .print-content code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; font-family: monospace; }
-          .print-content img.editor-embedded-image {
+          .print-content img {
             max-width: 100%;
             height: auto;
             border-radius: 6px;
@@ -522,18 +434,14 @@ const printDocument = () => {
       </head>
       <body>
         ${previewIncludeBackground.value && bgCss ? '<div class="print-bg-layer"></div>' : ''}
-        ${previewIncludeHeaderFooter.value ? `
-          <div class="print-header">
-            <h1 class="print-title">${titleToPrint}</h1>
-          </div>
-        ` : ''}
+        <div class="print-header">
+          <h1 class="print-title">${titleToPrint}</h1>
+        </div>
         <div class="print-content">${htmlToPrint}</div>
-        ${previewIncludeHeaderFooter.value ? `
-          <div class="print-footer">
-            <span>Created with Usil AI (Tanglish to Tamil)</span>
-            <span>${new Date().toLocaleDateString()}</span>
-          </div>
-        ` : ''}
+        <div class="print-footer">
+          <span>Created with Usil AI (Tanglish to Tamil)</span>
+          <span>${new Date().toLocaleDateString()}</span>
+        </div>
       </body>
     </html>
   `)
@@ -550,7 +458,7 @@ const printDocument = () => {
   }, 400)
 }
 
-// ── Export as Word (.doc) from preview ──────────────────────────
+// ── Export as Word (.doc) ───────────────────────────────────────
 const downloadAsWord = () => {
   const htmlToPrint = contentAreaRef.value ? contentAreaRef.value.innerHTML : (props.initialContent || '')
   const titleToPrint = previewTitle.value || 'Tamil Document'
@@ -568,9 +476,9 @@ const downloadAsWord = () => {
             line-height: 1.8;
             color: #000000;
           }
-          h1 { font-size: 20pt; color: #1e293b; margin-bottom: 8pt; }
-          h2 { font-size: 16pt; color: #1e293b; margin-bottom: 6pt; }
-          h3 { font-size: 14pt; color: #1e293b; margin-bottom: 4pt; }
+          h1 { font-size: 20pt; color: #0f172a; margin-bottom: 8pt; }
+          h2 { font-size: 16pt; color: #0f172a; margin-bottom: 6pt; }
+          h3 { font-size: 14pt; color: #0f172a; margin-bottom: 4pt; }
           blockquote { margin: 12pt 0; padding-left: 12pt; border-left: 3pt solid #6366f1; color: #555555; }
         </style>
       </head>
@@ -589,7 +497,7 @@ const downloadAsWord = () => {
   URL.revokeObjectURL(url)
 }
 
-// ── Export as Plain Text (.txt) from preview ────────────────────
+// ── Export as Plain Text (.txt) ─────────────────────────────────
 const downloadAsTxt = () => {
   const textContent = contentAreaRef.value ? contentAreaRef.value.innerText : ''
   const titleToPrint = previewTitle.value || 'Tamil Document'
@@ -607,15 +515,16 @@ const downloadAsTxt = () => {
 </script>
 
 <style scoped>
-.print-preview-backdrop {
+/* Backdrop */
+.modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(15, 23, 42, 0.72);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
   z-index: 99999;
   display: flex;
   align-items: center;
@@ -629,104 +538,83 @@ const downloadAsTxt = () => {
   to { opacity: 1; }
 }
 
-.print-preview-modal {
-  width: 96vw;
-  max-width: 1440px;
-  height: 94vh;
-  background: #0f172a;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 18px;
-  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.6);
+/* Compact Modal in Middle of Page */
+.compact-print-modal {
+  width: 92%;
+  max-width: 660px;
+  max-height: 88vh;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  box-shadow: 0 20px 45px -10px rgba(15, 23, 42, 0.22), 0 0 0 1px rgba(15, 23, 42, 0.04);
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  animation: modalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: popIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  color: #0f172a;
 }
 
-@keyframes modalPop {
-  from { opacity: 0; transform: scale(0.96); }
-  to { opacity: 1; transform: scale(1); }
+@keyframes popIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 /* Header */
-.preview-modal-header {
-  height: 64px;
-  min-height: 64px;
-  background: #1e293b;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+.modal-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 24px;
+  padding: 16px 20px;
+  border-bottom: 1px solid #f1f5f9;
+  background: #ffffff;
 }
 
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.header-icon-badge {
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #4f46e5, #6366f1);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.35);
-}
-
-.preview-modal-title {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 700;
-  color: #f8fafc;
-  letter-spacing: -0.01em;
-}
-
-.preview-modal-subtitle {
-  margin: 2px 0 0;
-  font-size: 12px;
-  color: #94a3b8;
-}
-
-.header-actions {
+.top-title-group {
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
-.btn-primary-print {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 9px 20px;
-  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
-  color: white;
-  border: none;
+.modal-icon-badge {
+  width: 38px;
+  height: 38px;
   border-radius: 10px;
-  font-size: 13.5px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
+  background: #eef2ff;
+  color: #4f46e5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
-.btn-primary-print:hover {
-  background: linear-gradient(135deg, #4338ca 0%, #4f46e5 100%);
-  transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(99, 102, 241, 0.45);
+.modal-heading {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+  line-height: 1.25;
 }
 
-.btn-close-preview {
-  width: 36px;
-  height: 36px;
+.modal-subheading {
+  font-size: 12px;
+  color: #64748b;
+  margin: 2px 0 0 0;
+  line-height: 1.2;
+}
+
+.btn-close-modal {
+  width: 32px;
+  height: 32px;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #94a3b8;
+  border: none;
+  background: #f8fafc;
+  color: #64748b;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -734,546 +622,434 @@ const downloadAsTxt = () => {
   transition: all 0.15s ease;
 }
 
-.btn-close-preview:hover {
-  background: rgba(239, 68, 68, 0.15);
-  color: #ef4444;
-  border-color: rgba(239, 68, 68, 0.3);
+.btn-close-modal:hover {
+  background: #f1f5f9;
+  color: #0f172a;
 }
 
-/* Modal Body */
-.preview-modal-body {
-  flex: 1;
+/* Options Strip */
+.options-strip {
   display: flex;
-  overflow: hidden;
-  background: #0b1120;
-}
-
-/* Main Paper Stage (Left) */
-.preview-paper-stage {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  background: #090e1a;
-  position: relative;
-}
-
-.stage-toolbar {
-  height: 44px;
-  min-height: 44px;
-  background: rgba(30, 41, 59, 0.7);
-  backdrop-filter: blur(6px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  padding: 0 20px;
-  z-index: 10;
+  gap: 12px;
+  padding: 10px 20px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
 }
 
-.zoom-controls {
+.option-pill-group {
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
-.btn-stage-tool {
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.08);
+.group-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.seg-control {
+  display: inline-flex;
+  background: #e2e8f0;
+  padding: 2px;
+  border-radius: 7px;
+}
+
+.seg-pill {
   border: none;
-  color: #cbd5e1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  background: transparent;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #475569;
+  border-radius: 5px;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
-.btn-stage-tool:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.15);
-  color: white;
+.seg-pill.active {
+  background: #ffffff;
+  color: #4f46e5;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
-.btn-stage-tool:disabled {
+.stepper-control {
+  display: inline-flex;
+  align-items: center;
+  background: #e2e8f0;
+  padding: 2px;
+  border-radius: 7px;
+}
+
+.stepper-btn {
+  border: none;
+  background: transparent;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: #334155;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.stepper-btn:hover:not(:disabled) {
+  background: #cbd5e1;
+}
+
+.stepper-btn:disabled {
   opacity: 0.35;
   cursor: not-allowed;
 }
 
-.zoom-badge {
+.stepper-val {
+  padding: 0 8px;
   font-size: 12px;
   font-weight: 600;
-  color: #e2e8f0;
-  min-width: 44px;
-  text-align: center;
-}
-
-.btn-stage-tool-text {
-  background: transparent;
-  border: none;
-  color: #818cf8;
-  font-size: 11.5px;
-  font-weight: 600;
-  padding: 4px 8px;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.btn-stage-tool-text:hover {
-  background: rgba(129, 140, 248, 0.15);
-}
-
-.edit-hint-badge {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 11.5px;
-  color: #cbd5e1;
-  background: rgba(99, 102, 241, 0.12);
-  border: 1px solid rgba(99, 102, 241, 0.25);
-  padding: 3px 12px;
-  border-radius: 20px;
-}
-
-.hint-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #10b981;
-  box-shadow: 0 0 8px #10b981;
-}
-
-.sheet-scroll-container {
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: auto;
-  padding: 36px 24px 60px;
-  display: flex;
-  justify-content: center;
-}
-
-/* Printable A4 Sheet Simulation */
-.printable-a4-sheet {
-  width: 210mm;
-  min-height: 297mm;
-  background: #ffffff;
   color: #0f172a;
-  border-radius: 4px;
-  box-shadow: 0 16px 48px -8px rgba(0, 0, 0, 0.5), 0 4px 16px rgba(0, 0, 0, 0.25);
-  position: relative;
+}
+
+.toggle-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #475569;
+  cursor: pointer;
+}
+
+.checkbox-input {
+  accent-color: #4f46e5;
+  cursor: pointer;
+}
+
+/* Middle Viewport */
+.sheet-viewport {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  transition: transform 0.15s ease, width 0.2s ease, min-height 0.2s ease;
-  line-height: 1.8;
+  padding: 14px 20px;
+  background: #f1f5f9;
+  overflow: hidden;
 }
 
-/* Margins */
-.printable-a4-sheet.margin-compact {
-  padding: 12mm 14mm 16mm;
-}
-.printable-a4-sheet.margin-normal {
-  padding: 20mm 22mm 24mm;
-}
-.printable-a4-sheet.margin-wide {
-  padding: 28mm 30mm 32mm;
+.edit-hint-strip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #475569;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  padding: 5px 12px;
+  border-radius: 20px;
+  width: fit-content;
+  margin: 0 auto 10px auto;
+  font-weight: 500;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
 }
 
-/* Orientation */
-.printable-a4-sheet.orientation-landscape {
-  width: 297mm;
-  min-height: 210mm;
+.hint-icon {
+  font-size: 12px;
 }
 
-/* Background Layer */
+.sheet-scroll-wrap {
+  flex: 1;
+  overflow-y: auto;
+  background: #e2e8f0;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  justify-content: center;
+  max-height: 360px;
+}
+
+/* A4 Sheet Simulation */
+.a4-preview-sheet {
+  position: relative;
+  width: 100%;
+  max-width: 520px;
+  min-height: 380px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  color: #0f172a;
+  line-height: 1.7;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.a4-preview-sheet.margin-compact {
+  padding: 18px;
+}
+.a4-preview-sheet.margin-normal {
+  padding: 26px;
+}
+.a4-preview-sheet.margin-wide {
+  padding: 34px;
+}
+
+.a4-preview-sheet.orientation-landscape {
+  max-width: 600px;
+  min-height: 290px;
+}
+
 .sheet-bg-layer {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  border-radius: 4px;
   pointer-events: none;
+  z-index: 0;
+}
+
+.sheet-title-row {
+  position: relative;
   z-index: 1;
-}
-
-/* Header */
-.sheet-header {
-  position: relative;
-  z-index: 2;
-  margin-bottom: 20px;
-}
-
-.title-edit-wrapper {
-  position: relative;
   display: flex;
-  align-items: center;
-}
-
-.sheet-title-input {
-  width: 100%;
-  border: 1px dashed transparent;
-  background: transparent;
-  font-size: 24px;
-  font-weight: 700;
-  color: #1e293b;
-  padding: 4px 32px 4px 4px;
-  border-radius: 4px;
-  outline: none;
-  transition: all 0.15s ease;
-}
-
-.sheet-title-input:hover {
-  border-color: #cbd5e1;
-  background: rgba(241, 245, 249, 0.5);
-}
-
-.sheet-title-input:focus {
-  border-color: #6366f1;
-  background: #f8fafc;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
-}
-
-.edit-icon-indicator {
-  position: absolute;
-  right: 8px;
-  font-size: 14px;
-  opacity: 0.4;
-  pointer-events: none;
-}
-
-.sheet-header-line {
-  height: 2px;
-  background: linear-gradient(90deg, #6366f1, #a855f7, #ec4899);
-  margin-top: 8px;
-  border-radius: 2px;
-}
-
-/* Content Area */
-.sheet-content-editable {
-  flex: 1;
-  position: relative;
-  z-index: 2;
-  outline: none;
-  min-height: 200px;
-  padding: 4px;
-  border: 1px dashed transparent;
-  border-radius: 4px;
-  transition: all 0.15s ease;
-}
-
-.sheet-content-editable:hover {
-  border-color: #cbd5e1;
-}
-
-.sheet-content-editable:focus {
-  border-color: #6366f1;
-  background: rgba(248, 250, 252, 0.6);
-}
-
-.sheet-content-editable h1 { font-size: 24px; margin: 1em 0 0.4em; color: #1e293b; }
-.sheet-content-editable h2 { font-size: 20px; margin: 1em 0 0.4em; color: #1e293b; }
-.sheet-content-editable h3 { font-size: 18px; margin: 0.8em 0 0.3em; color: #1e293b; }
-.sheet-content-editable p { margin: 0.7em 0; }
-.sheet-content-editable blockquote { border-left: 3px solid #6366f1; margin: 1em 0; padding-left: 14px; color: #475569; font-style: italic; }
-.sheet-content-editable code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; font-family: monospace; }
-.sheet-content-editable img.editor-embedded-image {
-  max-width: 100%;
-  height: auto;
-  border-radius: 6px;
-  margin: 10px 0;
-}
-
-/* Footer */
-.sheet-footer {
-  position: relative;
-  z-index: 2;
-  margin-top: 36px;
-  padding-top: 12px;
-  border-top: 1px solid #e2e8f0;
-  font-size: 11px;
-  color: #94a3b8;
-  display: flex;
+  align-items: baseline;
   justify-content: space-between;
-  align-items: center;
-}
-
-/* Control Sidebar (Right) */
-.preview-settings-sidebar {
-  width: 340px;
-  min-width: 340px;
-  background: #111827;
-  border-left: 1px solid rgba(255, 255, 255, 0.08);
-  padding: 20px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.settings-card {
-  background: #1e293b;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 12px;
-  padding: 16px;
-}
-
-.settings-card-title {
-  margin: 0 0 14px;
-  font-size: 13px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: #94a3b8;
-}
-
-/* Action Buttons */
-.action-btn-main {
-  width: 100%;
-  display: flex;
-  align-items: center;
   gap: 12px;
-  padding: 12px;
-  margin-bottom: 10px;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.04);
-  color: #f8fafc;
-  cursor: pointer;
-  text-align: left;
-  transition: all 0.2s ease;
-}
-
-.action-btn-main:last-child {
-  margin-bottom: 0;
-}
-
-.action-btn-main:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.16);
-  transform: translateY(-1px);
-}
-
-.action-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.print-icon { background: rgba(99, 102, 241, 0.18); color: #818cf8; }
-.doc-icon { background: rgba(37, 99, 235, 0.18); color: #60a5fa; }
-.txt-icon { background: rgba(16, 185, 129, 0.18); color: #34d399; }
-
-.action-details {
-  display: flex;
-  flex-direction: column;
-}
-
-.action-name {
-  font-size: 13.5px;
-  font-weight: 600;
-  color: #f1f5f9;
-}
-
-.action-desc {
-  font-size: 11.5px;
-  color: #94a3b8;
-}
-
-/* Sync banner */
-.sync-edits-banner {
-  margin-top: 14px;
-  padding: 12px;
-  background: rgba(99, 102, 241, 0.12);
-  border: 1px solid rgba(99, 102, 241, 0.3);
-  border-radius: 8px;
-  text-align: center;
-}
-
-.sync-banner-text {
-  font-size: 11.5px;
-  font-weight: 600;
-  color: #c7d2fe;
   margin-bottom: 8px;
 }
 
-.btn-apply-sync {
-  width: 100%;
-  padding: 8px;
-  background: #6366f1;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
+.sheet-title-input {
+  flex: 1;
+  border: 1px dashed transparent;
+  background: transparent;
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+  padding: 2px 4px;
+  border-radius: 4px;
+  outline: none;
   transition: all 0.15s ease;
 }
 
-.btn-apply-sync:hover {
-  background: #4f46e5;
+.sheet-title-input:hover,
+.sheet-title-input:focus {
+  border-color: #6366f1;
+  background: #f8fafc;
 }
 
-/* Form Controls */
-.control-row {
+.sheet-date-tag {
+  font-size: 11px;
+  color: #94a3b8;
+  white-space: nowrap;
+}
+
+.sheet-rule {
+  position: relative;
+  z-index: 1;
+  height: 1px;
+  background: #e2e8f0;
   margin-bottom: 14px;
 }
-.control-row:last-child {
-  margin-bottom: 0;
+
+.sheet-content-editable {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-height: 160px;
+  outline: none;
+  padding: 4px;
+  border-radius: 4px;
+  border: 1px dashed transparent;
+  transition: border-color 0.15s ease;
+  word-break: break-word;
 }
 
-.control-label {
-  display: block;
-  font-size: 12px;
-  font-weight: 600;
-  color: #cbd5e1;
-  margin-bottom: 6px;
+.sheet-content-editable:hover,
+.sheet-content-editable:focus {
+  border-color: #a5b4fc;
 }
 
-.label-with-val {
+.sheet-content-editable :deep(h1) { font-size: 1.4em; margin: 0.6em 0 0.3em; color: #0f172a; }
+.sheet-content-editable :deep(h2) { font-size: 1.25em; margin: 0.5em 0 0.25em; color: #0f172a; }
+.sheet-content-editable :deep(h3) { font-size: 1.1em; margin: 0.4em 0 0.2em; color: #0f172a; }
+.sheet-content-editable :deep(p) { margin: 0.4em 0; }
+.sheet-content-editable :deep(blockquote) {
+  border-left: 3px solid #6366f1;
+  margin: 0.6em 0;
+  padding-left: 10px;
+  color: #475569;
+  font-style: italic;
+}
+.sheet-content-editable :deep(img) {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+  margin: 8px 0;
+}
+
+.sheet-footer-row {
+  position: relative;
+  z-index: 1;
+  margin-top: 18px;
+  padding-top: 8px;
+  border-top: 1px solid #f1f5f9;
+  font-size: 10px;
+  color: #94a3b8;
+  display: flex;
+  justify-content: space-between;
+}
+
+/* Sync Notification */
+.sync-reminder-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 6px;
+  padding: 8px 20px;
+  background: #ecfdf5;
+  border-top: 1px solid #a7f3d0;
+  border-bottom: 1px solid #a7f3d0;
 }
 
-.value-chip {
-  font-size: 11px;
-  font-weight: 700;
-  color: #818cf8;
-  background: rgba(99, 102, 241, 0.15);
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-.segmented-control {
-  display: flex;
-  background: rgba(15, 23, 42, 0.6);
-  padding: 3px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.seg-btn {
-  flex: 1;
-  padding: 6px;
-  background: transparent;
-  border: none;
-  border-radius: 6px;
+.reminder-text {
   font-size: 12px;
+  color: #065f46;
   font-weight: 500;
-  color: #94a3b8;
+}
+
+.btn-sync-to-editor {
+  border: none;
+  background: #10b981;
+  color: #ffffff;
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.btn-sync-to-editor:hover {
+  background: #059669;
+}
+
+/* Footer Actions */
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  background: #ffffff;
+  border-top: 1px solid #f1f5f9;
+  gap: 12px;
+}
+
+.export-formats {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-format {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.15s ease;
-  text-align: center;
 }
 
-.seg-btn.active {
-  background: #4f46e5;
-  color: white;
-  font-weight: 600;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+.btn-format-word {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1d4ed8;
 }
 
-.preview-slider {
-  width: 100%;
-  accent-color: #6366f1;
-  height: 4px;
+.btn-format-word:hover {
+  background: #dbeafe;
 }
 
-/* Toggle Switches */
-.toggle-row {
+.btn-format-txt {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+}
+
+.btn-format-txt:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.primary-actions {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 8px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-.toggle-row:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
+  gap: 10px;
 }
 
-.toggle-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.toggle-title {
-  font-size: 12.5px;
-  font-weight: 600;
-  color: #e2e8f0;
-}
-
-.toggle-subtitle {
-  font-size: 11px;
+.btn-cancel {
+  border: none;
+  background: transparent;
   color: #64748b;
-}
-
-.toggle-switch {
-  position: relative;
-  display: inline-block;
-  width: 38px;
-  height: 22px;
-}
-
-.toggle-switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-.toggle-slider {
-  position: absolute;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 14px;
+  border-radius: 8px;
   cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: #334155;
-  transition: .2s;
-  border-radius: 22px;
+  transition: all 0.15s ease;
 }
 
-.toggle-slider:before {
-  position: absolute;
-  content: "";
-  height: 16px;
-  width: 16px;
-  left: 3px;
-  bottom: 3px;
-  background-color: white;
-  transition: .2s;
-  border-radius: 50%;
+.btn-cancel:hover {
+  background: #f1f5f9;
+  color: #0f172a;
 }
 
-.toggle-switch input:checked + .toggle-slider {
-  background-color: #4f46e5;
+.btn-primary-print {
+  border: none;
+  background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+  color: #ffffff;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+  transition: all 0.15s ease;
 }
 
-.toggle-switch input:checked + .toggle-slider:before {
-  transform: translateX(16px);
+.btn-primary-print:hover {
+  background: linear-gradient(135deg, #4338ca 0%, #3730a3 100%);
+  box-shadow: 0 6px 16px rgba(79, 70, 229, 0.35);
+  transform: translateY(-1px);
 }
 
-.toggle-switch input:disabled + .toggle-slider {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-@media (max-width: 1024px) {
-  .preview-modal-body {
+@media (max-width: 640px) {
+  .options-strip {
     flex-direction: column;
+    align-items: flex-start;
   }
-  .preview-settings-sidebar {
+  .modal-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .export-formats,
+  .primary-actions {
     width: 100%;
-    min-width: 100%;
-    height: 240px;
-    border-left: none;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    justify-content: space-between;
   }
 }
 </style>
