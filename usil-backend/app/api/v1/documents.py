@@ -28,6 +28,28 @@ class DocumentsSyncRequest(BaseModel):
     documents: List[DocumentItem] = Field(..., max_length=5)
 
 
+from sqlalchemy import text
+
+async def ensure_document_columns(db: AsyncSession):
+    """Self-healing migration: guarantees newly added columns exist in user_documents."""
+    try:
+        await db.execute(text("ALTER TABLE user_documents ADD COLUMN IF NOT EXISTS background_image TEXT;"))
+        await db.execute(text("ALTER TABLE user_documents ADD COLUMN IF NOT EXISTS background_mode VARCHAR(50) DEFAULT 'cover';"))
+        await db.execute(text("ALTER TABLE user_documents ADD COLUMN IF NOT EXISTS background_opacity FLOAT DEFAULT 0.2;"))
+        await db.commit()
+    except Exception as e:
+        await db.rollback()
+        print(f"[Database Migration] Column check note: {e}")
+
+
+@router.get("/migrate-schema")
+@router.post("/migrate-schema")
+async def migrate_documents_schema(db: AsyncSession = Depends(get_db)):
+    """Ensures background columns exist in user_documents table."""
+    await ensure_document_columns(db)
+    return {"status": "success", "message": "Columns background_image, background_mode, background_opacity verified in user_documents"}
+
+
 @router.get("")
 @router.get("/")
 async def get_user_documents(
@@ -46,8 +68,17 @@ async def get_user_documents(
         .order_by(desc(UserDocument.updated_at))
         .limit(5)
     )
-    result = await db.execute(stmt)
-    docs = result.scalars().all()
+    try:
+        result = await db.execute(stmt)
+        docs = result.scalars().all()
+    except Exception as err:
+        if "background_image" in str(err) or "UndefinedColumnError" in str(err):
+            await db.rollback()
+            await ensure_document_columns(db)
+            result = await db.execute(stmt)
+            docs = result.scalars().all()
+        else:
+            raise err
 
     formatted_docs = [
         {
@@ -101,73 +132,85 @@ async def sync_user_documents(
 
     user_id = payload.user_id
 
-    # 1. Fetch all existing document IDs for this user
-    existing_stmt = select(UserDocument.id).where(UserDocument.user_id == user_id)
-    existing_ids = set((await db.execute(existing_stmt)).scalars().all())
+    async def perform_sync():
+        # 1. Fetch all existing document IDs for this user
+        existing_stmt = select(UserDocument.id).where(UserDocument.user_id == user_id)
+        existing_ids = set((await db.execute(existing_stmt)).scalars().all())
 
-    # 2. Check how many genuinely new documents are being added
-    new_doc_items = [item for item in payload.documents if item.id not in existing_ids]
+        # 2. Check how many genuinely new documents are being added
+        new_doc_items = [item for item in payload.documents if item.id not in existing_ids]
 
-    # Enforce strictly: total existing + new cannot exceed 5
-    if len(existing_ids) + len(new_doc_items) > 5:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Account file limit reached: maximum 5 documents allowed (currently {len(existing_ids)}). Please delete an existing file first."
-        )
-
-    for item in payload.documents:
-        bg_img = item.background_image or ""
-        bg_mode = item.background_mode or "cover"
-        bg_opacity = item.background_opacity if item.background_opacity is not None else 0.2
-
-        if item.id in existing_ids:
-            # Update existing document
-            stmt = select(UserDocument).where(
-                UserDocument.id == item.id,
-                UserDocument.user_id == user_id
+        # Enforce strictly: total existing + new cannot exceed 5
+        if len(existing_ids) + len(new_doc_items) > 5:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Account file limit reached: maximum 5 documents allowed (currently {len(existing_ids)}). Please delete an existing file first."
             )
-            res = await db.execute(stmt)
-            existing_doc = res.scalar_one_or_none()
-            if existing_doc:
-                existing_doc.title = item.title
-                existing_doc.content = item.content
-                existing_doc.plain_text = item.plain_text
-                existing_doc.word_count = item.word_count
-                existing_doc.background_image = bg_img
-                existing_doc.background_mode = bg_mode
-                existing_doc.background_opacity = bg_opacity
+
+        for item in payload.documents:
+            bg_img = item.background_image or ""
+            bg_mode = item.background_mode or "cover"
+            bg_opacity = item.background_opacity if item.background_opacity is not None else 0.2
+
+            if item.id in existing_ids:
+                # Update existing document
+                stmt = select(UserDocument).where(
+                    UserDocument.id == item.id,
+                    UserDocument.user_id == user_id
+                )
+                res = await db.execute(stmt)
+                existing_doc = res.scalar_one_or_none()
+                if existing_doc:
+                    existing_doc.title = item.title
+                    existing_doc.content = item.content
+                    existing_doc.plain_text = item.plain_text
+                    existing_doc.word_count = item.word_count
+                    existing_doc.background_image = bg_img
+                    existing_doc.background_mode = bg_mode
+                    existing_doc.background_opacity = bg_opacity
+            else:
+                new_doc = UserDocument(
+                    id=item.id,
+                    user_id=user_id,
+                    title=item.title,
+                    content=item.content,
+                    plain_text=item.plain_text,
+                    word_count=item.word_count,
+                    background_image=bg_img,
+                    background_mode=bg_mode,
+                    background_opacity=bg_opacity
+                )
+                db.add(new_doc)
+                existing_ids.add(item.id)
+
+        # 3. Hard safety enforcement: never allow more than 5 documents in PostgreSQL
+        prune_stmt = (
+            select(UserDocument.id)
+            .where(UserDocument.user_id == user_id)
+            .order_by(desc(UserDocument.updated_at))
+        )
+        all_current_ids = (await db.execute(prune_stmt)).scalars().all()
+        if len(all_current_ids) > 5:
+            excess = all_current_ids[5:]
+            await db.execute(
+                delete(UserDocument).where(
+                    UserDocument.user_id == user_id,
+                    UserDocument.id.in_(excess)
+                )
+            )
+
+        await db.commit()
+        return existing_ids
+
+    try:
+        existing_ids = await perform_sync()
+    except Exception as err:
+        if "background_image" in str(err) or "UndefinedColumnError" in str(err):
+            await db.rollback()
+            await ensure_document_columns(db)
+            existing_ids = await perform_sync()
         else:
-            new_doc = UserDocument(
-                id=item.id,
-                user_id=user_id,
-                title=item.title,
-                content=item.content,
-                plain_text=item.plain_text,
-                word_count=item.word_count,
-                background_image=bg_img,
-                background_mode=bg_mode,
-                background_opacity=bg_opacity
-            )
-            db.add(new_doc)
-            existing_ids.add(item.id)
-
-    # 3. Hard safety enforcement: never allow more than 5 documents in PostgreSQL
-    prune_stmt = (
-        select(UserDocument.id)
-        .where(UserDocument.user_id == user_id)
-        .order_by(desc(UserDocument.updated_at))
-    )
-    all_current_ids = (await db.execute(prune_stmt)).scalars().all()
-    if len(all_current_ids) > 5:
-        excess = all_current_ids[5:]
-        await db.execute(
-            delete(UserDocument).where(
-                UserDocument.user_id == user_id,
-                UserDocument.id.in_(excess)
-            )
-        )
-
-    await db.commit()
+            raise err
 
     return {
         "success": True,

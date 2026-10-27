@@ -139,6 +139,13 @@ async def startup():
     try:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+            # Ensure newly added columns exist in existing user_documents table
+            try:
+                await conn.execute(text("ALTER TABLE user_documents ADD COLUMN IF NOT EXISTS background_image TEXT;"))
+                await conn.execute(text("ALTER TABLE user_documents ADD COLUMN IF NOT EXISTS background_mode VARCHAR(50) DEFAULT 'cover';"))
+                await conn.execute(text("ALTER TABLE user_documents ADD COLUMN IF NOT EXISTS background_opacity FLOAT DEFAULT 0.2;"))
+            except Exception as mig_err:
+                print(f"[Database] Schema auto-migration note: {mig_err}")
         async with AsyncSessionLocal() as session:
             result = await session.execute(
                 text("SELECT tanglish, tamil, frequency FROM words")

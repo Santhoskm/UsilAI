@@ -1193,10 +1193,10 @@ const CustomImage = Image.extend({
 })
 
 // Compress and downscale uploaded or pasted images to ensure fast rendering & smooth DB persistence
-const compressImageFile = (file, maxWidth = 1200, maxHeight = 1200, quality = 0.85) => {
+const compressImageFile = (file, maxWidth = 1200, maxHeight = 1200, quality = 0.82, forceJpeg = false) => {
   return new Promise((resolve) => {
     if (!file) return resolve('')
-    if (file.type === 'image/svg+xml' || (file.size && file.size < 80 * 1024)) {
+    if (file.type === 'image/svg+xml') {
       const reader = new FileReader()
       reader.onload = (e) => resolve(e.target.result)
       reader.onerror = () => resolve('')
@@ -1220,7 +1220,8 @@ const compressImageFile = (file, maxWidth = 1200, maxHeight = 1200, quality = 0.
         canvas.height = height
         const ctx = canvas.getContext('2d')
         ctx.drawImage(img, 0, 0, width, height)
-        const outputType = (file.type === 'image/png') ? 'image/png' : 'image/jpeg'
+        // Background wallpapers & large images compress to jpeg for lightweight sync (<150KB)
+        const outputType = (!forceJpeg && file.type === 'image/png' && file.size < 300 * 1024) ? 'image/png' : 'image/jpeg'
         resolve(canvas.toDataURL(outputType, quality))
       }
       img.onerror = () => resolve(e.target.result)
@@ -1461,7 +1462,7 @@ const handleBgFileSelect = async (event) => {
     alert('Please select an image file.')
     return
   }
-  const dataUrl = await compressImageFile(file, 1600, 1600, 0.82)
+  const dataUrl = await compressImageFile(file, 1400, 1400, 0.78, true)
   if (dataUrl) {
     setDocumentBackground(dataUrl, 'cover')
   }
