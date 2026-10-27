@@ -1,194 +1,215 @@
 <template>
   <Teleport to="body">
     <div v-if="isOpen" class="modal-overlay" @click.self="closeModal">
-      <div class="split-print-modal" role="dialog" aria-modal="true">
+      <div class="split-download-modal" role="dialog" aria-modal="true">
         <!-- Header -->
         <header class="modal-header">
           <div class="header-branding">
             <div class="header-icon-badge">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="6 9 6 2 18 2 18 9"></polyline>
-                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
-                <rect x="6" y="14" width="12" height="8"></rect>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
               </svg>
             </div>
             <div>
-              <h2 class="header-title">Print & Download</h2>
-              <p class="header-subtitle">Edit text & settings on the left • Live A4 preview on the right</p>
+              <h2 class="header-title">Download Document</h2>
+              <p class="header-subtitle">Choose format & customize layout • Live A4 preview on the right</p>
             </div>
           </div>
 
           <button @click="closeModal" class="btn-close-modal" aria-label="Close dialog">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
               <line x1="18" y1="6" x2="6" y2="18"></line>
               <line x1="6" y1="6" x2="18" y2="18"></line>
             </svg>
           </button>
         </header>
 
-        <!-- Split Body: Left = Editing & Settings | Right = A4 Preview -->
+        <!-- Split Body: Left = Download Formats & Settings | Right = A4 Preview -->
         <div class="modal-split-body">
-          <!-- LEFT: Editing & Controls Panel -->
-          <div class="left-edit-panel">
-            <!-- Section: Document Content Editing -->
-            <div class="panel-section edit-section">
-              <div class="section-header">
-                <span class="section-title">Edit Document</span>
-                <span class="section-tag">Live Sync</span>
+          <!-- LEFT: Formats & Layout Controls -->
+          <div class="left-panel">
+            <!-- Section 1: Download Formats -->
+            <div class="panel-section">
+              <div class="section-title-row">
+                <span class="section-title">Select Format to Download</span>
               </div>
 
-              <!-- Title Input -->
-              <div class="field-group">
-                <label class="field-label">Document Title</label>
-                <input 
-                  type="text"
-                  v-model="previewTitle"
-                  class="edit-title-input"
-                  placeholder="Enter document title..."
-                  @input="onTitleEdited"
-                />
-              </div>
+              <div class="format-cards-grid">
+                <!-- PDF Card -->
+                <button 
+                  @click="selectedFormat = 'pdf'" 
+                  class="format-card"
+                  :class="{ active: selectedFormat === 'pdf' }"
+                >
+                  <div class="format-badge pdf-badge">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                      <polyline points="14 2 14 8 20 8"></polyline>
+                      <line x1="9" y1="15" x2="15" y2="15"></line>
+                    </svg>
+                  </div>
+                  <div class="format-meta">
+                    <div class="format-name">PDF Document (.pdf)</div>
+                    <div class="format-desc">Vector PDF with styling & fonts</div>
+                  </div>
+                  <div class="format-check" v-if="selectedFormat === 'pdf'">✓</div>
+                </button>
 
-              <!-- Content Editor Area -->
-              <div class="field-group content-field">
-                <div class="field-label-row">
-                  <label class="field-label">Content</label>
-                  <span class="edit-hint">Click & type below to edit</span>
-                </div>
-                <div 
-                  ref="leftEditorRef"
-                  contenteditable="true"
-                  class="left-content-editor"
-                  @input="onLeftEditorInput"
-                  spellcheck="false"
-                  placeholder="Type your document content here..."
-                ></div>
+                <!-- Word Card -->
+                <button 
+                  @click="selectedFormat = 'word'" 
+                  class="format-card"
+                  :class="{ active: selectedFormat === 'word' }"
+                >
+                  <div class="format-badge word-badge">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                      <polyline points="14 2 14 8 20 8"></polyline>
+                      <line x1="16" y1="13" x2="8" y2="13"></line>
+                      <line x1="16" y1="17" x2="8" y2="17"></line>
+                    </svg>
+                  </div>
+                  <div class="format-meta">
+                    <div class="format-name">Word Document (.doc)</div>
+                    <div class="format-desc">Microsoft Word formatted file</div>
+                  </div>
+                  <div class="format-check" v-if="selectedFormat === 'word'">✓</div>
+                </button>
+
+                <!-- Plain Text Card -->
+                <button 
+                  @click="selectedFormat = 'txt'" 
+                  class="format-card"
+                  :class="{ active: selectedFormat === 'txt' }"
+                >
+                  <div class="format-badge txt-badge">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                      <polyline points="14 2 14 8 20 8"></polyline>
+                      <line x1="16" y1="13" x2="8" y2="13"></line>
+                    </svg>
+                  </div>
+                  <div class="format-meta">
+                    <div class="format-name">Plain Text (.txt)</div>
+                    <div class="format-desc">Unformatted standard text</div>
+                  </div>
+                  <div class="format-check" v-if="selectedFormat === 'txt'">✓</div>
+                </button>
               </div>
             </div>
 
-            <!-- Section: Page Layout & Settings -->
-            <div class="panel-section settings-section">
-              <div class="section-header">
+            <!-- Section 2: Page Layout Settings -->
+            <div class="panel-section">
+              <div class="section-title-row">
                 <span class="section-title">Page & Layout</span>
               </div>
 
-              <div class="settings-grid">
-                <!-- Orientation -->
-                <div class="setting-item">
-                  <label class="setting-label">Orientation</label>
-                  <div class="segmented-control">
-                    <button 
-                      @click="previewOrientation = 'portrait'" 
-                      class="seg-btn" 
-                      :class="{ active: previewOrientation === 'portrait' }"
-                    >
-                      Portrait
-                    </button>
-                    <button 
-                      @click="previewOrientation = 'landscape'" 
-                      class="seg-btn" 
-                      :class="{ active: previewOrientation === 'landscape' }"
-                    >
-                      Landscape
-                    </button>
-                  </div>
+              <!-- Orientation Setting -->
+              <div class="setting-row">
+                <span class="setting-label">Orientation</span>
+                <div class="segmented-control">
+                  <button 
+                    @click="previewOrientation = 'portrait'" 
+                    class="seg-btn"
+                    :class="{ active: previewOrientation === 'portrait' }"
+                  >
+                    <svg class="control-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <rect x="5" y="2" width="14" height="20" rx="2"></rect>
+                    </svg>
+                    <span>Portrait</span>
+                  </button>
+                  <button 
+                    @click="previewOrientation = 'landscape'" 
+                    class="seg-btn"
+                    :class="{ active: previewOrientation === 'landscape' }"
+                  >
+                    <svg class="control-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <rect x="2" y="5" width="20" height="14" rx="2"></rect>
+                    </svg>
+                    <span>Landscape</span>
+                  </button>
                 </div>
+              </div>
 
-                <!-- Margins -->
-                <div class="setting-item">
-                  <label class="setting-label">Margins</label>
-                  <div class="segmented-control">
-                    <button 
-                      @click="previewMargin = 'compact'" 
-                      class="seg-btn" 
-                      :class="{ active: previewMargin === 'compact' }"
-                    >
-                      Narrow
-                    </button>
-                    <button 
-                      @click="previewMargin = 'normal'" 
-                      class="seg-btn" 
-                      :class="{ active: previewMargin === 'normal' }"
-                    >
-                      Normal
-                    </button>
-                    <button 
-                      @click="previewMargin = 'wide'" 
-                      class="seg-btn" 
-                      :class="{ active: previewMargin === 'wide' }"
-                    >
-                      Wide
-                    </button>
-                  </div>
+              <!-- Margins Setting -->
+              <div class="setting-row">
+                <span class="setting-label">Margins</span>
+                <div class="segmented-control">
+                  <button 
+                    @click="previewMargin = 'compact'" 
+                    class="seg-btn"
+                    :class="{ active: previewMargin === 'compact' }"
+                  >
+                    Narrow
+                  </button>
+                  <button 
+                    @click="previewMargin = 'normal'" 
+                    class="seg-btn"
+                    :class="{ active: previewMargin === 'normal' }"
+                  >
+                    Normal
+                  </button>
+                  <button 
+                    @click="previewMargin = 'wide'" 
+                    class="seg-btn"
+                    :class="{ active: previewMargin === 'wide' }"
+                  >
+                    Wide
+                  </button>
                 </div>
+              </div>
 
-                <!-- Font Size Stepper -->
-                <div class="setting-item">
-                  <label class="setting-label">Font Size</label>
-                  <div class="stepper-box">
-                    <button @click="decreaseFontSize" class="stepper-btn" :disabled="previewFontSize <= 12">−</button>
-                    <span class="stepper-val">{{ previewFontSize }}px</span>
-                    <button @click="increaseFontSize" class="stepper-btn" :disabled="previewFontSize >= 28">+</button>
-                  </div>
+              <!-- Font Size Setting -->
+              <div class="setting-row">
+                <span class="setting-label">Font Size</span>
+                <div class="stepper-box">
+                  <button @click="decreaseFontSize" class="stepper-btn" :disabled="previewFontSize <= 12" title="Decrease font size">−</button>
+                  <span class="stepper-val">{{ previewFontSize }}px</span>
+                  <button @click="increaseFontSize" class="stepper-btn" :disabled="previewFontSize >= 28" title="Increase font size">+</button>
                 </div>
+              </div>
 
-                <!-- Background toggle (if present) -->
-                <div v-if="docBackground" class="setting-item">
-                  <label class="setting-label">Watermark</label>
-                  <label class="checkbox-toggle">
-                    <input type="checkbox" v-model="previewIncludeBackground" />
-                    <span>Include Background</span>
-                  </label>
-                </div>
+              <!-- Document Background Watermark Toggle -->
+              <div v-if="docBackground" class="setting-row">
+                <span class="setting-label">Watermark</span>
+                <label class="checkbox-toggle">
+                  <input type="checkbox" v-model="previewIncludeBackground" />
+                  <span>Include Background Texture</span>
+                </label>
               </div>
             </div>
 
-            <!-- Sync Edits Reminder Bar -->
+            <!-- Sync Edits Reminder (if user edited the sheet directly) -->
             <div v-if="hasUnsyncedEdits" class="sync-banner">
-              <span class="sync-banner-text">💡 Edits made in preview</span>
+              <span class="sync-banner-text">💡 You edited the document preview</span>
               <button @click="applyEditsToEditor" class="btn-save-sync">
                 Save to Document
               </button>
             </div>
 
-            <!-- Export & Action Buttons -->
+            <!-- Primary Download Trigger Button -->
             <div class="panel-actions">
-              <div class="secondary-exports">
-                <button @click="downloadAsWord" class="btn-export-alt btn-word" title="Download formatted Word document">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                    <polyline points="14 2 14 8 20 8"></polyline>
-                    <line x1="16" y1="13" x2="8" y2="13"></line>
-                    <line x1="16" y1="17" x2="8" y2="17"></line>
-                  </svg>
-                  <span>Word (.doc)</span>
-                </button>
-
-                <button @click="downloadAsTxt" class="btn-export-alt btn-txt" title="Download plain text file">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                    <polyline points="14 2 14 8 20 8"></polyline>
-                  </svg>
-                  <span>Text (.txt)</span>
-                </button>
-              </div>
-
-              <button @click="printDocument" class="btn-primary-print" title="Print document or save as PDF">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="6 9 6 2 18 2 18 9"></polyline>
-                  <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
-                  <rect x="6" y="14" width="12" height="8"></rect>
+              <button @click="triggerSelectedDownload" class="btn-primary-download" title="Download your document">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="7 10 12 15 17 10"></polyline>
+                  <line x1="12" y1="15" x2="12" y2="3"></line>
                 </svg>
-                <span>Print / Save as PDF</span>
+                <span>{{ downloadButtonLabel }}</span>
               </button>
             </div>
           </div>
 
-          <!-- RIGHT: A4 Live Sheet Preview Panel -->
-          <div class="right-preview-panel">
+          <!-- RIGHT: A4 Document Sheet Preview -->
+          <div class="right-panel">
             <!-- Stage Top Bar: Controls & Zoom -->
             <div class="stage-topbar">
-              <span class="preview-badge">A4 Sheet Preview</span>
+              <div class="preview-badge-row">
+                <span class="preview-badge">A4 Sheet Preview</span>
+                <span class="edit-badge">✏️ Click text to edit</span>
+              </div>
               <div class="zoom-stepper">
                 <button @click="zoomOut" class="btn-zoom" :disabled="zoomLevel <= 60" title="Zoom Out">−</button>
                 <span class="zoom-text">{{ zoomLevel }}%</span>
@@ -200,7 +221,7 @@
             <!-- Scrollable Stage Canvas -->
             <div class="stage-canvas">
               <div 
-                class="a4-physical-sheet"
+                class="a4-sheet"
                 :class="[
                   `margin-${previewMargin}`, 
                   `orientation-${previewOrientation}`,
@@ -215,22 +236,29 @@
                   :style="sheetBgStyle"
                 ></div>
 
-                <!-- Sheet Header -->
+                <!-- Sheet Header (Editable Title Input on Sheet) -->
                 <div class="sheet-header-block">
-                  <div class="sheet-title-text">{{ previewTitle || 'Tamil Document' }}</div>
+                  <input 
+                    type="text"
+                    v-model="previewTitle"
+                    class="sheet-title-input"
+                    placeholder="Document Title..."
+                    title="Click to edit document title"
+                    @input="onContentEdited"
+                  />
                   <div class="sheet-date-text">{{ currentDateStr }}</div>
                 </div>
                 <div class="sheet-divider"></div>
 
-                <!-- Sheet Content (Live Display synced with left editor) -->
+                <!-- Sheet Content (Directly Editable on Sheet) -->
                 <div 
                   ref="rightSheetRef"
                   class="sheet-content-render"
                   :style="sheetTextStyle"
                   contenteditable="true"
-                  @input="onRightSheetInput"
+                  @input="onContentEdited"
                   spellcheck="false"
-                  title="Directly editable preview"
+                  title="Click anywhere to edit text directly"
                 ></div>
 
                 <!-- Sheet Footer -->
@@ -287,9 +315,9 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'apply-changes', 'download-docx', 'download-txt'])
 
-const leftEditorRef = ref(null)
 const rightSheetRef = ref(null)
 
+const selectedFormat = ref('pdf') // 'pdf' | 'word' | 'txt'
 const previewTitle = ref('')
 const previewFontSize = ref(16)
 const previewMargin = ref('normal') // 'compact' | 'normal' | 'wide'
@@ -304,6 +332,12 @@ const currentDateStr = computed(() => {
     month: 'short',
     day: 'numeric'
   })
+})
+
+const downloadButtonLabel = computed(() => {
+  if (selectedFormat.value === 'word') return 'Download as Word (.doc)'
+  if (selectedFormat.value === 'txt') return 'Download as Plain Text (.txt)'
+  return 'Download as PDF'
 })
 
 const sheetContainerStyle = computed(() => ({
@@ -347,27 +381,12 @@ const decreaseFontSize = () => {
   if (previewFontSize.value > 12) previewFontSize.value -= 2
 }
 
-// Synchronize inputs between left editor and right A4 sheet
-const onTitleEdited = () => {
+const onContentEdited = () => {
   hasUnsyncedEdits.value = true
-}
-
-const onLeftEditorInput = () => {
-  hasUnsyncedEdits.value = true
-  if (leftEditorRef.value && rightSheetRef.value) {
-    rightSheetRef.value.innerHTML = leftEditorRef.value.innerHTML
-  }
-}
-
-const onRightSheetInput = () => {
-  hasUnsyncedEdits.value = true
-  if (leftEditorRef.value && rightSheetRef.value) {
-    leftEditorRef.value.innerHTML = rightSheetRef.value.innerHTML
-  }
 }
 
 const applyEditsToEditor = () => {
-  const finalHtml = leftEditorRef.value ? leftEditorRef.value.innerHTML : (props.initialContent || '')
+  const finalHtml = rightSheetRef.value ? rightSheetRef.value.innerHTML : (props.initialContent || '')
   emit('apply-changes', {
     title: previewTitle.value.trim() || 'Tamil Document',
     content: finalHtml
@@ -379,9 +398,10 @@ const closeModal = () => {
   emit('close')
 }
 
-// When modal opens, initialize both left and right editors
+// When modal opens, initialize preview
 watch(() => props.isOpen, async (newVal) => {
   if (newVal) {
+    selectedFormat.value = 'pdf'
     previewTitle.value = props.initialTitle || 'Tamil Document'
     previewFontSize.value = props.fontSize || 16
     previewMargin.value = 'normal'
@@ -392,18 +412,26 @@ watch(() => props.isOpen, async (newVal) => {
 
     await nextTick()
     const content = props.initialContent || '<p>Start writing in Tanglish...</p>'
-    if (leftEditorRef.value) {
-      leftEditorRef.value.innerHTML = content
-    }
     if (rightSheetRef.value) {
       rightSheetRef.value.innerHTML = content
     }
   }
 })
 
-// ── Print Functionality ──────────────────────────────────────────
-const printDocument = () => {
-  const htmlToPrint = leftEditorRef.value ? leftEditorRef.value.innerHTML : (props.initialContent || '')
+// Trigger download based on active format
+const triggerSelectedDownload = () => {
+  if (selectedFormat.value === 'word') {
+    downloadAsWord()
+  } else if (selectedFormat.value === 'txt') {
+    downloadAsTxt()
+  } else {
+    downloadAsPDF()
+  }
+}
+
+// ── Download as PDF ──────────────────────────────────────────────
+const downloadAsPDF = () => {
+  const htmlToPrint = rightSheetRef.value ? rightSheetRef.value.innerHTML : (props.initialContent || '')
   const titleToPrint = previewTitle.value || 'Tamil Document'
 
   const printIframe = document.createElement('iframe')
@@ -542,9 +570,9 @@ const printDocument = () => {
   }, 400)
 }
 
-// ── Export as Word (.doc) ───────────────────────────────────────
+// ── Download as Word (.doc) ─────────────────────────────────────
 const downloadAsWord = () => {
-  const htmlToPrint = leftEditorRef.value ? leftEditorRef.value.innerHTML : (props.initialContent || '')
+  const htmlToPrint = rightSheetRef.value ? rightSheetRef.value.innerHTML : (props.initialContent || '')
   const titleToPrint = previewTitle.value || 'Tamil Document'
   const cleanTitle = titleToPrint.replace(/[\\/:*?"<>|]/g, '_').trim() || 'tamil_document'
 
@@ -581,9 +609,9 @@ const downloadAsWord = () => {
   URL.revokeObjectURL(url)
 }
 
-// ── Export as Plain Text (.txt) ─────────────────────────────────
+// ── Download as Plain Text (.txt) ───────────────────────────────
 const downloadAsTxt = () => {
-  const textContent = leftEditorRef.value ? leftEditorRef.value.innerText : ''
+  const textContent = rightSheetRef.value ? rightSheetRef.value.innerText : ''
   const titleToPrint = previewTitle.value || 'Tamil Document'
   const cleanTitle = titleToPrint.replace(/[\\/:*?"<>|]/g, '_').trim() || 'tamil_document'
 
@@ -623,11 +651,11 @@ const downloadAsTxt = () => {
 }
 
 /* Split Modal (Centered, Medium-sized, Beautiful Proportions) */
-.split-print-modal {
+.split-download-modal {
   width: 94%;
-  max-width: 1040px;
-  height: 86vh;
-  max-height: 720px;
+  max-width: 980px;
+  height: 84vh;
+  max-height: 680px;
   background: #ffffff;
   border: 1px solid #e2e8f0;
   border-radius: 18px;
@@ -655,7 +683,7 @@ const downloadAsTxt = () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 20px;
+  padding: 14px 22px;
   border-bottom: 1px solid #e2e8f0;
   background: #ffffff;
   flex-shrink: 0;
@@ -668,9 +696,9 @@ const downloadAsTxt = () => {
 }
 
 .header-icon-badge {
-  width: 36px;
-  height: 36px;
-  border-radius: 9px;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
   background: #eef2ff;
   color: #4f46e5;
   display: flex;
@@ -695,8 +723,8 @@ const downloadAsTxt = () => {
 }
 
 .btn-close-modal {
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   border-radius: 8px;
   border: none;
   background: #f8fafc;
@@ -721,169 +749,168 @@ const downloadAsTxt = () => {
   background: #ffffff;
 }
 
-/* ── LEFT: Editing Panel ─────────────────────────────────── */
-.left-edit-panel {
-  width: 48%;
-  min-width: 360px;
+/* ── LEFT: Formats & Layout Panel ───────────────────────── */
+.left-panel {
+  width: 44%;
+  min-width: 340px;
   border-right: 1px solid #e2e8f0;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
   background: #ffffff;
-  padding: 16px 20px;
-  gap: 14px;
+  padding: 18px 22px;
+  gap: 18px;
 }
 
 .panel-section {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
-.section-header {
+.section-title-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
 .section-title {
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 700;
-  color: #0f172a;
+  color: #64748b;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
 }
 
-.section-tag {
-  font-size: 10px;
-  font-weight: 600;
-  color: #4f46e5;
-  background: #eef2ff;
-  padding: 2px 8px;
-  border-radius: 12px;
-}
-
-.field-group {
+/* Format Cards Grid */
+.format-cards-grid {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 8px;
 }
 
-.field-label-row {
+.format-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+  position: relative;
+}
+
+.format-card:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  transform: translateY(-1px);
+}
+
+.format-card.active {
+  background: #eef2ff;
+  border-color: #6366f1;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.12);
+}
+
+.format-badge {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform 0.15s ease;
+}
+
+.format-card:hover .format-badge {
+  transform: scale(1.05);
+}
+
+.pdf-badge {
+  background: rgba(239, 68, 68, 0.12);
+  color: #dc2626;
+}
+
+.word-badge {
+  background: rgba(37, 99, 235, 0.12);
+  color: #2563eb;
+}
+
+.txt-badge {
+  background: rgba(100, 116, 139, 0.14);
+  color: #475569;
+}
+
+.format-meta {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.format-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.format-desc {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.format-check {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #4f46e5;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* Settings Rows */
+.setting-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
 }
 
-.field-label {
+.setting-label {
   font-size: 12px;
   font-weight: 600;
   color: #475569;
 }
 
-.edit-hint {
-  font-size: 11px;
-  color: #94a3b8;
-}
-
-.edit-title-input {
-  width: 100%;
-  padding: 8px 12px;
-  background: #f8fafc;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  color: #0f172a;
-  outline: none;
-  transition: all 0.15s ease;
-}
-
-.edit-title-input:focus {
-  background: #ffffff;
-  border-color: #6366f1;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
-}
-
-.content-field {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.left-content-editor {
-  flex: 1;
-  min-height: 140px;
-  max-height: 200px;
-  overflow-y: auto;
-  padding: 10px 12px;
-  background: #f8fafc;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  font-size: 14px;
-  line-height: 1.6;
-  color: #0f172a;
-  outline: none;
-  transition: all 0.15s ease;
-  word-break: break-word;
-}
-
-.left-content-editor:focus {
-  background: #ffffff;
-  border-color: #6366f1;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
-}
-
-.left-content-editor :deep(h1) { font-size: 1.3em; margin: 0.5em 0 0.2em; }
-.left-content-editor :deep(h2) { font-size: 1.15em; margin: 0.4em 0 0.2em; }
-.left-content-editor :deep(p) { margin: 0.3em 0; }
-.left-content-editor :deep(img) { max-width: 100%; height: auto; border-radius: 4px; margin: 6px 0; }
-
-/* Settings Grid */
-.settings-section {
-  padding-top: 10px;
-  border-top: 1px solid #f1f5f9;
-}
-
-.settings-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px 14px;
-}
-
-.setting-item {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.setting-label {
-  font-size: 11px;
-  font-weight: 600;
-  color: #64748b;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-
 .segmented-control {
-  display: flex;
+  display: inline-flex;
   background: #f1f5f9;
   border: 1px solid #e2e8f0;
-  padding: 2px;
-  border-radius: 7px;
+  padding: 3px;
+  border-radius: 9px;
 }
 
 .seg-btn {
-  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   border: none;
   background: transparent;
-  padding: 4px 6px;
-  font-size: 11px;
+  padding: 5px 10px;
+  font-size: 12px;
   font-weight: 500;
   color: #475569;
-  border-radius: 5px;
+  border-radius: 6px;
   cursor: pointer;
-  text-align: center;
   transition: all 0.15s ease;
 }
 
@@ -894,28 +921,31 @@ const downloadAsTxt = () => {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
+.control-icon {
+  flex-shrink: 0;
+}
+
 .stepper-box {
   display: inline-flex;
   align-items: center;
   background: #f1f5f9;
   border: 1px solid #e2e8f0;
-  padding: 2px;
-  border-radius: 7px;
-  width: fit-content;
+  padding: 3px;
+  border-radius: 8px;
 }
 
 .stepper-btn {
   border: none;
   background: transparent;
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   color: #334155;
-  border-radius: 4px;
+  border-radius: 5px;
   cursor: pointer;
   transition: background 0.15s;
 }
@@ -930,7 +960,7 @@ const downloadAsTxt = () => {
 }
 
 .stepper-val {
-  padding: 0 8px;
+  padding: 0 10px;
   font-size: 12px;
   font-weight: 600;
   color: #0f172a;
@@ -939,16 +969,18 @@ const downloadAsTxt = () => {
 .checkbox-toggle {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   font-size: 12px;
   font-weight: 500;
   color: #475569;
   cursor: pointer;
-  padding-top: 4px;
 }
 
 .checkbox-toggle input {
   accent-color: #4f46e5;
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
 }
 
 /* Sync Banner */
@@ -959,7 +991,7 @@ const downloadAsTxt = () => {
   padding: 8px 12px;
   background: #ecfdf5;
   border: 1px solid #a7f3d0;
-  border-radius: 8px;
+  border-radius: 9px;
 }
 
 .sync-banner-text {
@@ -987,79 +1019,36 @@ const downloadAsTxt = () => {
 /* Panel Actions */
 .panel-actions {
   margin-top: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding-top: 10px;
+  padding-top: 12px;
   border-top: 1px solid #f1f5f9;
 }
 
-.secondary-exports {
-  display: flex;
-  gap: 8px;
-}
-
-.btn-export-alt {
-  flex: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 7px 10px;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.btn-word {
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
-  color: #1d4ed8;
-}
-
-.btn-word:hover {
-  background: #dbeafe;
-}
-
-.btn-txt {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  color: #475569;
-}
-
-.btn-txt:hover {
-  background: #f1f5f9;
-  color: #0f172a;
-}
-
-.btn-primary-print {
+.btn-primary-download {
   width: 100%;
   border: none;
   background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
   color: #ffffff;
-  padding: 10px 16px;
-  border-radius: 9px;
-  font-size: 13px;
+  padding: 11px 18px;
+  border-radius: 11px;
+  font-size: 14px;
   font-weight: 600;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 9px;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.28);
   transition: all 0.15s ease;
 }
 
-.btn-primary-print:hover {
+.btn-primary-download:hover {
   background: linear-gradient(135deg, #4338ca 0%, #3730a3 100%);
-  box-shadow: 0 6px 16px rgba(79, 70, 229, 0.35);
+  box-shadow: 0 6px 18px rgba(79, 70, 229, 0.38);
   transform: translateY(-1px);
 }
 
 /* ── RIGHT: A4 Sheet Preview Panel ───────────────────────── */
-.right-preview-panel {
+.right-panel {
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -1071,17 +1060,32 @@ const downloadAsTxt = () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 16px;
+  padding: 10px 18px;
   background: #e2e8f0;
   border-bottom: 1px solid #cbd5e1;
+}
+
+.preview-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .preview-badge {
   font-size: 12px;
   font-weight: 700;
-  color: #475569;
+  color: #334155;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+}
+
+.edit-badge {
+  font-size: 11px;
+  color: #64748b;
+  background: #ffffff;
+  padding: 2px 8px;
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
 }
 
 .zoom-stepper {
@@ -1093,9 +1097,9 @@ const downloadAsTxt = () => {
 .btn-zoom {
   border: 1px solid #cbd5e1;
   background: #ffffff;
-  width: 24px;
-  height: 24px;
-  border-radius: 4px;
+  width: 25px;
+  height: 25px;
+  border-radius: 5px;
   font-size: 14px;
   font-weight: 600;
   color: #475569;
@@ -1126,7 +1130,7 @@ const downloadAsTxt = () => {
   border: 1px solid #cbd5e1;
   background: #ffffff;
   padding: 3px 8px;
-  border-radius: 4px;
+  border-radius: 5px;
   font-size: 11px;
   font-weight: 500;
   color: #475569;
@@ -1150,7 +1154,7 @@ const downloadAsTxt = () => {
 }
 
 /* Realistic A4 Physical Sheet */
-.a4-physical-sheet {
+.a4-sheet {
   position: relative;
   width: 100%;
   max-width: 480px;
@@ -1167,17 +1171,17 @@ const downloadAsTxt = () => {
   transition: width 0.2s, max-width 0.2s;
 }
 
-.a4-physical-sheet.margin-compact {
+.a4-sheet.margin-compact {
   padding: 20px;
 }
-.a4-physical-sheet.margin-normal {
+.a4-sheet.margin-normal {
   padding: 28px;
 }
-.a4-physical-sheet.margin-wide {
+.a4-sheet.margin-wide {
   padding: 36px;
 }
 
-.a4-physical-sheet.orientation-landscape {
+.a4-sheet.orientation-landscape {
   max-width: 580px;
   min-height: 380px;
 }
@@ -1202,11 +1206,23 @@ const downloadAsTxt = () => {
   margin-bottom: 6px;
 }
 
-.sheet-title-text {
+.sheet-title-input {
+  flex: 1;
+  border: 1px dashed transparent;
+  background: transparent;
   font-size: 18px;
   font-weight: 700;
   color: #0f172a;
-  word-break: break-word;
+  padding: 2px 4px;
+  border-radius: 4px;
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.sheet-title-input:hover,
+.sheet-title-input:focus {
+  border-color: #6366f1;
+  background: #f8fafc;
 }
 
 .sheet-date-text {
@@ -1230,11 +1246,16 @@ const downloadAsTxt = () => {
   min-height: 240px;
   outline: none;
   word-break: break-word;
+  padding: 2px;
+  border-radius: 4px;
+  border: 1px dashed transparent;
+  transition: border-color 0.15s ease;
 }
 
-.sheet-content-render:hover {
-  outline: 1px dashed #cbd5e1;
-  border-radius: 4px;
+.sheet-content-render:hover,
+.sheet-content-render:focus {
+  border-color: #a5b4fc;
+  background: rgba(248, 250, 252, 0.5);
 }
 
 .sheet-content-render :deep(h1) { font-size: 1.4em; margin: 0.6em 0 0.3em; color: #0f172a; }
@@ -1272,14 +1293,14 @@ const downloadAsTxt = () => {
   .modal-split-body {
     flex-direction: column;
   }
-  .left-edit-panel {
+  .left-panel {
     width: 100%;
     min-width: 100%;
     border-right: none;
     border-bottom: 1px solid #e2e8f0;
   }
-  .right-preview-panel {
-    min-height: 300px;
+  .right-panel {
+    min-height: 320px;
   }
 }
 </style>
