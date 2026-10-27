@@ -2135,14 +2135,6 @@ const downloadDropdownRef = ref(null)
 const showPrintModal = ref(false)
 
 const openPrintPreviewModal = () => {
-  if (!editor.value) return
-  const plainText = editor.value.getText()
-  const htmlContent = editor.value.getHTML()
-  const hasImages = htmlContent && htmlContent.includes('<img')
-  if (!plainText.trim() && !hasImages) {
-    alert('Please write some content before previewing or downloading.')
-    return
-  }
   showDownloadDropdown.value = false
   showPrintModal.value = true
 }

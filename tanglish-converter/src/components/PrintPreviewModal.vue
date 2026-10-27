@@ -14,7 +14,7 @@
             </div>
             <div>
               <h2 class="header-title">Download Document</h2>
-              <p class="header-subtitle">Choose format & customize layout • Live A4 preview on the right</p>
+              <p class="header-subtitle">Format & layout settings • A4 preview on the right</p>
             </div>
           </div>
 
@@ -26,14 +26,14 @@
           </button>
         </header>
 
-        <!-- Split Body: Left = Download Formats & Settings | Right = A4 Preview -->
+        <!-- Split Body: Left = Format & Layout Controls | Right = A4 Preview -->
         <div class="modal-split-body">
-          <!-- LEFT: Formats & Layout Controls -->
+          <!-- LEFT: Format & Layout Controls Only -->
           <div class="left-panel">
-            <!-- Section 1: Download Formats -->
+            <!-- Section 1: File Formats -->
             <div class="panel-section">
               <div class="section-title-row">
-                <span class="section-title">Select Format to Download</span>
+                <span class="section-title">Download Format</span>
               </div>
 
               <div class="format-cards-grid">
@@ -52,7 +52,7 @@
                   </div>
                   <div class="format-meta">
                     <div class="format-name">PDF Document (.pdf)</div>
-                    <div class="format-desc">Vector PDF with styling & fonts</div>
+                    <div class="format-desc">Vector PDF with print styling</div>
                   </div>
                   <div class="format-check" v-if="selectedFormat === 'pdf'">✓</div>
                 </button>
@@ -93,17 +93,17 @@
                   </div>
                   <div class="format-meta">
                     <div class="format-name">Plain Text (.txt)</div>
-                    <div class="format-desc">Unformatted standard text</div>
+                    <div class="format-desc">Standard plain text file</div>
                   </div>
                   <div class="format-check" v-if="selectedFormat === 'txt'">✓</div>
                 </button>
               </div>
             </div>
 
-            <!-- Section 2: Page Layout Settings -->
+            <!-- Section 2: Page & Layout Formatting -->
             <div class="panel-section">
               <div class="section-title-row">
-                <span class="section-title">Page & Layout</span>
+                <span class="section-title">Layout & Format Settings</span>
               </div>
 
               <!-- Orientation Setting -->
@@ -171,6 +171,18 @@
                 </div>
               </div>
 
+              <!-- Font Family Format Selector -->
+              <div class="setting-row">
+                <span class="setting-label">Font Style</span>
+                <select v-model="selectedFontFamily" class="font-select">
+                  <option value="'Noto Sans Tamil', sans-serif">Noto Sans Tamil</option>
+                  <option value="'Noto Serif Tamil', serif">Noto Serif Tamil</option>
+                  <option value="'Catamaran', sans-serif">Catamaran</option>
+                  <option value="'Mukta Malar', sans-serif">Mukta Malar</option>
+                  <option value="'Baloo Thambi 2', sans-serif">Baloo Thambi</option>
+                </select>
+              </div>
+
               <!-- Document Background Watermark Toggle -->
               <div v-if="docBackground" class="setting-row">
                 <span class="setting-label">Watermark</span>
@@ -179,14 +191,6 @@
                   <span>Include Background Texture</span>
                 </label>
               </div>
-            </div>
-
-            <!-- Sync Edits Reminder (if user edited the sheet directly) -->
-            <div v-if="hasUnsyncedEdits" class="sync-banner">
-              <span class="sync-banner-text">💡 You edited the document preview</span>
-              <button @click="applyEditsToEditor" class="btn-save-sync">
-                Save to Document
-              </button>
             </div>
 
             <!-- Primary Download Trigger Button -->
@@ -202,14 +206,11 @@
             </div>
           </div>
 
-          <!-- RIGHT: A4 Document Sheet Preview -->
+          <!-- RIGHT: A4 Document Sheet Preview (Read-only format preview) -->
           <div class="right-panel">
             <!-- Stage Top Bar: Controls & Zoom -->
             <div class="stage-topbar">
-              <div class="preview-badge-row">
-                <span class="preview-badge">A4 Sheet Preview</span>
-                <span class="edit-badge">✏️ Click text to edit</span>
-              </div>
+              <span class="preview-badge">A4 Sheet Preview</span>
               <div class="zoom-stepper">
                 <button @click="zoomOut" class="btn-zoom" :disabled="zoomLevel <= 60" title="Zoom Out">−</button>
                 <span class="zoom-text">{{ zoomLevel }}%</span>
@@ -236,29 +237,18 @@
                   :style="sheetBgStyle"
                 ></div>
 
-                <!-- Sheet Header (Editable Title Input on Sheet) -->
+                <!-- Sheet Header (Clean non-editable title heading) -->
                 <div class="sheet-header-block">
-                  <input 
-                    type="text"
-                    v-model="previewTitle"
-                    class="sheet-title-input"
-                    placeholder="Document Title..."
-                    title="Click to edit document title"
-                    @input="onContentEdited"
-                  />
+                  <div class="sheet-title-text">{{ previewTitle || 'Tamil Document' }}</div>
                   <div class="sheet-date-text">{{ currentDateStr }}</div>
                 </div>
                 <div class="sheet-divider"></div>
 
-                <!-- Sheet Content (Directly Editable on Sheet) -->
+                <!-- Sheet Content (Pure formatted preview) -->
                 <div 
                   ref="rightSheetRef"
                   class="sheet-content-render"
                   :style="sheetTextStyle"
-                  contenteditable="true"
-                  @input="onContentEdited"
-                  spellcheck="false"
-                  title="Click anywhere to edit text directly"
                 ></div>
 
                 <!-- Sheet Footer -->
@@ -320,11 +310,11 @@ const rightSheetRef = ref(null)
 const selectedFormat = ref('pdf') // 'pdf' | 'word' | 'txt'
 const previewTitle = ref('')
 const previewFontSize = ref(16)
+const selectedFontFamily = ref("'Noto Sans Tamil', sans-serif")
 const previewMargin = ref('normal') // 'compact' | 'normal' | 'wide'
 const previewOrientation = ref('portrait') // 'portrait' | 'landscape'
 const previewIncludeBackground = ref(true)
 const zoomLevel = ref(90)
-const hasUnsyncedEdits = ref(false)
 
 const currentDateStr = computed(() => {
   return new Date().toLocaleDateString(undefined, {
@@ -346,7 +336,7 @@ const sheetContainerStyle = computed(() => ({
 }))
 
 const sheetTextStyle = computed(() => ({
-  fontFamily: props.selectedFont?.value || "'Noto Sans Tamil', sans-serif",
+  fontFamily: selectedFontFamily.value || props.selectedFont?.value || "'Noto Sans Tamil', sans-serif",
   fontSize: `${previewFontSize.value}px`
 }))
 
@@ -381,19 +371,6 @@ const decreaseFontSize = () => {
   if (previewFontSize.value > 12) previewFontSize.value -= 2
 }
 
-const onContentEdited = () => {
-  hasUnsyncedEdits.value = true
-}
-
-const applyEditsToEditor = () => {
-  const finalHtml = rightSheetRef.value ? rightSheetRef.value.innerHTML : (props.initialContent || '')
-  emit('apply-changes', {
-    title: previewTitle.value.trim() || 'Tamil Document',
-    content: finalHtml
-  })
-  hasUnsyncedEdits.value = false
-}
-
 const closeModal = () => {
   emit('close')
 }
@@ -404,11 +381,11 @@ watch(() => props.isOpen, async (newVal) => {
     selectedFormat.value = 'pdf'
     previewTitle.value = props.initialTitle || 'Tamil Document'
     previewFontSize.value = props.fontSize || 16
+    selectedFontFamily.value = props.selectedFont?.value || "'Noto Sans Tamil', sans-serif"
     previewMargin.value = 'normal'
     previewOrientation.value = 'portrait'
     previewIncludeBackground.value = Boolean(props.docBackground)
     zoomLevel.value = 90
-    hasUnsyncedEdits.value = false
 
     await nextTick()
     const content = props.initialContent || '<p>Start writing in Tanglish...</p>'
@@ -488,7 +465,7 @@ const downloadAsPDF = () => {
             color-adjust: exact !important;
           }
           body {
-            font-family: ${props.selectedFont?.value || "'Noto Sans Tamil', sans-serif"};
+            font-family: ${selectedFontFamily.value || "'Noto Sans Tamil', sans-serif"};
             font-size: ${previewFontSize.value}px;
             line-height: 1.8;
             color: #0f172a;
@@ -583,7 +560,7 @@ const downloadAsWord = () => {
         <title>${titleToPrint}</title>
         <style>
           body {
-            font-family: ${props.selectedFont?.value || "'Noto Sans Tamil', 'Arial Unicode MS', sans-serif"};
+            font-family: ${selectedFontFamily.value || "'Noto Sans Tamil', 'Arial Unicode MS', sans-serif"};
             font-size: ${previewFontSize.value || 14}pt;
             line-height: 1.8;
             color: #000000;
@@ -966,6 +943,18 @@ const downloadAsTxt = () => {
   color: #0f172a;
 }
 
+.font-select {
+  padding: 5px 10px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #0f172a;
+  outline: none;
+  cursor: pointer;
+}
+
 .checkbox-toggle {
   display: inline-flex;
   align-items: center;
@@ -981,39 +970,6 @@ const downloadAsTxt = () => {
   width: 15px;
   height: 15px;
   cursor: pointer;
-}
-
-/* Sync Banner */
-.sync-banner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 12px;
-  background: #ecfdf5;
-  border: 1px solid #a7f3d0;
-  border-radius: 9px;
-}
-
-.sync-banner-text {
-  font-size: 12px;
-  font-weight: 500;
-  color: #065f46;
-}
-
-.btn-save-sync {
-  border: none;
-  background: #10b981;
-  color: #ffffff;
-  padding: 4px 10px;
-  border-radius: 6px;
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.15s ease;
-}
-
-.btn-save-sync:hover {
-  background: #059669;
 }
 
 /* Panel Actions */
@@ -1065,27 +1021,12 @@ const downloadAsTxt = () => {
   border-bottom: 1px solid #cbd5e1;
 }
 
-.preview-badge-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
 .preview-badge {
   font-size: 12px;
   font-weight: 700;
   color: #334155;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-}
-
-.edit-badge {
-  font-size: 11px;
-  color: #64748b;
-  background: #ffffff;
-  padding: 2px 8px;
-  border-radius: 12px;
-  border: 1px solid #cbd5e1;
 }
 
 .zoom-stepper {
@@ -1169,6 +1110,7 @@ const downloadAsTxt = () => {
   line-height: 1.7;
   overflow: hidden;
   transition: width 0.2s, max-width 0.2s;
+  user-select: text;
 }
 
 .a4-sheet.margin-compact {
@@ -1206,23 +1148,11 @@ const downloadAsTxt = () => {
   margin-bottom: 6px;
 }
 
-.sheet-title-input {
-  flex: 1;
-  border: 1px dashed transparent;
-  background: transparent;
+.sheet-title-text {
   font-size: 18px;
   font-weight: 700;
   color: #0f172a;
-  padding: 2px 4px;
-  border-radius: 4px;
-  outline: none;
-  transition: all 0.15s ease;
-}
-
-.sheet-title-input:hover,
-.sheet-title-input:focus {
-  border-color: #6366f1;
-  background: #f8fafc;
+  word-break: break-word;
 }
 
 .sheet-date-text {
@@ -1244,18 +1174,7 @@ const downloadAsTxt = () => {
   z-index: 1;
   flex: 1;
   min-height: 240px;
-  outline: none;
   word-break: break-word;
-  padding: 2px;
-  border-radius: 4px;
-  border: 1px dashed transparent;
-  transition: border-color 0.15s ease;
-}
-
-.sheet-content-render:hover,
-.sheet-content-render:focus {
-  border-color: #a5b4fc;
-  background: rgba(248, 250, 252, 0.5);
 }
 
 .sheet-content-render :deep(h1) { font-size: 1.4em; margin: 0.6em 0 0.3em; color: #0f172a; }
