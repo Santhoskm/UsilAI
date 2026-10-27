@@ -511,12 +511,13 @@
           </button>
 
           <!-- Download / Export Dropdown (Icon Alone with Scrollable Options) -->
+          <!-- Download / Export (Icon Alone -> Opens Print & Edit Preview Modal) -->
           <div class="download-dropdown-wrapper" ref="downloadDropdownRef">
             <button 
-              @click="showDownloadDropdown = !showDownloadDropdown" 
+              @click="openPrintPreviewModal" 
               class="toolbar-btn btn-download"
-              :class="{ active: showDownloadDropdown }"
-              title="Download / Export Document"
+              :class="{ active: showPrintModal }"
+              title="Print & Download Preview"
             >
               <svg class="download-svg-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M12 3v12"/>
@@ -524,52 +525,6 @@
                 <path d="M4 20h16"/>
               </svg>
             </button>
-            <div v-if="showDownloadDropdown" class="download-dropdown-menu">
-              <div class="dropdown-menu-header">Download Options</div>
-              <div class="download-options-scroll">
-                <button @click="downloadAsDocx" class="download-menu-item">
-                  <div class="item-icon-badge docx-badge">
-                    <svg class="format-download-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                      <polyline points="14 2 14 8 20 8"></polyline>
-                      <line x1="16" y1="13" x2="8" y2="13"></line>
-                      <line x1="16" y1="17" x2="8" y2="17"></line>
-                    </svg>
-                  </div>
-                  <div class="item-info">
-                    <span class="item-title">Word Document (.doc)</span>
-                    <span class="item-desc">Formatted Microsoft Word file</span>
-                  </div>
-                </button>
-                <button @click="downloadAsTxt" class="download-menu-item">
-                  <div class="item-icon-badge txt-badge">
-                    <svg class="format-download-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                      <polyline points="14 2 14 8 20 8"></polyline>
-                      <line x1="16" y1="13" x2="8" y2="13"></line>
-                      <line x1="16" y1="17" x2="8" y2="17"></line>
-                    </svg>
-                  </div>
-                  <div class="item-info">
-                    <span class="item-title">Plain Text (.txt)</span>
-                    <span class="item-desc">Standard plain text file</span>
-                  </div>
-                </button>
-                <button @click="downloadAsPDF" class="download-menu-item">
-                  <div class="item-icon-badge pdf-badge">
-                    <svg class="format-download-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                      <polyline points="14 2 14 8 20 8"></polyline>
-                      <path d="M9 15h6"></path>
-                    </svg>
-                  </div>
-                  <div class="item-info">
-                    <span class="item-title">PDF Document (.pdf)</span>
-                    <span class="item-desc">Print-ready PDF / Print page</span>
-                  </div>
-                </button>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -802,12 +757,13 @@
             <span>Grammar Checker</span>
           </button>
 
-          <!-- Download / Export Dropdown with Text -->
+          <!-- Download / Export Button -> Opens Print & Edit Preview Modal -->
           <div class="download-dropdown-wrapper" ref="downloadDropdownRef">
             <button 
-              @click="showDownloadDropdown = !showDownloadDropdown" 
+              @click="openPrintPreviewModal" 
               class="toolbar-btn btn-download-home"
-              title="Download / Export Content"
+              :class="{ active: showPrintModal }"
+              title="Print & Download Preview"
             >
               <svg class="download-svg-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M12 2.5V15.5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
@@ -815,54 +771,7 @@
                 <path d="M3.5 21H20.5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
               </svg>
               <span class="download-btn-text">Download</span>
-              <span class="font-caret">▾</span>
             </button>
-            <div v-if="showDownloadDropdown" class="download-dropdown-menu">
-              <div class="dropdown-menu-header">Download Options</div>
-              <div class="download-options-scroll">
-                <button @click="downloadAsDocx" class="download-menu-item">
-                  <div class="item-icon-badge docx-badge">
-                    <svg class="format-download-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                      <polyline points="14 2 14 8 20 8"></polyline>
-                      <line x1="16" y1="13" x2="8" y2="13"></line>
-                      <line x1="16" y1="17" x2="8" y2="17"></line>
-                    </svg>
-                  </div>
-                  <div class="item-info">
-                    <span class="item-title">Word Document (.doc)</span>
-                    <span class="item-desc">Formatted Microsoft Word file</span>
-                  </div>
-                </button>
-                <button @click="downloadAsTxt" class="download-menu-item">
-                  <div class="item-icon-badge txt-badge">
-                    <svg class="format-download-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                      <polyline points="14 2 14 8 20 8"></polyline>
-                      <line x1="16" y1="13" x2="8" y2="13"></line>
-                      <line x1="16" y1="17" x2="8" y2="17"></line>
-                    </svg>
-                  </div>
-                  <div class="item-info">
-                    <span class="item-title">Plain Text (.txt)</span>
-                    <span class="item-desc">Standard plain text file</span>
-                  </div>
-                </button>
-                <button @click="downloadAsPDF" class="download-menu-item">
-                  <div class="item-icon-badge pdf-badge">
-                    <svg class="format-download-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                      <polyline points="14 2 14 8 20 8"></polyline>
-                      <path d="M9 15h6"></path>
-                    </svg>
-                  </div>
-                  <div class="item-info">
-                    <span class="item-title">PDF Document (.pdf)</span>
-                    <span class="item-desc">Print-ready PDF / Print page</span>
-                  </div>
-                </button>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -1221,6 +1130,22 @@
       @close="showAuthModal = false"
       @success="onAuthSuccess"
     />
+
+    <!-- Print & Download Preview Modal with Live View Editing -->
+    <PrintPreviewModal
+      :isOpen="showPrintModal"
+      :initialTitle="activeFile?.title || 'Tamil Document'"
+      :initialContent="editor ? editor.getHTML() : ''"
+      :docBackground="currentDocBackground"
+      :docBackgroundMode="currentDocBackgroundMode"
+      :docBackgroundOpacity="currentDocBackgroundOpacity"
+      :selectedFont="selectedFont"
+      :fontSize="currentFontSize"
+      @close="showPrintModal = false"
+      @apply-changes="handleApplyPrintPreviewEdits"
+      @download-docx="downloadAsDocx"
+      @download-txt="downloadAsTxt"
+    />
   </div>
 </template>
 
@@ -1312,6 +1237,7 @@ import { useClaudeGrammarChecker } from '@/composables/useClaudeGrammarChecker'
 import { useCredits } from '@/composables/useCredits'
 import { fetchUserDocuments, syncUserDocuments, deleteUserDocument } from '@/services/apiService'
 import AuthModal from '@/components/AuthModal.vue'
+import PrintPreviewModal from '@/components/PrintPreviewModal.vue'
 
 const { isAuthenticated, user } = useAuth()
 const { creditsLeft, isOutOfCredits, formattedTimeUntilRefill, consumeCredit, openCreditModal } = useCredits()
@@ -2203,9 +2129,34 @@ const charCount = ref(0)
 const lastProcessedWord = ref('')
 const lastProcessedPosition = ref(-1)
 
-// Download / Export dropdown state
+// Download / Export & Print Preview state
 const showDownloadDropdown = ref(false)
 const downloadDropdownRef = ref(null)
+const showPrintModal = ref(false)
+
+const openPrintPreviewModal = () => {
+  if (!editor.value) return
+  const plainText = editor.value.getText()
+  const htmlContent = editor.value.getHTML()
+  const hasImages = htmlContent && htmlContent.includes('<img')
+  if (!plainText.trim() && !hasImages) {
+    alert('Please write some content before previewing or downloading.')
+    return
+  }
+  showDownloadDropdown.value = false
+  showPrintModal.value = true
+}
+
+const handleApplyPrintPreviewEdits = ({ title, content }) => {
+  if (activeFile.value) {
+    activeFile.value.title = title
+    activeFile.value.content = content
+  }
+  if (editor.value) {
+    setEditorTextSafely(content)
+    scheduleSaveCurrentFile()
+  }
+}
 
 // Watch for Deep Learning suggestions from the backend API
 watch(aiSuggestions, (newSuggestions) => {
@@ -2666,84 +2617,7 @@ const handleDrop = (view, event, slice, moved) => {
 
 // ── DOWNLOAD & EXPORT FUNCTIONS ──────────────────────────
 const downloadAsPDF = () => {
-  showDownloadDropdown.value = false
-  if (!editor.value) return
-  const htmlContent = editor.value.getHTML()
-  const plainText = editor.value.getText()
-  if (!plainText.trim()) {
-    alert('Please write some content before downloading.')
-    return
-  }
-
-  // Create a dedicated hidden print iframe for pristine PDF output
-  const printIframe = document.createElement('iframe')
-  printIframe.style.position = 'fixed'
-  printIframe.style.right = '0'
-  printIframe.style.bottom = '0'
-  printIframe.style.width = '0'
-  printIframe.style.height = '0'
-  printIframe.style.border = 'none'
-  document.body.appendChild(printIframe)
-
-  const doc = printIframe.contentWindow.document
-  doc.open()
-  doc.write(`
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="utf-8">
-        <title>Usil AI Tamil Document</title>
-        <link rel="preconnect" href="https://fonts.googleapis.com">
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link href="https://fonts.googleapis.com/css2?family=Catamaran:wght@400;600;700&family=Noto+Sans+Tamil:wght@400;500;700&display=swap" rel="stylesheet">
-        <style>
-          @page {
-            margin: 20mm;
-            size: A4;
-          }
-          body {
-            font-family: ${selectedFont.value.value || "'Noto Sans Tamil', sans-serif"};
-            font-size: ${currentFontSize.value || 16}px;
-            line-height: 1.8;
-            color: #0f172a;
-            padding: 24px;
-            background: white;
-          }
-          h1, h2, h3 { color: #1e293b; margin-top: 1em; margin-bottom: 0.5em; }
-          blockquote { border-left: 3px solid #6366f1; margin: 1em 0; padding-left: 1em; color: #475569; font-style: italic; }
-          code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; font-family: monospace; }
-          .doc-footer {
-            margin-top: 40px;
-            padding-top: 12px;
-            border-top: 1px solid #e2e8f0;
-            font-size: 11px;
-            color: #94a3b8;
-            display: flex;
-            justify-content: space-between;
-          }
-        </style>
-      </head>
-      <body>
-        <h1 style="color: #1e293b; border-bottom: 2px solid #6366f1; padding-bottom: 8px;">${activeFile.value?.title || 'Tamil Document'}</h1>
-        <div style="margin-top: 16px;">${htmlContent}</div>
-        <div class="doc-footer">
-          <span>Created with Usil AI (Tanglish to Tamil)</span>
-          <span>${new Date().toLocaleDateString()}</span>
-        </div>
-      </body>
-    </html>
-  `)
-  doc.close()
-
-  setTimeout(() => {
-    printIframe.contentWindow.focus()
-    printIframe.contentWindow.print()
-    setTimeout(() => {
-      if (document.body.contains(printIframe)) {
-        document.body.removeChild(printIframe)
-      }
-    }, 2500)
-  }, 400)
+  openPrintPreviewModal()
 }
 
 // ── Separate Download as Word (.doc) ──
