@@ -82,6 +82,21 @@
                 <span class="section-title">Layout & Format Settings</span>
               </div>
 
+              <!-- Download File Name Setting -->
+              <div class="setting-row filename-setting-row">
+                <span class="setting-label">File Name</span>
+                <div class="filename-input-wrapper">
+                  <input 
+                    type="text" 
+                    v-model="previewTitle" 
+                    class="filename-input" 
+                    placeholder="Enter file name"
+                    spellcheck="false"
+                  />
+                  <span class="filename-ext">.{{ selectedFormat === 'word' ? 'doc' : (selectedFormat === 'txt' ? 'txt' : 'pdf') }}</span>
+                </div>
+              </div>
+
               <!-- Orientation Setting -->
               <div class="setting-row">
                 <span class="setting-label">Orientation</span>
@@ -220,12 +235,6 @@
                   class="sheet-bg-layer"
                   :style="sheetBgStyle"
                 ></div>
-
-                <!-- Sheet Header (Clean non-editable title heading) -->
-                <div class="sheet-header-block">
-                  <div class="sheet-title-text">{{ previewTitle || 'Tamil Document' }}</div>
-                </div>
-                <div class="sheet-divider"></div>
 
                 <!-- Sheet Content (Pure formatted preview) -->
                 <div 
@@ -383,10 +392,16 @@ const triggerSelectedDownload = () => {
   }
 }
 
+// Helper to get clean download filename
+const getCleanFilename = () => {
+  const raw = (previewTitle.value || '').trim() || (props.initialTitle || '').trim() || 'Tamil_Document'
+  return raw.replace(/[\\/:*?"<>|]/g, '_').trim() || 'Tamil_Document'
+}
+
 // ── Download as PDF ──────────────────────────────────────────────
 const downloadAsPDF = () => {
   const htmlToPrint = rightSheetRef.value ? rightSheetRef.value.innerHTML : (props.initialContent || '')
-  const titleToPrint = previewTitle.value || 'Tamil Document'
+  const cleanTitle = getCleanFilename()
 
   const printIframe = document.createElement('iframe')
   printIframe.style.position = 'fixed'
@@ -426,7 +441,7 @@ const downloadAsPDF = () => {
     <html>
       <head>
         <meta charset="utf-8">
-        <title>${titleToPrint}</title>
+        <title>${cleanTitle}</title>
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
         <link href="https://fonts.googleapis.com/css2?family=Catamaran:wght@400;600;700&family=Noto+Sans+Tamil:wght@400;500;700&family=Noto+Serif+Tamil:wght@400;700&family=Mukta+Malar:wght@400;600&display=swap" rel="stylesheet">
@@ -461,17 +476,6 @@ const downloadAsPDF = () => {
             z-index: -1;
             ${bgCss}
           }
-          .print-header {
-            border-bottom: 2px solid #e2e8f0;
-            padding-bottom: 10px;
-            margin-bottom: 24px;
-          }
-          .print-title {
-            font-size: 24px;
-            font-weight: 700;
-            color: #0f172a;
-            margin: 0;
-          }
           .print-content {
             min-height: 200px;
           }
@@ -491,9 +495,6 @@ const downloadAsPDF = () => {
       </head>
       <body>
         ${previewIncludeBackground.value && bgCss ? '<div class="print-bg-layer"></div>' : ''}
-        <div class="print-header">
-          <h1 class="print-title">${titleToPrint}</h1>
-        </div>
         <div class="print-content">${htmlToPrint}</div>
       </body>
     </html>
@@ -514,14 +515,13 @@ const downloadAsPDF = () => {
 // ── Download as Word (.doc) ─────────────────────────────────────
 const downloadAsWord = () => {
   const htmlToPrint = rightSheetRef.value ? rightSheetRef.value.innerHTML : (props.initialContent || '')
-  const titleToPrint = previewTitle.value || 'Tamil Document'
-  const cleanTitle = titleToPrint.replace(/[\\/:*?"<>|]/g, '_').trim() || 'tamil_document'
+  const cleanTitle = getCleanFilename()
 
   const htmlDocument = `
     <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
       <head>
         <meta charset="utf-8">
-        <title>${titleToPrint}</title>
+        <title>${cleanTitle}</title>
         <style>
           body {
             font-family: ${selectedFontFamily.value || "'Noto Sans Tamil', 'Arial Unicode MS', sans-serif"};
@@ -536,7 +536,6 @@ const downloadAsWord = () => {
         </style>
       </head>
       <body>
-        <h1>${titleToPrint}</h1>
         <div>${htmlToPrint}</div>
       </body>
     </html>
@@ -545,7 +544,7 @@ const downloadAsWord = () => {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `${cleanTitle}_${Date.now()}.doc`
+  a.download = `${cleanTitle}.doc`
   a.click()
   URL.revokeObjectURL(url)
 }
@@ -553,15 +552,14 @@ const downloadAsWord = () => {
 // ── Download as Plain Text (.txt) ───────────────────────────────
 const downloadAsTxt = () => {
   const textContent = rightSheetRef.value ? rightSheetRef.value.innerText : ''
-  const titleToPrint = previewTitle.value || 'Tamil Document'
-  const cleanTitle = titleToPrint.replace(/[\\/:*?"<>|]/g, '_').trim() || 'tamil_document'
+  const cleanTitle = getCleanFilename()
 
-  const fullText = `${titleToPrint}\n${'='.repeat(Math.max(12, titleToPrint.length))}\n\n${textContent}\n`
+  const fullText = textContent ? `${textContent}\n` : ''
   const blob = new Blob(['\ufeff' + fullText], { type: 'text/plain;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `${cleanTitle}_${Date.now()}.txt`
+  a.download = `${cleanTitle}.txt`
   a.click()
   URL.revokeObjectURL(url)
 }
@@ -1066,35 +1064,45 @@ const downloadAsTxt = () => {
   z-index: 0;
 }
 
-.sheet-header-block {
-  position: relative;
-  z-index: 1;
+.filename-setting-row {
+  align-items: center;
+}
+
+.filename-input-wrapper {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 6px;
+  align-items: center;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 3px 8px;
+  transition: all 0.15s ease;
+  max-width: 190px;
+  width: 100%;
 }
 
-.sheet-title-text {
-  font-size: 18px;
-  font-weight: 700;
+.filename-input-wrapper:focus-within {
+  background: #ffffff;
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.12);
+}
+
+.filename-input {
+  border: none;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 500;
   color: #0f172a;
-  word-break: break-word;
+  width: 100%;
+  outline: none;
+  padding: 2px 0;
 }
 
-.sheet-date-text {
+.filename-ext {
   font-size: 11px;
-  color: #94a3b8;
-  white-space: nowrap;
-}
-
-.sheet-divider {
-  position: relative;
-  z-index: 1;
-  height: 1px;
-  background: #e2e8f0;
-  margin-bottom: 14px;
+  font-weight: 600;
+  color: #64748b;
+  padding-left: 4px;
+  user-select: none;
 }
 
 .sheet-content-render {
