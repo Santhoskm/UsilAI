@@ -432,12 +432,6 @@ const scrollToEditor = () => {
   align-items: center;
   justify-content: center;
   gap: 1.5px;
-  width: 24px;
-  height: 24px;
-  border-radius: 7px;
-  background: linear-gradient(135deg, #4338ca 0%, #4f46e5 50%, #7c3aed 100%);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  box-shadow: 0 2px 6px rgba(79, 70, 229, 0.32), inset 0 1px 1px rgba(255, 255, 255, 0.4);
   line-height: 1;
   user-select: none;
   flex-shrink: 0;
@@ -450,27 +444,22 @@ const scrollToEditor = () => {
 
 .chip-brand-badge .badge-ta {
   font-family: 'Noto Sans Tamil', -apple-system, sans-serif;
-  font-size: 11.5px;
+  font-size: 14px;
   font-weight: 800;
-  color: #ffffff;
+  color: #4338ca;
   line-height: 1;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
 }
 
 .chip-brand-badge .badge-en {
   font-family: 'Inter', -apple-system, sans-serif;
-  font-size: 9.5px;
+  font-size: 11px;
   font-weight: 800;
-  color: #c7d2fe;
+  color: #6366f1;
   line-height: 1;
   letter-spacing: -0.02em;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .chip-icon-box {
-  width: 24px;
-  height: 24px;
-  border-radius: 7px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -483,31 +472,23 @@ const scrollToEditor = () => {
 }
 
 .chip-svg {
-  width: 13.5px;
-  height: 13.5px;
+  width: 15px;
+  height: 15px;
 }
 
 .docs-icon-box {
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
   color: #10b981;
 }
 
 .ocr-icon-box {
-  background: #f5f3ff;
-  border: 1px solid #ddd6fe;
   color: #7c3aed;
 }
 
 .audio-icon-box {
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
   color: #2563eb;
 }
 
 .sub-icon-box {
-  background: #fdf2f8;
-  border: 1px solid #fbcfe8;
   color: #db2777;
 }
 
@@ -557,16 +538,16 @@ const scrollToEditor = () => {
   z-index: 2;
 }
 
-/* Central Neon Card with 'அ' */
+/* Central Floating Letter 'அ' (Box removed per user request) */
 .central-tamil-card {
   position: relative;
   z-index: 5;
-  width: 96px;
-  height: 96px;
-  background: linear-gradient(145deg, #1e1b4b, #312e81);
-  border-radius: 24px;
-  border: 2px solid rgba(168, 85, 247, 0.6);
-  box-shadow: 0 12px 32px rgba(99, 102, 241, 0.4), inset 0 2px 4px rgba(255, 255, 255, 0.25);
+  width: auto;
+  height: auto;
+  background: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -574,44 +555,55 @@ const scrollToEditor = () => {
 }
 
 :root.light .central-tamil-card {
-  background: linear-gradient(145deg, #4338ca, #6366f1);
-  border-color: rgba(255, 255, 255, 0.8);
-  box-shadow: 0 16px 36px rgba(99, 102, 241, 0.35);
+  background: none;
+  border: none;
+  box-shadow: none;
 }
 
 .tamil-char-hero {
-  font-family: 'Noto Sans Tamil', sans-serif;
-  font-size: 50px;
-  font-weight: 800;
-  color: #ffffff;
+  font-family: 'Noto Sans Tamil', 'Mukta Malar', sans-serif;
+  font-size: 88px;
+  font-weight: 900;
   line-height: 1;
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  background: linear-gradient(135deg, #3730a3 0%, #4f46e5 35%, #7c3aed 70%, #a855f7 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 14px 28px rgba(99, 102, 241, 0.45)) drop-shadow(0 2px 6px rgba(67, 56, 202, 0.3));
+  user-select: none;
 }
 
-/* Floating Mini Orbs */
+/* Floating Mini Letters 'த' and 'ம்' (Box removed per user request) */
 .floating-orb {
   position: absolute;
-  width: 44px;
-  height: 44px;
-  border-radius: 14px;
-  background: rgba(49, 46, 129, 0.65);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(168, 85, 247, 0.4);
-  color: #c7d2fe;
-  font-family: 'Noto Sans Tamil', sans-serif;
-  font-size: 20px;
-  font-weight: 700;
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  background: none;
+  backdrop-filter: none;
+  border: none;
+  box-shadow: none;
+  font-family: 'Noto Sans Tamil', 'Mukta Malar', sans-serif;
+  font-size: 32px;
+  font-weight: 800;
+  line-height: 1;
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 4;
+  user-select: none;
 }
 
 :root.light .floating-orb {
-  background: rgba(238, 242, 255, 0.85);
-  border: 1px solid rgba(129, 140, 248, 0.4);
-  color: #4338ca;
-  box-shadow: 0 8px 16px rgba(99, 102, 241, 0.15);
+  background: none;
+  border: none;
+  box-shadow: none;
+}
+
+.floating-orb span {
+  background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 6px 14px rgba(99, 102, 241, 0.35));
 }
 
 .orb-tha {
@@ -621,7 +613,7 @@ const scrollToEditor = () => {
 }
 
 .orb-m {
-  bottom: 30px;
+  bottom: 25px;
   right: 15px;
   animation: floatOrb2 4.5s ease-in-out infinite;
 }
