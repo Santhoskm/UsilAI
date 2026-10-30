@@ -530,279 +530,285 @@
 
       </div>
 
-      <!-- 2. HOME PAGE EMBEDDED TOOLBAR (Used on Home Page alone - exactly matches original 2-row layout) -->
+      <!-- 2. HOME PAGE EMBEDDED TOOLBAR (Clean 2-row mobile-optimized layout) -->
       <div v-else-if="editor" class="toolbar embedded-home-toolbar">
-        <!-- Documents Sidebar Toggle (When logged in and sidebar enabled) -->
-        <div v-if="isAuthenticated && enableSidebar" class="toolbar-group files-toggle-group">
-          <button 
-            @click="showFilesSidebar = !showFilesSidebar"
-            class="toolbar-btn btn-files-toggle"
-            :class="{ active: showFilesSidebar }"
-            :title="showFilesSidebar ? 'Hide Documents Sidebar' : 'Show Documents Sidebar'"
-          >
-            <span class="files-toggle-icon">📁</span>
-            <span class="files-btn-title">{{ activeFile?.title || 'Documents' }}</span>
-            <span class="files-badge">{{ savedFiles.length }}/5</span>
-          </button>
-        </div>
-
-        <div v-if="isAuthenticated && enableSidebar" class="toolbar-divider"></div>
-
-        <!-- 1. Formatting: Bold, Italic, Strikethrough, Code -->
-        <div class="toolbar-group">
-          <button
-            @click="editor.chain().focus().toggleBold().run()"
-            :class="{ active: editor.isActive('bold') }"
-            class="toolbar-btn"
-            title="Bold"
-          >
-            <strong>B</strong>
-          </button>
-          <button
-            @click="editor.chain().focus().toggleItalic().run()"
-            :class="{ active: editor.isActive('italic') }"
-            class="toolbar-btn"
-            title="Italic"
-          >
-            <em>I</em>
-          </button>
-          <button
-            @click="editor.chain().focus().toggleStrike().run()"
-            :class="{ active: editor.isActive('strike') }"
-            class="toolbar-btn"
-            title="Strikethrough"
-          >
-            <s>S</s>
-          </button>
-          <button
-            @click="editor.chain().focus().toggleCode().run()"
-            :class="{ active: editor.isActive('code') }"
-            class="toolbar-btn"
-            title="Inline Code"
-          >
-            &lt;/&gt;
-          </button>
-        </div>
-
-        <div class="toolbar-divider"></div>
-
-        <!-- 2. Headings: H1, H2, H3 -->
-        <div class="toolbar-group">
-          <button
-            @click="editor.chain().focus().toggleHeading({ level: 1 }).run()"
-            :class="{ active: editor.isActive('heading', { level: 1 }) }"
-            class="toolbar-btn"
-            title="Heading 1"
-          >
-            H1
-          </button>
-          <button
-            @click="editor.chain().focus().toggleHeading({ level: 2 }).run()"
-            :class="{ active: editor.isActive('heading', { level: 2 }) }"
-            class="toolbar-btn"
-            title="Heading 2"
-          >
-            H2
-          </button>
-          <button
-            @click="editor.chain().focus().toggleHeading({ level: 3 }).run()"
-            :class="{ active: editor.isActive('heading', { level: 3 }) }"
-            class="toolbar-btn"
-            title="Heading 3"
-          >
-            H3
-          </button>
-        </div>
-
-        <div class="toolbar-divider"></div>
-
-        <!-- 3. Lists & Quotes -->
-        <div class="toolbar-group">
-          <button
-            @click="editor.chain().focus().toggleBulletList().run()"
-            :class="{ active: editor.isActive('bulletList') }"
-            class="toolbar-btn"
-            title="Bullet List"
-          >
-            ☰
-          </button>
-          <button
-            @click="editor.chain().focus().toggleOrderedList().run()"
-            :class="{ active: editor.isActive('orderedList') }"
-            class="toolbar-btn"
-            title="Ordered List"
-          >
-            1.
-          </button>
-          <button
-            @click="editor.chain().focus().toggleBlockquote().run()"
-            :class="{ active: editor.isActive('blockquote') }"
-            class="toolbar-btn"
-            title="Quote"
-          >
-            ❝
-          </button>
-          <button
-            @click="editor.chain().focus().setHorizontalRule().run()"
-            class="toolbar-btn"
-            title="Horizontal Rule"
-          >
-            ─
-          </button>
-        </div>
-
-        <div class="toolbar-divider"></div>
-
-        <!-- 4. History: Undo, Redo -->
-        <div class="toolbar-group">
-          <button
-            @click="editor.chain().focus().undo().run()"
-            :disabled="!editor.can().undo()"
-            class="toolbar-btn"
-            title="Undo"
-          >
-            ↩
-          </button>
-          <button
-            @click="editor.chain().focus().redo().run()"
-            :disabled="!editor.can().redo()"
-            class="toolbar-btn"
-            title="Redo"
-          >
-            ↪
-          </button>
-        </div>
-
-        <div class="toolbar-divider"></div>
-
-        <!-- 5. Alignment -->
-        <div class="toolbar-group">
-          <button
-            @click="editor.chain().focus().setTextAlign('left').run()"
-            :class="{ active: editor.isActive({ textAlign: 'left' }) }"
-            class="toolbar-btn"
-            title="Align Left"
-          >
-            ⬛︎
-          </button>
-          <button
-            @click="editor.chain().focus().setTextAlign('center').run()"
-            :class="{ active: editor.isActive({ textAlign: 'center' }) }"
-            class="toolbar-btn"
-            title="Align Center"
-          >
-            ▣
-          </button>
-          <button
-            @click="editor.chain().focus().setTextAlign('right').run()"
-            :class="{ active: editor.isActive({ textAlign: 'right' }) }"
-            class="toolbar-btn"
-            title="Align Right"
-          >
-            ▤
-          </button>
-          <button
-            @click="editor.chain().focus().setTextAlign('justify').run()"
-            :class="{ active: editor.isActive({ textAlign: 'justify' }) }"
-            class="toolbar-btn"
-            title="Justify"
-          >
-            ☰
-          </button>
-        </div>
-
-        <div class="toolbar-divider"></div>
-
-        <!-- 6. Font Size & Increments -->
-        <div class="toolbar-group">
-          <div class="font-size-wrapper" ref="fontSizeRef">
-            <button class="toolbar-btn font-size-btn" @click="showFontSizeDropdown = !showFontSizeDropdown" title="Font Size">
-              <span>{{ currentFontSize }}px</span>
+        <!-- Row 1: Actions & Utilities (Font Selector, Grammar Checker, Download, Clear) -->
+        <div class="embedded-toolbar-row embedded-actions-row">
+          <!-- Font Selector -->
+          <div class="toolbar-font-selector" ref="fontSelectorRef">
+            <button class="font-selector-btn" @click="showFontDropdown = !showFontDropdown" title="Change Tamil Font">
+              <span class="font-preview">அ</span>
+              <span class="font-name">{{ selectedFont.label }}</span>
               <span class="font-caret">▾</span>
             </button>
-            <div v-if="showFontSizeDropdown" class="font-size-dropdown">
+            <div v-if="showFontDropdown" class="font-dropdown">
               <div
-                v-for="size in FONT_SIZES"
-                :key="size"
-                class="font-size-option"
-                :class="{ active: currentFontSize === size }"
-                @click="applyFontSize(size)"
+                v-for="font in TAMIL_FONTS"
+                :key="font.label"
+                class="font-option"
+                :class="{ active: selectedFont.label === font.label }"
+                @click="applyFont(font)"
+                :style="{ fontFamily: font.value }"
               >
-                <span :style="{ fontSize: Math.min(size, 22) + 'px', lineHeight: '1' }">அ</span>
-                <span class="size-label">{{ size }}px</span>
+                <span class="font-sample">அ ஆ </span>
+                <span class="font-label">{{ font.label }}</span>
               </div>
             </div>
           </div>
-          <button class="toolbar-btn" title="Decrease Font Size" @click="changeFontSize(-2)">A−</button>
-          <button class="toolbar-btn" title="Increase Font Size" @click="changeFontSize(+2)">A+</button>
+
+          <!-- Quick Actions Cluster -->
+          <div class="action-buttons-wrap">
+            <button 
+              @click="toggleAIHelp" 
+              class="toolbar-btn btn-ai"
+              :class="{ active: aiHelpEnabled }"
+              title="AI Grammar Checker"
+            >
+              <svg class="grammar-sparkle-svg" width="14" height="14" viewBox="0 0 24 24" fill="none">
+                <path d="M12 2L14.4 8.6L21 11L14.4 13.4L12 20L9.6 13.4L3 11L9.6 8.6L12 2Z" fill="currentColor"/>
+                <circle cx="18.5" cy="5.5" r="2.2" fill="currentColor"/>
+              </svg>
+              <span class="btn-text-label">Grammar Checker</span>
+            </button>
+
+            <!-- Download / Export Button -> Opens Print & Edit Preview Modal -->
+            <div class="download-dropdown-wrapper" ref="downloadDropdownRef">
+              <button 
+                @click="openPrintPreviewModal" 
+                class="toolbar-btn btn-download-home"
+                :class="{ active: showPrintModal }"
+                title="Print & Download Preview"
+              >
+                <svg class="download-svg-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 2.5V15.5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+                  <path d="M5.5 10.5L12 16.5L18.5 10.5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M3.5 21H20.5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+                </svg>
+                <span class="download-btn-text">Download</span>
+              </button>
+            </div>
+
+            <button @click="clearEditor" class="toolbar-btn btn-clear" title="Clear Editor Content">
+              Clear
+            </button>
+          </div>
+
+          <!-- Stats on Right -->
+          <div class="toolbar-stats">
+            <span>{{ wordCount }} words</span>
+            <span>{{ charCount }} chars</span>
+          </div>
         </div>
 
-        <div class="toolbar-divider"></div>
-
-        <!-- Row 2 Actions: Clear, Grammar Checker, Download, Font Selector -->
-        <div class="toolbar-group">
-          <button @click="clearEditor" class="toolbar-btn btn-clear" title="Clear Editor Content">
-            Clear
-          </button>
-          <button 
-            @click="toggleAIHelp" 
-            class="toolbar-btn btn-ai"
-            :class="{ active: aiHelpEnabled }"
-            title="AI Grammar Checker"
-          >
-            <svg class="grammar-sparkle-svg" width="14" height="14" viewBox="0 0 24 24" fill="none">
-              <path d="M12 2L14.4 8.6L21 11L14.4 13.4L12 20L9.6 13.4L3 11L9.6 8.6L12 2Z" fill="currentColor"/>
-              <circle cx="18.5" cy="5.5" r="2.2" fill="currentColor"/>
-            </svg>
-            <span>Grammar Checker</span>
-          </button>
-
-          <!-- Download / Export Button -> Opens Print & Edit Preview Modal -->
-          <div class="download-dropdown-wrapper" ref="downloadDropdownRef">
+        <!-- Row 2: Touch-scrollable Formatting Tools Strip -->
+        <div class="embedded-toolbar-row embedded-tools-strip">
+          <!-- Documents Sidebar Toggle (When logged in and sidebar enabled) -->
+          <div v-if="isAuthenticated && enableSidebar" class="toolbar-group files-toggle-group">
             <button 
-              @click="openPrintPreviewModal" 
-              class="toolbar-btn btn-download-home"
-              :class="{ active: showPrintModal }"
-              title="Print & Download Preview"
+              @click="showFilesSidebar = !showFilesSidebar"
+              class="toolbar-btn btn-files-toggle"
+              :class="{ active: showFilesSidebar }"
+              :title="showFilesSidebar ? 'Hide Documents Sidebar' : 'Show Documents Sidebar'"
             >
-              <svg class="download-svg-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 2.5V15.5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
-                <path d="M5.5 10.5L12 16.5L18.5 10.5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M3.5 21H20.5" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
-              </svg>
-              <span class="download-btn-text">Download</span>
+              <span class="files-toggle-icon">📁</span>
+              <span class="files-btn-title">{{ activeFile?.title || 'Documents' }}</span>
+              <span class="files-badge">{{ savedFiles.length }}/5</span>
+            </button>
+          </div>
+
+          <div v-if="isAuthenticated && enableSidebar" class="toolbar-divider"></div>
+
+          <!-- 1. Formatting: Bold, Italic, Strikethrough, Code -->
+          <div class="toolbar-group">
+            <button
+              @click="editor.chain().focus().toggleBold().run()"
+              :class="{ active: editor.isActive('bold') }"
+              class="toolbar-btn"
+              title="Bold"
+            >
+              <strong>B</strong>
+            </button>
+            <button
+              @click="editor.chain().focus().toggleItalic().run()"
+              :class="{ active: editor.isActive('italic') }"
+              class="toolbar-btn"
+              title="Italic"
+            >
+              <em>I</em>
+            </button>
+            <button
+              @click="editor.chain().focus().toggleStrike().run()"
+              :class="{ active: editor.isActive('strike') }"
+              class="toolbar-btn"
+              title="Strikethrough"
+            >
+              <s>S</s>
+            </button>
+            <button
+              @click="editor.chain().focus().toggleCode().run()"
+              :class="{ active: editor.isActive('code') }"
+              class="toolbar-btn"
+              title="Inline Code"
+            >
+              &lt;/&gt;
+            </button>
+          </div>
+
+          <div class="toolbar-divider"></div>
+
+          <!-- 2. Headings: H1, H2, H3 -->
+          <div class="toolbar-group">
+            <button
+              @click="editor.chain().focus().toggleHeading({ level: 1 }).run()"
+              :class="{ active: editor.isActive('heading', { level: 1 }) }"
+              class="toolbar-btn"
+              title="Heading 1"
+            >
+              H1
+            </button>
+            <button
+              @click="editor.chain().focus().toggleHeading({ level: 2 }).run()"
+              :class="{ active: editor.isActive('heading', { level: 2 }) }"
+              class="toolbar-btn"
+              title="Heading 2"
+            >
+              H2
+            </button>
+            <button
+              @click="editor.chain().focus().toggleHeading({ level: 3 }).run()"
+              :class="{ active: editor.isActive('heading', { level: 3 }) }"
+              class="toolbar-btn"
+              title="Heading 3"
+            >
+              H3
+            </button>
+          </div>
+
+          <div class="toolbar-divider"></div>
+
+          <!-- 3. Font Size & Increments -->
+          <div class="toolbar-group">
+            <div class="font-size-wrapper" ref="fontSizeRef">
+              <button class="toolbar-btn font-size-btn" @click="showFontSizeDropdown = !showFontSizeDropdown" title="Font Size">
+                <span>{{ currentFontSize }}px</span>
+                <span class="font-caret">▾</span>
+              </button>
+              <div v-if="showFontSizeDropdown" class="font-size-dropdown">
+                <div
+                  v-for="size in FONT_SIZES"
+                  :key="size"
+                  class="font-size-option"
+                  :class="{ active: currentFontSize === size }"
+                  @click="applyFontSize(size)"
+                >
+                  <span :style="{ fontSize: Math.min(size, 22) + 'px', lineHeight: '1' }">அ</span>
+                  <span class="size-label">{{ size }}px</span>
+                </div>
+              </div>
+            </div>
+            <button class="toolbar-btn" title="Decrease Font Size" @click="changeFontSize(-2)">A−</button>
+            <button class="toolbar-btn" title="Increase Font Size" @click="changeFontSize(+2)">A+</button>
+          </div>
+
+          <div class="toolbar-divider"></div>
+
+          <!-- 4. Lists & Quotes -->
+          <div class="toolbar-group">
+            <button
+              @click="editor.chain().focus().toggleBulletList().run()"
+              :class="{ active: editor.isActive('bulletList') }"
+              class="toolbar-btn"
+              title="Bullet List"
+            >
+              ☰
+            </button>
+            <button
+              @click="editor.chain().focus().toggleOrderedList().run()"
+              :class="{ active: editor.isActive('orderedList') }"
+              class="toolbar-btn"
+              title="Ordered List"
+            >
+              1.
+            </button>
+            <button
+              @click="editor.chain().focus().toggleBlockquote().run()"
+              :class="{ active: editor.isActive('blockquote') }"
+              class="toolbar-btn"
+              title="Quote"
+            >
+              ❝
+            </button>
+            <button
+              @click="editor.chain().focus().setHorizontalRule().run()"
+              class="toolbar-btn"
+              title="Horizontal Rule"
+            >
+              ─
+            </button>
+          </div>
+
+          <div class="toolbar-divider"></div>
+
+          <!-- 5. Alignment -->
+          <div class="toolbar-group">
+            <button
+              @click="editor.chain().focus().setTextAlign('left').run()"
+              :class="{ active: editor.isActive({ textAlign: 'left' }) }"
+              class="toolbar-btn"
+              title="Align Left"
+            >
+              ⬛︎
+            </button>
+            <button
+              @click="editor.chain().focus().setTextAlign('center').run()"
+              :class="{ active: editor.isActive({ textAlign: 'center' }) }"
+              class="toolbar-btn"
+              title="Align Center"
+            >
+              ▣
+            </button>
+            <button
+              @click="editor.chain().focus().setTextAlign('right').run()"
+              :class="{ active: editor.isActive({ textAlign: 'right' }) }"
+              class="toolbar-btn"
+              title="Align Right"
+            >
+              ▤
+            </button>
+            <button
+              @click="editor.chain().focus().setTextAlign('justify').run()"
+              :class="{ active: editor.isActive({ textAlign: 'justify' }) }"
+              class="toolbar-btn"
+              title="Justify"
+            >
+              ☰
+            </button>
+          </div>
+
+          <div class="toolbar-divider"></div>
+
+          <!-- 6. History: Undo, Redo -->
+          <div class="toolbar-group">
+            <button
+              @click="editor.chain().focus().undo().run()"
+              :disabled="!editor.can().undo()"
+              class="toolbar-btn"
+              title="Undo"
+            >
+              ↩
+            </button>
+            <button
+              @click="editor.chain().focus().redo().run()"
+              :disabled="!editor.can().redo()"
+              class="toolbar-btn"
+              title="Redo"
+            >
+              ↪
             </button>
           </div>
         </div>
-
-        <!-- Font Selector -->
-        <div class="toolbar-font-selector" ref="fontSelectorRef">
-          <button class="font-selector-btn" @click="showFontDropdown = !showFontDropdown" title="Change Tamil Font">
-            <span class="font-preview">அ</span>
-            <span class="font-name">{{ selectedFont.label }}</span>
-            <span class="font-caret">▾</span>
-          </button>
-          <div v-if="showFontDropdown" class="font-dropdown">
-            <div
-              v-for="font in TAMIL_FONTS"
-              :key="font.label"
-              class="font-option"
-              :class="{ active: selectedFont.label === font.label }"
-              @click="applyFont(font)"
-              :style="{ fontFamily: font.value }"
-            >
-              <span class="font-sample">அ ஆ </span>
-              <span class="font-label">{{ font.label }}</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Stats on Right -->
-        <div class="toolbar-stats">
-          <span>{{ wordCount }} words</span>
-          <span>{{ charCount }} chars</span>
-        </div>
       </div>
+
 
       <!-- Document Workspace Canvas -->
       <div 
@@ -949,7 +955,7 @@
     </div>
 
     <!-- AI Assistant / Grammar Checker Sidebar (Companion Drawer) -->
-    <aside v-if="aiHelpEnabled" class="ai-assistant-sidebar">
+    <aside v-if="aiHelpEnabled" class="ai-assistant-sidebar" :class="{ 'embedded-ai-drawer': !fullPage }">
         <!-- Sidebar Header -->
         <div class="sidebar-header">
           <div class="sidebar-title-group">
@@ -2187,7 +2193,7 @@ watch(aiSuggestions, (newSuggestions) => {
 
 // ── AI Assistant & Grammar Checker Sidebar State ─────────────────
 const aiHelpEnabled = ref(false)
-const autoCheckMode = ref(false)
+const autoCheckMode = ref(true)
 const activeIssues = ref([])
 let checkDebounceTimer = null
 
@@ -2747,8 +2753,8 @@ const toggleAIHelp = () => {
   }
   aiHelpEnabled.value = !aiHelpEnabled.value
   if (aiHelpEnabled.value) {
-    // Initial scan when sidebar opens if credits available
-    if (!isOutOfCredits.value) {
+    // Initial scan when sidebar opens if credits available and text exists
+    if (!isOutOfCredits.value && editor.value && editor.value.getText().trim()) {
       triggerGrammarScan()
     }
   } else {
@@ -2763,7 +2769,7 @@ const scheduleAutoCheck = () => {
   if (checkDebounceTimer) clearTimeout(checkDebounceTimer)
   checkDebounceTimer = setTimeout(() => {
     triggerGrammarScan()
-  }, 3000)
+  }, 1800)
 }
 
 // Core grammar scanning function (1 check = 1 credit, 30 credits/day)
@@ -3297,6 +3303,39 @@ onBeforeUnmount(() => {
   top: 0;
   z-index: 100;
   flex-shrink: 0;
+}
+
+/* Embedded Home Toolbar Specific Styles */
+.embedded-home-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 14px;
+  background: var(--toolbar-bg, #ffffff);
+  border-bottom: 1px solid var(--toolbar-border, #e2e8f0);
+}
+
+.embedded-toolbar-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.embedded-actions-row {
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+.action-buttons-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.embedded-tools-strip {
+  gap: 4px;
+  flex-wrap: wrap;
 }
 
 /* Floating Sticky Toolbar (Full Page Mode) - Modern, Airy, Spacious & Unified */
@@ -5052,6 +5091,43 @@ onBeforeUnmount(() => {
 }
 
 /* ── AI Assistant Sidebar (Right Pane matching screenshot) ── */
+/* Embedded Mode: AI Assistant Side-by-Side (Simultaneous Typing & Checking) */
+.tanglish-editor-container.embedded-editor {
+  display: flex !important;
+  flex-direction: row !important;
+  height: 540px !important;
+  max-height: 540px !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+.tanglish-editor-container.embedded-editor .document-stage-panel {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
+
+.tanglish-editor-container.embedded-editor .ai-assistant-sidebar {
+  position: relative !important;
+  top: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  width: 320px !important;
+  min-width: 280px !important;
+  max-width: 340px !important;
+  flex: 0 0 320px !important;
+  height: 100% !important;
+  border-left: 1px solid var(--card-border, #e2e8f0) !important;
+  background: var(--card-bg, #ffffff) !important;
+  box-shadow: none !important;
+  border-radius: 0 14px 14px 0 !important;
+  animation: slideSidebar 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  z-index: 10 !important;
+}
+
 .ai-assistant-sidebar {
   width: 360px;
   flex-shrink: 0;
@@ -5669,7 +5745,44 @@ onBeforeUnmount(() => {
   .editor-workspace {
     flex-direction: column;
   }
-  .ai-assistant-sidebar {
+  /* Embedded Mode: AI Assistant Side-by-Side (Simultaneous Typing & Checking) */
+.tanglish-editor-container.embedded-editor {
+  display: flex !important;
+  flex-direction: row !important;
+  height: 540px !important;
+  max-height: 540px !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+.tanglish-editor-container.embedded-editor .document-stage-panel {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
+
+.tanglish-editor-container.embedded-editor .ai-assistant-sidebar {
+  position: relative !important;
+  top: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  width: 320px !important;
+  min-width: 280px !important;
+  max-width: 340px !important;
+  flex: 0 0 320px !important;
+  height: 100% !important;
+  border-left: 1px solid var(--card-border, #e2e8f0) !important;
+  background: var(--card-bg, #ffffff) !important;
+  box-shadow: none !important;
+  border-radius: 0 14px 14px 0 !important;
+  animation: slideSidebar 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  z-index: 10 !important;
+}
+
+.ai-assistant-sidebar {
     width: 100%;
     max-width: 100%;
     height: 380px;
@@ -6082,6 +6195,152 @@ onBeforeUnmount(() => {
 
 /* Responsive Mobile Styles */
 @media (max-width: 768px) {
+  /* Embedded Home Toolbar Mobile Styles */
+  .embedded-home-toolbar {
+    padding: 6px 8px !important;
+    gap: 5px !important;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 50 !important;
+    background: #ffffff !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+  }
+
+  .embedded-actions-row {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 6px !important;
+    width: 100% !important;
+    flex-wrap: nowrap !important;
+  }
+
+  .embedded-actions-row .toolbar-font-selector {
+    flex: 0 1 auto !important;
+    max-width: 140px !important;
+    min-width: 95px !important;
+  }
+
+  .embedded-actions-row .font-selector-btn {
+    width: 100% !important;
+    padding: 4px 7px !important;
+    font-size: 11.5px !important;
+    height: 30px !important;
+    gap: 4px !important;
+    border-radius: 6px !important;
+  }
+
+  .embedded-actions-row .font-name {
+    max-width: 65px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  .action-buttons-wrap {
+    display: flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .embedded-actions-row .btn-ai {
+    padding: 4px 8px !important;
+    height: 30px !important;
+    font-size: 11.5px !important;
+    gap: 4px !important;
+    border-radius: 6px !important;
+  }
+
+  .embedded-actions-row .btn-download-home {
+    padding: 4px 8px !important;
+    height: 30px !important;
+    font-size: 11.5px !important;
+    gap: 4px !important;
+    border-radius: 6px !important;
+  }
+
+  .embedded-actions-row .btn-clear {
+    padding: 4px 8px !important;
+    height: 30px !important;
+    font-size: 11.5px !important;
+    border-radius: 6px !important;
+  }
+
+  /* Smooth horizontally touch-scrollable formatting strip on mobile */
+  .embedded-tools-strip {
+    display: flex !important;
+    align-items: center !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+    gap: 3px !important;
+    padding: 2px 0 2px 0 !important;
+    width: 100% !important;
+  }
+
+  .embedded-tools-strip::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .embedded-tools-strip .toolbar-group {
+    display: inline-flex !important;
+    align-items: center !important;
+    flex-shrink: 0 !important;
+    gap: 2px !important;
+    background: #f8fafc !important;
+    border-radius: 6px !important;
+    padding: 1px 2px !important;
+  }
+
+  .embedded-tools-strip .toolbar-btn {
+    min-width: 29px !important;
+    width: 29px !important;
+    height: 29px !important;
+    padding: 0 !important;
+    font-size: 12px !important;
+    flex-shrink: 0 !important;
+    justify-content: center !important;
+  }
+
+  .embedded-tools-strip .font-size-wrapper {
+    flex-shrink: 0 !important;
+  }
+
+  .embedded-tools-strip .font-size-btn {
+    width: auto !important;
+    min-width: 44px !important;
+    padding: 0 4px !important;
+    font-size: 11.5px !important;
+  }
+
+  .embedded-tools-strip .toolbar-divider {
+    height: 16px !important;
+    margin: 0 2px !important;
+    flex-shrink: 0 !important;
+    background: #cbd5e1 !important;
+  }
+
+  .tanglish-editor-container.embedded-editor {
+    flex-direction: column !important;
+    height: auto !important;
+    min-height: 400px !important;
+    max-height: none !important;
+    border-radius: 12px !important;
+  }
+  .tanglish-editor-container.embedded-editor .ai-assistant-sidebar {
+    width: 100% !important;
+    max-width: 100% !important;
+    flex: none !important;
+    border-left: none !important;
+    border-top: 1px solid var(--card-border, #e2e8f0) !important;
+    height: 380px !important;
+    border-radius: 0 0 12px 12px !important;
+  }
+
   .tanglish-editor-container {
     min-height: 380px;
     position: relative;
@@ -6244,6 +6503,17 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 480px) {
+  /* Extra compact for narrow phone screens */
+  .embedded-actions-row .btn-ai .btn-text-label {
+    display: none !important;
+  }
+  .embedded-actions-row .btn-download-home .download-btn-text {
+    display: none !important;
+  }
+  .embedded-actions-row .font-name {
+    max-width: 52px !important;
+  }
+
   .a4-document-sheet {
     padding: 14px 10px !important;
     min-height: 420px !important;

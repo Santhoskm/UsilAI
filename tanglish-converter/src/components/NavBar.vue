@@ -41,10 +41,10 @@
         </div>
 
         <!-- User Menu (Logged In) -->
-        <div v-if="isAuthenticated" class="user-cluster">
+        <div v-if="isAuthenticated" class="user-cluster user-menu">
           <!-- User Profile (Avatar + Name) -->
-          <div class="user-profile-badge" @click="toggleUserMenu" :title="user?.name || user?.email || 'User Account'">
-            <button class="user-avatar-btn" type="button" aria-label="User Account">
+          <div class="user-profile-badge" @click.stop="toggleUserMenu" :title="user?.name || user?.email || 'User Account'">
+            <button class="user-avatar-btn" type="button" aria-label="User Account" @click.stop="toggleUserMenu">
               <img v-if="user?.picture" :src="user.picture" alt="Profile" class="avatar-img" />
               <span v-else class="avatar-initial">{{ userInitial }}</span>
             </button>
@@ -62,7 +62,7 @@
           </button>
 
           <!-- Desktop Dropdown -->
-          <div v-if="showUserMenu" class="user-dropdown">
+          <div v-if="showUserMenu" class="user-dropdown" @click.stop>
             <div class="user-info">
               <div class="user-name">{{ user?.name || 'Usil User' }}</div>
               <div class="user-email">{{ user?.email }}</div>
@@ -211,7 +211,7 @@ const openAboutModal = () => {
 }
 
 const handleClickOutside = (e) => {
-  if (showUserMenu.value && !e.target.closest('.user-menu')) {
+  if (showUserMenu.value && !e.target.closest('.user-menu') && !e.target.closest('.user-cluster')) {
     showUserMenu.value = false
   }
 }
@@ -429,12 +429,12 @@ onBeforeUnmount(() => {
   top: calc(100% + 10px);
   right: 0;
   width: 220px;
-  background: var(--card-bg);
-  border: 1px solid var(--card-border);
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--card-border, #e2e8f0);
   border-radius: 14px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15), 0 4px 10px rgba(0, 0, 0, 0.05);
   padding: 8px;
-  z-index: 100;
+  z-index: 1000;
   animation: fadeIn 0.15s ease-out;
 }
 

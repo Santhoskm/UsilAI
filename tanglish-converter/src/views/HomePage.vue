@@ -1054,8 +1054,27 @@ const scrollToEditor = () => {
     display: none !important;
   }
   .editor-outer-card {
-    padding: 12px 10px;
-    border-radius: 16px;
+    padding: 10px 8px;
+    border-radius: 14px;
+  }
+  .editor-card-header {
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .editor-header-badge {
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+    border-radius: 10px;
+  }
+  .card-main-title {
+    font-size: 15.5px;
+    margin: 0;
+  }
+  .card-subtitle {
+    font-size: 11.5px;
+    line-height: 1.35;
+    margin-top: 2px;
   }
   .editor-header-titles {
     flex: 1;
@@ -1064,21 +1083,26 @@ const scrollToEditor = () => {
 
 @media (max-width: 480px) {
   .home-page-container {
-    padding: 12px 8px;
+    padding: 10px 6px;
   }
   .hero-title {
-    font-size: 28px;
+    font-size: 26px;
     line-height: 1.18;
   }
   .feature-chip {
-    padding: 4px 10px 4px 7px;
-    font-size: 11.5px;
+    padding: 4px 9px 4px 6px;
+    font-size: 11px;
+  }
+  .editor-header-badge {
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
   }
   .card-main-title {
-    font-size: 16.5px;
+    font-size: 14.5px;
   }
   .card-subtitle {
-    font-size: 12px;
+    font-size: 11px;
   }
   .editor-outer-card {
     padding: 8px 6px;
