@@ -759,11 +759,13 @@ onBeforeUnmount(() => {
 
 @media (max-width: 640px) {
   .ocr-uploader-card {
-    padding: 20px 16px;
+    padding: 18px 14px;
+    border-radius: 16px;
   }
   .ocr-card-header {
     flex-direction: column;
     align-items: flex-start;
+    gap: 8px;
   }
   .result-toolbar {
     flex-direction: column;
@@ -776,6 +778,33 @@ onBeforeUnmount(() => {
   .btn-action-primary, .btn-action-tool {
     width: 100%;
     text-align: center;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .ocr-uploader-card {
+    padding: 14px 10px;
+    border-radius: 14px;
+  }
+  .upload-dropzone {
+    padding: 24px 12px;
+  }
+  .dropzone-icon {
+    font-size: 32px;
+  }
+  .dropzone-title {
+    font-size: 15px;
+  }
+  .dropzone-hint {
+    font-size: 12px;
+  }
+  .thumbnails-grid {
+    grid-template-columns: 1fr;
+  }
+  .result-textarea {
+    padding: 12px;
+    font-size: 14px;
   }
 }
 </style>

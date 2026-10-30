@@ -1640,4 +1640,57 @@ onBeforeUnmount(() => {
     grid-template-columns: 1fr;
   }
 }
+
+@media (max-width: 768px) {
+  .audio-app-container {
+    padding: 16px 12px;
+    border-radius: 16px;
+  }
+  .record-hero-card {
+    padding: 24px 16px;
+  }
+  .audio-type-tabs {
+    flex-direction: column;
+  }
+  .type-tab-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  .audio-actions-row {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .audio-app-container {
+    padding: 12px 8px;
+    border-radius: 12px;
+  }
+  .record-hero-card {
+    padding: 18px 12px;
+    border-radius: 14px;
+  }
+  .mic-record-btn {
+    width: 80px;
+    height: 80px;
+  }
+  .mic-icon-svg {
+    width: 34px;
+    height: 34px;
+  }
+  .recording-timer {
+    font-size: 26px;
+  }
+  .transcript-textarea {
+    font-size: 15px;
+    padding: 12px;
+  }
+  .output-action-btn {
+    flex: 1;
+    justify-content: center;
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+}
 </style>

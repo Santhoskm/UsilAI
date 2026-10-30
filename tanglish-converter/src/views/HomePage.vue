@@ -821,21 +821,85 @@ const scrollToEditor = () => {
 
 @media (max-width: 768px) {
   .home-page-container {
-    padding: 20px 16px;
+    padding: 16px 12px;
+  }
+  .hero-section {
+    padding: 24px 0 16px 0;
   }
   .hero-title {
-    font-size: 38px;
+    font-size: 34px;
+    text-align: center;
+  }
+  .hero-description {
+    text-align: center;
+    font-size: 14.5px;
+    margin: 12px auto 18px auto;
+  }
+  .hero-text-block {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
   }
   .hero-features-bar {
     border-radius: 20px;
-    padding: 12px 14px;
-    gap: 10px;
+    padding: 10px 12px;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
   }
   .feat-divider {
     display: none;
   }
+  .hero-art-block {
+    align-self: center;
+    transform: scale(0.85);
+    margin: -10px 0 10px 0;
+  }
   .editor-outer-card {
-    padding: 16px;
+    padding: 12px 10px;
+    border-radius: 16px;
+  }
+  .editor-header-titles {
+    flex: 1;
+  }
+}
+
+@media (max-width: 480px) {
+  .home-page-container {
+    padding: 12px 8px;
+  }
+  .hero-title {
+    font-size: 28px;
+    line-height: 1.18;
+  }
+  .hero-art-block {
+    transform: scale(0.72);
+    margin: -25px 0 0 0;
+  }
+  .feature-badge {
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+  .card-main-title {
+    font-size: 16.5px;
+  }
+  .card-subtitle {
+    font-size: 12px;
+  }
+  .editor-outer-card {
+    padding: 8px 6px;
+    border-radius: 12px;
+  }
+  .tool-feature-item {
+    padding: 12px;
+    border-radius: 12px;
+  }
+  .tool-name {
+    font-size: 14px;
+  }
+  .tool-desc {
+    font-size: 12px;
   }
 }
 </style>

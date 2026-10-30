@@ -94,13 +94,30 @@
 
     <!-- Mobile Navigation Drawer -->
     <div v-if="mobileMenuOpen" class="mobile-drawer">
-      <div v-if="isAuthenticated" class="mobile-nav-links">
-        <router-link to="/editor" class="mobile-link" @click="mobileMenuOpen = false">Editor</router-link>
-        <router-link to="/ocr" class="mobile-link" @click="mobileMenuOpen = false">OCR</router-link>
-        <router-link to="/audio" class="mobile-link" @click="mobileMenuOpen = false">Audio</router-link>
-        <router-link to="/subtitle" class="mobile-link" @click="mobileMenuOpen = false">Subtitles</router-link>
-        <router-link to="/admin" class="mobile-link" @click="mobileMenuOpen = false">Admin</router-link>
+      <!-- Mobile Credits Status Card -->
+      <div 
+        class="mobile-credits-card"
+        @click="!isAuthenticated && openLoginModal()"
+        :title="creditsLeft + ' of 30 grammar checks remaining. Refills in ' + formattedTimeUntilRefill"
+      >
+        <div class="mobile-credits-left">
+          <span class="credits-icon">⚡</span>
+          <span class="mobile-credits-title">{{ creditsLeft }} Free Credits</span>
+        </div>
+        <span v-if="formattedTimeUntilRefill" class="mobile-credits-refill">Refills {{ formattedTimeUntilRefill }}</span>
       </div>
+
+      <div class="mobile-nav-links">
+        <router-link to="/editor" class="mobile-link" @click="mobileMenuOpen = false">📄 Tamil Documents</router-link>
+        <router-link to="/ocr" class="mobile-link" @click="mobileMenuOpen = false">📷 OCR Vision</router-link>
+        <router-link to="/audio" class="mobile-link" @click="mobileMenuOpen = false">🎙️ Audio to Text</router-link>
+        <router-link to="/subtitle" class="mobile-link" @click="mobileMenuOpen = false">🎬 Subtitles</router-link>
+        <router-link to="/admin" class="mobile-link" @click="mobileMenuOpen = false">⚙️ Admin Console</router-link>
+        <button class="mobile-link about-link" @click="showAboutModal = true; mobileMenuOpen = false">✨ About Usil AI</button>
+      </div>
+
+      <div class="mobile-divider"></div>
+
       <div v-if="!isAuthenticated" class="mobile-auth-wrapper">
         <button class="login-btn mobile-full-btn" @click="openLoginModal">
           <span>Sign in with Google</span>
@@ -108,7 +125,11 @@
         </button>
       </div>
       <div v-else class="mobile-auth-wrapper">
-        <button @click="handleLogout" class="mobile-link logout-link">Logout</button>
+        <div class="mobile-user-row">
+          <img v-if="user?.picture" :src="user.picture" alt="Profile" class="avatar-img-sm" />
+          <span class="mobile-user-name">{{ user?.name || user?.email }}</span>
+        </div>
+        <button @click="handleLogout" class="mobile-link logout-link">🚪 Logout</button>
       </div>
     </div>
 
@@ -528,24 +549,124 @@ onBeforeUnmount(() => {
 .mobile-drawer {
   display: flex;
   flex-direction: column;
-  background: var(--card-bg);
-  border-bottom: 1px solid var(--nav-border);
-  padding: 16px 24px;
+  background: var(--card-bg, #ffffff);
+  border-bottom: 1px solid var(--nav-border, #e2e8f0);
+  padding: 16px 20px;
   gap: 12px;
+  animation: slideDrawerDown 0.2s ease-out;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+@keyframes slideDrawerDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.mobile-credits-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--credits-bg, rgba(99, 102, 241, 0.1));
+  border: 1px solid var(--credits-border, rgba(99, 102, 241, 0.25));
+  padding: 10px 14px;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.mobile-credits-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mobile-credits-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--credits-text, #4f46e5);
+}
+
+.mobile-credits-refill {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted, #64748b);
+  background: rgba(255, 255, 255, 0.7);
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+.mobile-nav-links {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .mobile-link {
   color: var(--text-main);
   text-decoration: none;
-  font-size: 15px;
+  font-size: 14.5px;
   font-weight: 600;
-  padding: 8px 0;
+  padding: 9px 12px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.15s ease;
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
+}
+
+.mobile-link:hover,
+.mobile-link.router-link-active {
+  background: #f1f5f9;
+  color: #4f46e5;
+}
+
+.about-link {
+  color: var(--text-sub);
+}
+
+.mobile-user-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  margin-bottom: 6px;
+  background: #f8fafc;
+  border-radius: 8px;
+}
+
+.avatar-img-sm {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.mobile-user-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.logout-link {
+  color: #ef4444;
+}
+
+.logout-link:hover {
+  background: #fee2e2;
+  color: #b91c1c;
 }
 
 .mobile-divider {
   height: 1px;
   background: var(--nav-border);
-  margin: 8px 0;
+  margin: 4px 0;
 }
 
 .mobile-full-btn {
@@ -641,6 +762,31 @@ onBeforeUnmount(() => {
   }
   .mobile-toggle-btn {
     display: flex;
+  }
+}
+
+@media (max-width: 480px) {
+  .nav-container {
+    padding: 10px 14px;
+    height: 56px;
+  }
+  .brand-name {
+    font-size: 17px;
+  }
+  .logo-icon {
+    width: 28px;
+    height: 28px;
+    font-size: 13px;
+  }
+  .login-btn {
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 360px) {
+  .brand-name {
+    display: none;
   }
 }
 </style>

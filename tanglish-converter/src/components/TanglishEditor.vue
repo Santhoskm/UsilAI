@@ -16,13 +16,13 @@
           </span>
         </div>
         <button 
-          v-if="fullPage"
+          v-if="fullPage || isMobileScreen"
           type="button" 
           @click="showFilesSidebar = false" 
           class="files-sidebar-collapse-btn" 
           title="Collapse documents sidebar"
         >
-          ‹
+          ✕
         </button>
       </div>
 
@@ -101,13 +101,19 @@
         </div>
       </div>
     </aside>
+    <!-- Mobile Backdrop for Files Sidebar Overlay -->
+    <div 
+      v-if="isAuthenticated && showFilesSidebar && enableSidebar" 
+      class="files-sidebar-backdrop"
+      @click="showFilesSidebar = false"
+    ></div>
 
     <!-- Document Workspace Stage Panel (Separate Card on Right) -->
     <div class="document-stage-panel" :class="{ 'full-page-stage': fullPage, 'embedded-stage': !fullPage }">
       <!-- 1. FULL-PAGE FLOATING STICKY TOOLBAR (Used on /editor) -->
       <div class="toolbar floating-sticky-toolbar" v-if="editor && fullPage">
-        <!-- Documents Sidebar Toggle (Only show if sidebar is collapsed or embedded) -->
-        <div v-if="isAuthenticated && enableSidebar && !showFilesSidebar" class="toolbar-group files-toggle-group">
+        <!-- Documents Sidebar Toggle (Show if sidebar is collapsed or on mobile) -->
+        <div v-if="isAuthenticated && enableSidebar && (!showFilesSidebar || isMobileScreen)" class="toolbar-group files-toggle-group">
           <button 
             @click="showFilesSidebar = !showFilesSidebar"
             class="toolbar-btn btn-files-toggle compact"
@@ -119,7 +125,7 @@
           </button>
         </div>
 
-        <div v-if="isAuthenticated && enableSidebar && (!fullPage || !showFilesSidebar)" class="toolbar-divider"></div>
+        <div v-if="isAuthenticated && enableSidebar && (!fullPage || !showFilesSidebar || isMobileScreen)" class="toolbar-divider"></div>
 
         <!-- 1. History Segment (Undo / Redo) -->
         <div class="toolbar-group">
@@ -1265,7 +1271,13 @@ const props = defineProps({
 })
 
 // ── File Management State (Up to 5 files for authenticated users with PostgreSQL DB persistence) ──
-const showFilesSidebar = ref(props.enableSidebar)
+const isMobileScreen = ref(typeof window !== 'undefined' ? window.innerWidth <= 768 : false)
+const showFilesSidebar = ref(props.enableSidebar && (typeof window !== 'undefined' ? window.innerWidth > 768 : true))
+const handleScreenResize = () => {
+  if (typeof window !== 'undefined') {
+    isMobileScreen.value = window.innerWidth <= 768
+  }
+}
 const savedFiles = ref([])
 const activeFileId = ref('')
 const editingFileId = ref(null)
@@ -1862,6 +1874,10 @@ const createNewFile = () => {
   currentDocBackgroundOpacity.value = 0.2
   saveFilesToStorage()
 
+  if (isMobileScreen.value) {
+    showFilesSidebar.value = false
+  }
+
   if (editor.value) {
     setEditorTextSafely('')
     editor.value.commands.focus()
@@ -1869,7 +1885,10 @@ const createNewFile = () => {
 }
 
 const switchToFile = (fileId) => {
-  if (fileId === activeFileId.value) return
+  if (fileId === activeFileId.value) {
+    if (isMobileScreen.value) showFilesSidebar.value = false
+    return
+  }
   if (editor.value && activeFile.value) {
     activeFile.value.content = editor.value.getHTML()
     activeFile.value.plainText = editor.value.getText()
@@ -1891,6 +1910,10 @@ const switchToFile = (fileId) => {
       setEditorTextSafely(target.content || '')
       editor.value.commands.focus()
     }
+  }
+
+  if (isMobileScreen.value) {
+    showFilesSidebar.value = false
   }
 }
 
@@ -3132,6 +3155,7 @@ onMounted(async () => {
   // Register pre-logout flush to guarantee latest text is saved to PostgreSQL before logout
   unregisterPreLogout = registerPreLogoutHook(flushPendingSave)
   window.addEventListener('beforeunload', flushPendingSave)
+  window.addEventListener('resize', handleScreenResize)
 
   // Preload common dictionary chunks in background — makes first lookup instant
   preloadCommonChunks()
@@ -3199,6 +3223,7 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   if (unregisterPreLogout) unregisterPreLogout()
   window.removeEventListener('beforeunload', flushPendingSave)
+  window.removeEventListener('resize', handleScreenResize)
   if (editor.value) {
     editor.value.destroy()
   }
@@ -6024,20 +6049,148 @@ onBeforeUnmount(() => {
   }
 }
 
-/* Responsive */
+/* Responsive Mobile Styles */
 @media (max-width: 768px) {
   .tanglish-editor-container {
-    min-height: 400px;
-  }
-  
-  .editor-content {
-    padding: 20px;
-    font-size: 16px;
+    min-height: 380px;
+    position: relative;
   }
 
-  .toolbar {
-    padding: 6px 10px;
-    gap: 2px;
+  .tanglish-editor-container.full-page-editor {
+    height: 100% !important;
+    max-height: 100% !important;
+    overflow: hidden !important;
+  }
+
+  /* Off-canvas Files Sidebar Drawer on Mobile */
+  .files-sidebar.full-page-sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    bottom: 0 !important;
+    width: min(300px, 86vw) !important;
+    max-width: 86vw !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    z-index: 1200 !important;
+    border-radius: 0 16px 16px 0 !important;
+    box-shadow: 10px 0 35px rgba(0, 0, 0, 0.25) !important;
+    background: #ffffff !important;
+    animation: slideSidebarDrawer 0.22s ease-out !important;
+  }
+
+  @keyframes slideSidebarDrawer {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(0); }
+  }
+
+  /* Semi-transparent Backdrop Behind Sidebar */
+  .files-sidebar-backdrop {
+    position: fixed !important;
+    inset: 0 !important;
+    background: rgba(15, 23, 42, 0.45) !important;
+    backdrop-filter: blur(3px) !important;
+    -webkit-backdrop-filter: blur(3px) !important;
+    z-index: 1150 !important;
+    animation: fadeInOverlay 0.2s ease-out !important;
+  }
+
+  @keyframes fadeInOverlay {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  /* Document Stage Panel Full Width */
+  .document-stage-panel.full-page-stage {
+    width: 100% !important;
+    max-width: 100% !important;
+    border-radius: 10px !important;
+    margin: 0 !important;
+  }
+
+  /* Floating Toolbar Smooth Touch Scroll */
+  .toolbar.floating-sticky-toolbar {
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+    flex-wrap: nowrap !important;
+    max-width: 100% !important;
+    width: calc(100% - 6px) !important;
+    margin: 3px auto 5px auto !important;
+    padding: 3px 5px !important;
+    gap: 2px !important;
+    border-radius: 8px !important;
+  }
+
+  .toolbar.floating-sticky-toolbar::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  /* Editor Canvas & A4 Sheet Sizing */
+  .editor-wrapper.a4-desk-canvas {
+    padding: 4px 4px 80px 4px !important;
+    width: 100% !important;
+  }
+
+  .a4-document-sheet {
+    padding: 18px 14px !important;
+    min-height: 480px !important;
+    margin: 0 auto 30px auto !important;
+    border-radius: 8px !important;
+    max-width: 100% !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06) !important;
+    width: 100% !important;
+  }
+
+  .editor-content {
+    padding: 16px 12px;
+    font-size: 15px;
+  }
+
+  .editor-content.a4-editor-content {
+    padding: 0 !important;
+    min-height: 380px !important;
+    font-size: 15.5px !important;
+    line-height: 1.7 !important;
+  }
+
+  /* Docked Bottom Floating Action Bar */
+  .editor-bottom-bar.full-page-dock {
+    position: fixed !important;
+    bottom: 8px !important;
+    left: 8px !important;
+    right: 8px !important;
+    margin: 0 !important;
+    width: calc(100% - 16px) !important;
+    max-width: calc(100% - 16px) !important;
+    padding: 5px 8px !important;
+    gap: 6px !important;
+    justify-content: space-between !important;
+    border-radius: 9999px !important;
+    box-sizing: border-box !important;
+    z-index: 100 !important;
+  }
+
+  /* Hide Zoom on Mobile Screens (Pinch-to-zoom is native) */
+  .zoom-controls-dock {
+    display: none !important;
+  }
+
+  /* AI Assistant Companion Sidebar as Full Modal on Mobile */
+  .ai-assistant-sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    z-index: 1300 !important;
+    border-radius: 0 !important;
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.3) !important;
   }
 
   .toolbar-stats {
@@ -6054,15 +6207,42 @@ onBeforeUnmount(() => {
   }
   
   .suggestions-popup {
-    min-width: 220px;
-    max-width: 280px;
+    min-width: 200px;
+    max-width: calc(100vw - 24px) !important;
   }
-  
-  .ai-assistant-panel {
-    width: calc(100vw - 40px);
-    max-width: 380px;
-    right: 20px;
-    bottom: 20px;
+}
+
+@media (max-width: 480px) {
+  .a4-document-sheet {
+    padding: 14px 10px !important;
+    min-height: 420px !important;
+  }
+
+  .editor-content.a4-editor-content {
+    font-size: 15px !important;
+  }
+
+  .bottom-stats-label {
+    font-size: 11px !important;
+    gap: 3px !important;
+  }
+
+  .bottom-stats-label .stats-sep {
+    margin: 0 1px;
+  }
+
+  .bottom-action-btn {
+    padding: 4px 7px !important;
+    font-size: 11px !important;
+  }
+
+  .mode-btn {
+    padding: 3px 7px !important;
+    font-size: 11px !important;
+  }
+
+  .engine-mode-pill {
+    padding: 2px 3px !important;
   }
 }
 

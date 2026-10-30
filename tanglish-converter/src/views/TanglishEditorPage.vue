@@ -19,7 +19,8 @@
       <div class="header-right">
         <div class="cloud-sync-badge" title="All changes saved permanently to your PostgreSQL database">
           <span class="sync-indicator"></span>
-          <span>PostgreSQL Cloud Sync (5 files max)</span>
+          <span class="sync-text-full">PostgreSQL Cloud Sync (5 files max)</span>
+          <span class="sync-text-short">Cloud Synced</span>
         </div>
       </div>
     </header>
@@ -156,6 +157,10 @@ const router = useRouter()
   box-shadow: 0 0 6px rgba(34, 197, 94, 0.8);
 }
 
+.sync-text-short {
+  display: none;
+}
+
 .docs-canvas-container {
   flex: 1;
   min-height: 0;
@@ -171,10 +176,58 @@ const router = useRouter()
 
 @media (max-width: 768px) {
   .docs-workspace-page {
-    padding: 8px 8px 16px 8px;
+    padding: 4px 6px 6px 6px;
+    height: calc(100vh - 58px);
+    height: calc(100dvh - 58px);
+    max-height: calc(100dvh - 58px);
   }
   .workspace-top-header {
-    padding: 6px 8px 10px 8px;
+    padding: 2px 4px 6px 4px;
+    gap: 8px;
+    flex-wrap: nowrap;
+  }
+  .header-left {
+    gap: 8px;
+  }
+  .back-home-btn {
+    padding: 5px 10px;
+    font-size: 12px;
+  }
+  .brand-avatar {
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
+    border-radius: 7px;
+  }
+  .workspace-title {
+    font-size: 14.5px;
+  }
+  .workspace-subtitle {
+    display: none;
+  }
+  .sync-text-full {
+    display: none;
+  }
+  .sync-text-short {
+    display: inline;
+  }
+  .cloud-sync-badge {
+    padding: 4px 10px;
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 480px) {
+  .workspace-title {
+    font-size: 13.5px;
+    max-width: 130px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .cloud-sync-badge {
+    padding: 3px 8px;
+    font-size: 10.5px;
   }
 }
 </style>

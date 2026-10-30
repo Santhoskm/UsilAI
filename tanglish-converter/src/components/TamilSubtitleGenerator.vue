@@ -1359,4 +1359,23 @@ watch(subtitleContent, () => {
     left: 0;
   }
 }
+
+@media (max-width: 480px) {
+  .card {
+    padding: 14px 10px;
+    border-radius: 14px;
+  }
+  .table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .tab-btn {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+  .btn-action {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+}
 </style>

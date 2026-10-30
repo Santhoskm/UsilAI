@@ -136,10 +136,27 @@ const handleAudioText = (text) => {
 
 @media (max-width: 768px) {
   .tool-page-container {
-    padding: 20px 16px;
+    padding: 16px 14px 40px 14px;
   }
   .tool-page-title {
-    font-size: 30px;
+    font-size: 28px;
+  }
+  .tool-page-subtitle {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .tool-page-container {
+    padding: 12px 10px 32px 10px;
+  }
+  .tool-page-title {
+    font-size: 24px;
+  }
+  .back-pill-btn {
+    padding: 6px 12px;
+    font-size: 12.5px;
+    margin-bottom: 14px;
   }
 }
 </style>

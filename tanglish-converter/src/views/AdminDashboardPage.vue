@@ -2462,13 +2462,34 @@ onMounted(async () => {
 
 /* Responsive */
 @media (max-width: 768px) {
-  .admin-header { padding: 24px 16px 0 16px; }
-  .admin-content { padding: 0 16px; }
-  .header-actions { width: 100%; }
+  .admin-header { padding: 20px 14px 0 14px; }
+  .admin-content { padding: 0 14px; }
+  .header-actions { width: 100%; flex-wrap: wrap; }
   .sqladmin-btn, .reload-btn, .btn-logout {
     flex: 1;
+    min-width: 110px;
     justify-content: center;
   }
-  .admin-tabs { overflow-x: auto; }
+  .admin-tabs { 
+    overflow-x: auto; 
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    flex-wrap: nowrap;
+    padding-bottom: 4px;
+  }
+  .admin-tabs::-webkit-scrollbar { display: none; }
+}
+
+@media (max-width: 480px) {
+  .admin-header { padding: 16px 10px 0 10px; }
+  .admin-content { padding: 0 10px; }
+  .admin-title { font-size: 22px; }
+  .metrics-grid { grid-template-columns: 1fr; }
+  .tab-btn { padding: 8px 12px; font-size: 13px; white-space: nowrap; }
+  .card { padding: 14px 10px; border-radius: 12px; }
+  .table-responsive, .table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
 }
 </style>

@@ -2,10 +2,38 @@
   <Teleport to="body">
     <div v-if="isOpen" class="modal-overlay" @click.self="closeModal">
       <div class="split-download-modal" role="dialog" aria-modal="true">
+        <!-- Mobile Tabs Header (Switches between Settings & Sheet Preview on small screens) -->
+        <div class="mobile-tabs-header">
+          <button 
+            type="button"
+            class="mobile-tab-btn" 
+            :class="{ active: mobileTab === 'settings' }" 
+            @click="mobileTab = 'settings'"
+          >
+            ⚙️ Settings
+          </button>
+          <button 
+            type="button"
+            class="mobile-tab-btn" 
+            :class="{ active: mobileTab === 'preview' }" 
+            @click="mobileTab = 'preview'"
+          >
+            📄 A4 Preview
+          </button>
+          <button 
+            type="button"
+            class="mobile-close-btn" 
+            @click="closeModal" 
+            aria-label="Close"
+          >
+            ✕
+          </button>
+        </div>
+
         <!-- Split Body: Left = Format & Layout Controls | Right = A4 Preview -->
         <div class="modal-split-body">
           <!-- LEFT: Format & Layout Controls Only -->
-          <div class="left-panel">
+          <div class="left-panel" :class="{ 'mobile-hidden': mobileTab !== 'settings' }">
             <!-- Section 1: File Formats -->
             <div class="panel-section">
               <div class="section-title-row">
@@ -198,7 +226,7 @@
           </div>
 
           <!-- RIGHT: A4 Document Sheet Preview (Read-only format preview) -->
-          <div class="right-panel">
+          <div class="right-panel" :class="{ 'mobile-hidden': mobileTab !== 'preview' }">
             <!-- Stage Top Bar: Controls, Zoom & Close Button -->
             <div class="stage-topbar">
               <span class="preview-badge">A4 Sheet Preview</span>
@@ -301,6 +329,7 @@ const previewMargin = ref('normal') // 'compact' | 'normal' | 'wide'
 const previewOrientation = ref('portrait') // 'portrait' | 'landscape'
 const previewIncludeBackground = ref(true)
 const zoomLevel = ref(90)
+const mobileTab = ref('settings') // 'settings' | 'preview'
 
 const currentDateStr = computed(() => {
   return new Date().toLocaleDateString(undefined, {
@@ -372,6 +401,7 @@ watch(() => props.isOpen, async (newVal) => {
     previewOrientation.value = 'portrait'
     previewIncludeBackground.value = Boolean(props.docBackground)
     zoomLevel.value = 90
+    mobileTab.value = 'settings'
 
     await nextTick()
     const content = props.initialContent || '<p>Start writing in Tanglish...</p>'
@@ -1147,19 +1177,133 @@ const downloadAsTxt = () => {
   font-weight: 500;
 }
 
+/* Mobile Tabs Header (Hidden on Desktop) */
+.mobile-tabs-header {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 8px 12px;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.mobile-tab-btn {
+  flex: 1;
+  padding: 8px 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.mobile-tab-btn.active {
+  background: #4f46e5;
+  color: #ffffff;
+  border-color: #4f46e5;
+  box-shadow: 0 2px 6px rgba(79, 70, 229, 0.25);
+}
+
+.mobile-close-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #64748b;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
 /* Responsive for smaller screens */
 @media (max-width: 768px) {
+  .mobile-tabs-header {
+    display: flex;
+  }
+  .split-download-modal {
+    width: 96%;
+    height: 90vh;
+    max-height: 92vh;
+    border-radius: 16px;
+  }
   .modal-split-body {
     flex-direction: column;
+    flex: 1;
+    min-height: 0;
+  }
+  .mobile-hidden {
+    display: none !important;
   }
   .left-panel {
     width: 100%;
     min-width: 100%;
     border-right: none;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: none;
+    padding: 16px 14px 24px 14px;
+    flex: 1;
+    overflow-y: auto;
+  }
+  .format-cards-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
   }
   .right-panel {
-    min-height: 320px;
+    width: 100%;
+    min-height: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+  .stage-topbar {
+    padding: 10px 14px;
+  }
+  .stage-canvas {
+    padding: 12px 8px;
+    flex: 1;
+  }
+  .a4-sheet {
+    max-width: 100%;
+    min-height: 440px;
+    padding: 18px 14px;
+  }
+  .filename-input-wrapper {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .modal-overlay {
+    padding: 8px;
+  }
+  .split-download-modal {
+    width: 100%;
+    height: 94vh;
+    max-height: 96vh;
+    border-radius: 14px;
+  }
+  .setting-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  .segmented-control,
+  .stepper-box,
+  .font-select,
+  .filename-input-wrapper {
+    width: 100%;
+  }
+  .btn-primary-download {
+    padding: 12px;
+    font-size: 14px;
   }
 }
 </style>
