@@ -1051,9 +1051,7 @@ const scrollToEditor = () => {
     font-size: 12px;
   }
   .hero-art-block {
-    align-self: center;
-    transform: scale(0.85);
-    margin: -10px 0 10px 0;
+    display: none !important;
   }
   .editor-outer-card {
     padding: 12px 10px;
@@ -1072,13 +1070,9 @@ const scrollToEditor = () => {
     font-size: 28px;
     line-height: 1.18;
   }
-  .hero-art-block {
-    transform: scale(0.72);
-    margin: -25px 0 0 0;
-  }
-  .feature-badge {
-    padding: 4px 8px;
-    font-size: 12px;
+  .feature-chip {
+    padding: 4px 10px 4px 7px;
+    font-size: 11.5px;
   }
   .card-main-title {
     font-size: 16.5px;
