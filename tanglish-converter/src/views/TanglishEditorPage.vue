@@ -8,19 +8,11 @@
           <span>Home</span>
         </router-link>
         <div class="workspace-brand">
-          <div class="brand-avatar">文A</div>
+          <div class="brand-avatar">அA</div>
           <div class="brand-text">
             <h1 class="workspace-title">Tamil Document Editor</h1>
             <span class="workspace-subtitle">Multi-File Cloud Notes & Typist</span>
           </div>
-        </div>
-      </div>
-
-      <div class="header-right">
-        <div class="cloud-sync-badge" title="All changes saved permanently to your PostgreSQL database">
-          <span class="sync-indicator"></span>
-          <span class="sync-text-full">PostgreSQL Cloud Sync (5 files max)</span>
-          <span class="sync-text-short">Cloud Synced</span>
         </div>
       </div>
     </header>

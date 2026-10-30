@@ -40,12 +40,6 @@
             {{ savedFiles.length }}/5
           </span>
         </button>
-        <div class="files-sync-status-row" :title="syncStatus === 'syncing' ? 'Syncing to PostgreSQL database...' : syncStatus === 'error' ? 'Saved locally (offline)' : 'Stored in PostgreSQL Database'">
-          <span class="sync-dot" :class="syncStatus"></span>
-          <span class="sync-status-text">
-            {{ syncStatus === 'syncing' ? 'Syncing to DB...' : syncStatus === 'error' ? 'Local only' : 'PostgreSQL Synced' }}
-          </span>
-        </div>
       </div>
 
       <!-- Files Scroll List -->
@@ -1093,7 +1087,7 @@
           <div class="quick-actions-title">Quick actions</div>
           <div class="quick-actions-list">
             <button type="button" class="quick-action-item" @click="handleTranslateToEnglish" title="Translate Tamil content to English">
-              <span class="quick-action-symbol">文A</span>
+              <span class="quick-action-symbol">அA</span>
               <span class="quick-action-text">Translate to English</span>
             </button>
             <button type="button" class="quick-action-item" @click="handleSummarizeText" title="Summarize document into key points">
@@ -4525,9 +4519,9 @@ onBeforeUnmount(() => {
 }
 
 .btn-files-toggle.active {
-  background: #ecfdf5;
-  border-color: #a7f3d0;
-  color: #047857;
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
 }
 
 .files-toggle-icon {
@@ -4545,8 +4539,8 @@ onBeforeUnmount(() => {
   font-size: 11px;
   font-weight: 700;
   padding: 1px 6px;
-  background: #d1fae5;
-  color: #065f46;
+  background: #dbeafe;
+  color: #1e40af;
   border-radius: 10px;
 }
 
@@ -4683,9 +4677,9 @@ onBeforeUnmount(() => {
 }
 
 .mode-btn.active {
-  background: #10b981;
+  background: #2563eb;
   color: #ffffff;
-  box-shadow: 0 2px 6px rgba(16, 185, 129, 0.35);
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.35);
 }
 
 .bottom-stats-label {
@@ -4742,9 +4736,9 @@ onBeforeUnmount(() => {
 }
 
 .bottom-action-btn.copy-btn.copied {
-  background: #dcfce7;
-  border-color: #86efac;
-  color: #15803d;
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
 }
 
 /* ── Files Sidebar (Left Standalone Panel) ── */
@@ -4799,8 +4793,8 @@ onBeforeUnmount(() => {
 .files-count-badge {
   font-size: 11px;
   font-weight: 700;
-  color: #166534;
-  background: #dcfce7;
+  color: #1e40af;
+  background: #dbeafe;
   padding: 1px 7px;
   border-radius: 10px;
 }
@@ -4841,7 +4835,7 @@ onBeforeUnmount(() => {
   padding: 16px 14px 10px 14px;
 }
 
-/* New File Button (Exact look & feel from screenshot) */
+/* New File Button */
 .new-file-main-btn {
   width: 100%;
   display: flex;
@@ -4851,7 +4845,7 @@ onBeforeUnmount(() => {
   background: transparent;
   border: 1px dashed transparent;
   border-radius: 10px;
-  color: #15803d;
+  color: #2563eb;
   font-size: 15px;
   font-weight: 700;
   cursor: pointer;
@@ -4860,8 +4854,8 @@ onBeforeUnmount(() => {
 }
 
 .new-file-main-btn:hover:not(:disabled) {
-  background: #f0fdf4;
-  border-color: #86efac;
+  background: #eff6ff;
+  border-color: #93c5fd;
   transform: translateY(-1px);
 }
 
@@ -4874,7 +4868,7 @@ onBeforeUnmount(() => {
 .plus-symbol {
   font-size: 20px;
   font-weight: 800;
-  color: #16a34a;
+  color: #2563eb;
   line-height: 1;
 }
 
@@ -4887,8 +4881,8 @@ onBeforeUnmount(() => {
 .file-count-badge {
   font-size: 11px;
   font-weight: 700;
-  color: #15803d;
-  background: #dcfce7;
+  color: #1e40af;
+  background: #dbeafe;
   padding: 2px 7px;
   border-radius: 10px;
 }
@@ -4899,20 +4893,14 @@ onBeforeUnmount(() => {
 }
 
 .files-sync-status-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px 0 10px;
-  font-size: 11px;
-  font-weight: 500;
-  color: #64748b;
+  display: none;
 }
 
 .sync-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #10b981;
+  background: #3b82f6;
   display: inline-block;
   transition: all 0.2s ease;
 }
@@ -4963,7 +4951,7 @@ onBeforeUnmount(() => {
   gap: 6px;
 }
 
-/* File Item Card (Matching user screenshot green pill card) */
+/* File Item Card */
 .file-item-card {
   display: flex;
   align-items: center;
@@ -4981,12 +4969,13 @@ onBeforeUnmount(() => {
   background: rgba(0, 0, 0, 0.04);
 }
 
-/* Active File Card - Soft Sage/Pastel Green like Screenshot */
+/* Active File Card - Soft Sleek Blue */
 .file-item-card.active {
-  background: #dcfce7 !important;
-  color: #166534 !important;
+  background: #eff6ff !important;
+  color: #1d4ed8 !important;
   font-weight: 600;
-  box-shadow: 0 1px 3px rgba(22, 101, 52, 0.08);
+  border: 1px solid #bfdbfe;
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.08);
 }
 
 .file-item-main {
@@ -5010,9 +4999,9 @@ onBeforeUnmount(() => {
   font-size: 14px;
   font-weight: 600;
   background: #ffffff;
-  border: 1px solid #16a34a;
+  border: 1px solid #3b82f6;
   border-radius: 6px;
-  color: #166534;
+  color: #1d4ed8;
   outline: none;
 }
 

@@ -17,7 +17,7 @@
           <!-- Feature Pills Bar -->
           <div class="hero-features-bar">
             <div class="feature-badge" @click="scrollToEditor">
-              <span class="feat-icon">文A</span>
+              <span class="feat-icon">அA</span>
               <span class="feat-label">Tanglish to Tamil</span>
             </div>
             <span class="feat-divider">|</span>
@@ -87,7 +87,7 @@
             <!-- Card Header Banner -->
             <div class="editor-card-header">
               <div class="editor-header-badge">
-                <span class="badge-icon">文A</span>
+                <span class="badge-icon">அA</span>
               </div>
               <div class="editor-header-titles">
                 <h2 class="card-main-title">Tanglish to Tamil Editor</h2>
