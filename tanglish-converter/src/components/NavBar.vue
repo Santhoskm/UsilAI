@@ -41,12 +41,27 @@
         </div>
 
         <!-- User Menu (Logged In) -->
-        <div v-if="isAuthenticated" class="user-menu">
-          <button class="user-avatar-btn" @click="toggleUserMenu" :title="user?.name || 'Account'">
-            <img v-if="user?.picture" :src="user.picture" alt="Profile" class="avatar-img" />
-            <span v-else class="avatar-initial">{{ userInitial }}</span>
+        <div v-if="isAuthenticated" class="user-cluster">
+          <!-- User Profile (Avatar + Name) -->
+          <div class="user-profile-badge" @click="toggleUserMenu" :title="user?.name || user?.email || 'User Account'">
+            <button class="user-avatar-btn" type="button" aria-label="User Account">
+              <img v-if="user?.picture" :src="user.picture" alt="Profile" class="avatar-img" />
+              <span v-else class="avatar-initial">{{ userInitial }}</span>
+            </button>
+            <span class="user-short-name">{{ userShortName }}</span>
+          </div>
+
+          <!-- Direct Mobile Logout Button (Visible on mobile) -->
+          <button 
+            type="button" 
+            class="header-direct-logout-btn" 
+            @click="handleLogout" 
+            title="Log out of Usil AI"
+          >
+            <span>Logout</span>
           </button>
 
+          <!-- Desktop Dropdown -->
           <div v-if="showUserMenu" class="user-dropdown">
             <div class="user-info">
               <div class="user-name">{{ user?.name || 'Usil User' }}</div>
@@ -82,54 +97,6 @@
             <span class="chevron-icon">›</span>
           </button>
         </div>
-
-        <!-- Mobile Menu Hamburger -->
-        <button class="mobile-toggle-btn" @click="mobileMenuOpen = !mobileMenuOpen" aria-label="Menu">
-          <span></span>
-          <span></span>
-          <span></span>
-        </button>
-      </div>
-    </div>
-
-    <!-- Mobile Navigation Drawer -->
-    <div v-if="mobileMenuOpen" class="mobile-drawer">
-      <!-- Mobile Credits Status Card -->
-      <div 
-        class="mobile-credits-card"
-        @click="!isAuthenticated && openLoginModal()"
-        :title="creditsLeft + ' of 30 grammar checks remaining. Refills in ' + formattedTimeUntilRefill"
-      >
-        <div class="mobile-credits-left">
-          <span class="credits-icon">⚡</span>
-          <span class="mobile-credits-title">{{ creditsLeft }} Free Credits</span>
-        </div>
-        <span v-if="formattedTimeUntilRefill" class="mobile-credits-refill">Refills {{ formattedTimeUntilRefill }}</span>
-      </div>
-
-      <div class="mobile-nav-links">
-        <router-link to="/editor" class="mobile-link" @click="mobileMenuOpen = false">📄 Tamil Documents</router-link>
-        <router-link to="/ocr" class="mobile-link" @click="mobileMenuOpen = false">📷 OCR Vision</router-link>
-        <router-link to="/audio" class="mobile-link" @click="mobileMenuOpen = false">🎙️ Audio to Text</router-link>
-        <router-link to="/subtitle" class="mobile-link" @click="mobileMenuOpen = false">🎬 Subtitles</router-link>
-        <router-link to="/admin" class="mobile-link" @click="mobileMenuOpen = false">⚙️ Admin Console</router-link>
-        <button class="mobile-link about-link" @click="showAboutModal = true; mobileMenuOpen = false">✨ About Usil AI</button>
-      </div>
-
-      <div class="mobile-divider"></div>
-
-      <div v-if="!isAuthenticated" class="mobile-auth-wrapper">
-        <button class="login-btn mobile-full-btn" @click="openLoginModal">
-          <span>Sign in with Google</span>
-          <span>›</span>
-        </button>
-      </div>
-      <div v-else class="mobile-auth-wrapper">
-        <div class="mobile-user-row">
-          <img v-if="user?.picture" :src="user.picture" alt="Profile" class="avatar-img-sm" />
-          <span class="mobile-user-name">{{ user?.name || user?.email }}</span>
-        </div>
-        <button @click="handleLogout" class="mobile-link logout-link">🚪 Logout</button>
       </div>
     </div>
 
@@ -196,6 +163,12 @@ const mobileMenuOpen = ref(false)
 const userInitial = computed(() => {
   if (!user.value?.name) return 'U'
   return user.value.name.charAt(0).toUpperCase()
+})
+
+const userShortName = computed(() => {
+  if (!user.value) return ''
+  const name = user.value.name || user.value.email || 'User'
+  return name.split(' ')[0]
 })
 
 const openLoginModal = () => {
@@ -525,153 +498,51 @@ onBeforeUnmount(() => {
   color: #ef4444;
 }
 
-/* Mobile Toggle */
-.mobile-toggle-btn {
-  display: none;
-  flex-direction: column;
-  justify-content: space-between;
-  width: 24px;
-  height: 18px;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-}
-
-.mobile-toggle-btn span {
-  width: 100%;
-  height: 2px;
-  background: var(--text-main);
-  border-radius: 2px;
-}
-
-/* Mobile Drawer */
-.mobile-drawer {
-  display: flex;
-  flex-direction: column;
-  background: var(--card-bg, #ffffff);
-  border-bottom: 1px solid var(--nav-border, #e2e8f0);
-  padding: 16px 20px;
-  gap: 12px;
-  animation: slideDrawerDown 0.2s ease-out;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
-}
-
-@keyframes slideDrawerDown {
-  from { opacity: 0; transform: translateY(-8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.mobile-credits-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: var(--credits-bg, rgba(99, 102, 241, 0.1));
-  border: 1px solid var(--credits-border, rgba(99, 102, 241, 0.25));
-  padding: 10px 14px;
-  border-radius: 12px;
-  cursor: pointer;
-}
-
-.mobile-credits-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.mobile-credits-title {
-  font-size: 13.5px;
-  font-weight: 700;
-  color: var(--credits-text, #4f46e5);
-}
-
-.mobile-credits-refill {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-muted, #64748b);
-  background: rgba(255, 255, 255, 0.7);
-  padding: 2px 8px;
-  border-radius: 12px;
-}
-
-.mobile-nav-links {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.mobile-link {
-  color: var(--text-main);
-  text-decoration: none;
-  font-size: 14.5px;
-  font-weight: 600;
-  padding: 9px 12px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  transition: background 0.15s ease;
-  background: transparent;
-  border: none;
-  text-align: left;
-  cursor: pointer;
-  width: 100%;
-}
-
-.mobile-link:hover,
-.mobile-link.router-link-active {
-  background: #f1f5f9;
-  color: #4f46e5;
-}
-
-.about-link {
-  color: var(--text-sub);
-}
-
-.mobile-user-row {
+/* User Cluster */
+.user-cluster {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 6px 12px;
-  margin-bottom: 6px;
-  background: #f8fafc;
-  border-radius: 8px;
+  position: relative;
 }
 
-.avatar-img-sm {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  object-fit: cover;
+.user-profile-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
 }
 
-.mobile-user-name {
-  font-size: 13px;
+.user-short-name {
+  display: none;
+  font-size: 13.5px;
   font-weight: 600;
   color: var(--text-main);
+  max-width: 110px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.logout-link {
-  color: #ef4444;
-}
-
-.logout-link:hover {
-  background: #fee2e2;
-  color: #b91c1c;
-}
-
-.mobile-divider {
-  height: 1px;
-  background: var(--nav-border);
-  margin: 4px 0;
-}
-
-.mobile-full-btn {
-  width: 100%;
+.header-direct-logout-btn {
+  display: none;
+  align-items: center;
   justify-content: center;
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+  padding: 5px 12px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1.2;
+}
+
+.header-direct-logout-btn:hover {
+  background: #fecaca;
+  color: #b91c1c;
 }
 
 /* About Modal */
@@ -755,37 +626,46 @@ onBeforeUnmount(() => {
 
 @media (max-width: 900px) {
   .nav-links {
-    display: none;
+    display: none !important;
   }
   .credits-badge {
-    display: none;
+    display: none !important;
   }
   .mobile-toggle-btn {
-    display: flex;
+    display: none !important;
+  }
+  .user-short-name {
+    display: inline-block;
+  }
+  .header-direct-logout-btn {
+    display: inline-flex;
   }
 }
 
 @media (max-width: 480px) {
   .nav-container {
-    padding: 10px 14px;
-    height: 56px;
+    padding: 8px 12px;
+    height: 52px;
   }
-  .brand-name {
-    font-size: 17px;
+  .logo-text {
+    font-size: 16px;
   }
-  .logo-icon {
-    width: 28px;
-    height: 28px;
-    font-size: 13px;
+  .user-short-name {
+    max-width: 65px;
+    font-size: 11.5px;
+  }
+  .header-direct-logout-btn {
+    padding: 4px 8px;
+    font-size: 11px;
   }
   .login-btn {
-    padding: 6px 12px;
-    font-size: 13px;
+    padding: 5px 10px;
+    font-size: 12px;
   }
 }
 
 @media (max-width: 360px) {
-  .brand-name {
+  .user-short-name {
     display: none;
   }
 }
