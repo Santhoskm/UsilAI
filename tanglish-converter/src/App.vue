@@ -13,7 +13,7 @@ const { theme } = useTheme()
 </script>
 
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700;800;900&display=swap');
 
 :root, :root.light, [data-theme="light"] {
   --app-bg: #f8fafc;

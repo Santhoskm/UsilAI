@@ -17,7 +17,10 @@
           <!-- Feature Pills Bar -->
           <div class="hero-features-bar">
             <div class="feature-badge" @click="scrollToEditor">
-              <span class="feat-icon">அA</span>
+              <span class="feat-brand-badge" title="Tanglish to Tamil">
+                <span class="badge-ta">அ</span>
+                <span class="badge-en">A</span>
+              </span>
               <span class="feat-label">Tanglish to Tamil</span>
             </div>
             <span class="feat-divider">|</span>
@@ -86,8 +89,11 @@
           <div class="editor-outer-card">
             <!-- Card Header Banner -->
             <div class="editor-card-header">
-              <div class="editor-header-badge">
-                <span class="badge-icon">அA</span>
+              <div class="editor-header-badge" title="Tanglish to Tamil">
+                <div class="aa-mark-container">
+                  <span class="aa-mark-ta">அ</span>
+                  <span class="aa-mark-en">A</span>
+                </div>
               </div>
               <div class="editor-header-titles">
                 <h2 class="card-main-title">Tanglish to Tamil Editor</h2>
@@ -351,6 +357,47 @@ const scrollToEditor = () => {
   font-size: 14px;
 }
 
+.feat-brand-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5px;
+  padding: 2px 6px;
+  height: 22px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 50%, #8b5cf6 100%);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 2px 6px rgba(79, 70, 229, 0.28), inset 0 1px 1px rgba(255, 255, 255, 0.35);
+  line-height: 1;
+  user-select: none;
+  flex-shrink: 0;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
+}
+
+.feature-badge:hover .feat-brand-badge {
+  transform: scale(1.1) translateY(-1px);
+  box-shadow: 0 4px 10px rgba(79, 70, 229, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.5);
+}
+
+.feat-brand-badge .badge-ta {
+  font-family: 'Noto Sans Tamil', -apple-system, sans-serif;
+  font-size: 11.5px;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+
+.feat-brand-badge .badge-en {
+  font-family: 'Inter', -apple-system, sans-serif;
+  font-size: 9.5px;
+  font-weight: 800;
+  color: #c7d2fe;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
 .feat-divider {
   color: var(--card-border);
   font-size: 13px;
@@ -570,17 +617,68 @@ const scrollToEditor = () => {
 }
 
 .editor-header-badge {
-  width: 48px;
-  height: 48px;
+  width: 50px;
+  height: 50px;
   border-radius: 14px;
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  background: linear-gradient(135deg, #4338ca 0%, #4f46e5 45%, #7c3aed 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
-  font-weight: 700;
-  font-size: 19px;
-  box-shadow: 0 6px 16px rgba(99, 102, 241, 0.3);
+  box-shadow: 0 8px 24px -2px rgba(79, 70, 229, 0.38), inset 0 1.5px 1.5px rgba(255, 255, 255, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  position: relative;
+  overflow: hidden;
+  user-select: none;
+  flex-shrink: 0;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.editor-header-badge::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 50%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0) 100%);
+  border-top-left-radius: 13px;
+  border-top-right-radius: 13px;
+  pointer-events: none;
+}
+
+.editor-outer-card:hover .editor-header-badge {
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 12px 28px -2px rgba(79, 70, 229, 0.48), inset 0 1.5px 1.5px rgba(255, 255, 255, 0.55);
+}
+
+.aa-mark-container {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2.5px;
+  line-height: 1;
+  position: relative;
+  z-index: 1;
+}
+
+.aa-mark-ta {
+  font-family: 'Noto Sans Tamil', -apple-system, sans-serif;
+  font-size: 21px;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+  letter-spacing: -0.02em;
+}
+
+.aa-mark-en {
+  font-family: 'Inter', -apple-system, sans-serif;
+  font-size: 16px;
+  font-weight: 800;
+  color: #bfdbfe;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 .editor-header-titles {

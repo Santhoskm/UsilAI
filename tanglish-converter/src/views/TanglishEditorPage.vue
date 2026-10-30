@@ -8,7 +8,10 @@
           <span>Home</span>
         </router-link>
         <div class="workspace-brand">
-          <div class="brand-avatar">அA</div>
+          <div class="brand-avatar" title="Tamil Document Editor">
+            <span class="brand-char-ta">அ</span>
+            <span class="brand-char-en">A</span>
+          </div>
           <div class="brand-text">
             <h1 class="workspace-title">Tamil Document Editor</h1>
             <span class="workspace-subtitle">Multi-File Cloud Notes & Typist</span>
@@ -95,17 +98,62 @@ const router = useRouter()
 }
 
 .brand-avatar {
-  width: 34px;
-  height: 34px;
-  border-radius: 9px;
-  background: linear-gradient(135deg, #4f46e5, #6366f1);
-  color: #ffffff;
-  font-weight: 800;
-  font-size: 14px;
-  display: flex;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: linear-gradient(135deg, #2563eb 0%, #4f46e5 50%, #7c3aed 100%);
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 6px rgba(79, 70, 229, 0.25);
+  gap: 2px;
+  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.32), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  position: relative;
+  overflow: hidden;
+  user-select: none;
+  flex-shrink: 0;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
+}
+
+.brand-avatar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 50%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0) 100%);
+  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
+  pointer-events: none;
+}
+
+.brand-avatar:hover {
+  transform: translateY(-1.5px) scale(1.05);
+  box-shadow: 0 6px 18px rgba(79, 70, 229, 0.42), inset 0 1px 1px rgba(255, 255, 255, 0.5);
+}
+
+.brand-char-ta {
+  font-family: 'Noto Sans Tamil', -apple-system, sans-serif;
+  font-size: 16px;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  position: relative;
+  z-index: 1;
+}
+
+.brand-char-en {
+  font-family: 'Inter', -apple-system, sans-serif;
+  font-size: 12.5px;
+  font-weight: 800;
+  color: #bfdbfe;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  position: relative;
+  z-index: 1;
 }
 
 .workspace-title {
@@ -186,10 +234,16 @@ const router = useRouter()
     font-size: 12px;
   }
   .brand-avatar {
-    width: 28px;
-    height: 28px;
-    font-size: 12px;
-    border-radius: 7px;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    gap: 1px;
+  }
+  .brand-char-ta {
+    font-size: 13px;
+  }
+  .brand-char-en {
+    font-size: 10px;
   }
   .workspace-title {
     font-size: 14.5px;

@@ -1087,7 +1087,10 @@
           <div class="quick-actions-title">Quick actions</div>
           <div class="quick-actions-list">
             <button type="button" class="quick-action-item" @click="handleTranslateToEnglish" title="Translate Tamil content to English">
-              <span class="quick-action-symbol">அA</span>
+              <span class="quick-action-symbol qa-aa-symbol">
+                <span class="qa-char-ta">அ</span>
+                <span class="qa-char-en">A</span>
+              </span>
               <span class="quick-action-text">Translate to English</span>
             </button>
             <button type="button" class="quick-action-item" @click="handleSummarizeText" title="Summarize document into key points">
@@ -5492,11 +5495,50 @@ onBeforeUnmount(() => {
 
 .quick-action-symbol {
   font-size: 14px;
-  width: 18px;
+  width: 22px;
+  height: 22px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--text-muted, #64748b);
+  flex-shrink: 0;
+}
+
+.qa-aa-symbol {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.28);
+  line-height: 1;
+  user-select: none;
+  transition: transform 0.15s ease;
+}
+
+.quick-action-item:hover .qa-aa-symbol {
+  transform: scale(1.08);
+}
+
+.qa-char-ta {
+  font-family: 'Noto Sans Tamil', -apple-system, sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1;
+}
+
+.qa-char-en {
+  font-family: 'Inter', -apple-system, sans-serif;
+  font-size: 8.5px;
+  font-weight: 800;
+  color: #bfdbfe;
+  line-height: 1;
+  letter-spacing: -0.02em;
 }
 
 .quick-action-text {
