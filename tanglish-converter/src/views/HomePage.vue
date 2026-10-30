@@ -16,33 +16,83 @@
 
           <!-- Feature Pills Bar -->
           <div class="hero-features-bar">
-            <div class="feature-badge" @click="scrollToEditor">
-              <span class="feat-brand-badge" title="Tanglish to Tamil">
+            <button 
+              type="button" 
+              class="feature-chip active-chip" 
+              @click="scrollToEditor"
+              title="Tanglish to Tamil Editor"
+            >
+              <span class="chip-brand-badge" title="Tanglish to Tamil">
                 <span class="badge-ta">அ</span>
                 <span class="badge-en">A</span>
               </span>
-              <span class="feat-label">Tanglish to Tamil</span>
-            </div>
-            <span class="feat-divider">|</span>
-            <div class="feature-badge" @click="handleToolNavigate('/editor')">
-              <span class="feat-icon">📄</span>
-              <span class="feat-label">Tamil Documents</span>
-            </div>
-            <span class="feat-divider">|</span>
-            <div class="feature-badge" @click="handleToolNavigate('/ocr')">
-              <span class="feat-icon">⛶</span>
-              <span class="feat-label">OCR</span>
-            </div>
-            <span class="feat-divider">|</span>
-            <div class="feature-badge" @click="handleToolNavigate('/audio')">
-              <span class="feat-icon">🎙️</span>
-              <span class="feat-label">Audio Transcription</span>
-            </div>
-            <span class="feat-divider">|</span>
-            <div class="feature-badge" @click="handleToolNavigate('/subtitle')">
-              <span class="feat-icon">🎬</span>
-              <span class="feat-label">Subtitles</span>
-            </div>
+              <span class="chip-label">Tanglish to Tamil</span>
+            </button>
+
+            <button 
+              type="button" 
+              class="feature-chip" 
+              @click="handleToolNavigate('/editor')"
+              title="Tamil Documents & Notes"
+            >
+              <span class="chip-icon-box docs-icon-box">
+                <svg class="chip-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                  <line x1="16" y1="13" x2="8" y2="13"/>
+                  <line x1="16" y1="17" x2="8" y2="17"/>
+                </svg>
+              </span>
+              <span class="chip-label">Tamil Documents</span>
+            </button>
+
+            <button 
+              type="button" 
+              class="feature-chip" 
+              @click="handleToolNavigate('/ocr')"
+              title="OCR Text Extraction"
+            >
+              <span class="chip-icon-box ocr-icon-box">
+                <svg class="chip-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M4 8V6a2 2 0 0 1 2-2h2M4 16v2a2 2 0 0 0 2 2h2M16 4h2a2 2 0 0 1 2 2v2M16 20h2a2 2 0 0 0 2-2v-2" stroke-linecap="round"/>
+                  <rect x="8" y="8" width="8" height="8" rx="2"/>
+                </svg>
+              </span>
+              <span class="chip-label">OCR</span>
+            </button>
+
+            <button 
+              type="button" 
+              class="feature-chip" 
+              @click="handleToolNavigate('/audio')"
+              title="Audio Transcription"
+            >
+              <span class="chip-icon-box audio-icon-box">
+                <svg class="chip-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                  <line x1="12" y1="19" x2="12" y2="22"/>
+                </svg>
+              </span>
+              <span class="chip-label">Audio Transcription</span>
+            </button>
+
+            <button 
+              type="button" 
+              class="feature-chip" 
+              @click="handleToolNavigate('/subtitle')"
+              title="Tamil Subtitles"
+            >
+              <span class="chip-icon-box sub-icon-box">
+                <svg class="chip-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="2" y="4" width="20" height="16" rx="2"/>
+                  <line x1="6" y1="15" x2="10" y2="15"/>
+                  <line x1="14" y1="15" x2="18" y2="15"/>
+                  <line x1="6" y1="11" x2="18" y2="11"/>
+                </svg>
+              </span>
+              <span class="chip-label">Subtitles</span>
+            </button>
           </div>
         </div>
 
@@ -293,7 +343,7 @@ const scrollToEditor = () => {
 
 .hero-text-block {
   flex: 1;
-  max-width: 680px;
+  max-width: 740px;
 }
 
 .hero-title {
@@ -323,63 +373,82 @@ const scrollToEditor = () => {
   max-width: 580px;
 }
 
-/* Feature Pills Bar */
+/* Feature Chips Bar */
 .hero-features-bar {
-  display: inline-flex;
-  align-items: center;
-  gap: 16px;
-  background: var(--card-bg);
-  border: 1px solid var(--card-border);
-  padding: 10px 18px;
-  border-radius: 40px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
-  flex-wrap: wrap;
-}
-
-.feature-badge {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
-  font-size: 13.5px;
-  font-weight: 600;
-  color: var(--text-sub);
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+.feature-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--card-border, #e2e8f0);
+  padding: 6px 12px 6px 8px;
+  border-radius: 24px;
+  box-shadow: 0 1.5px 4px rgba(0, 0, 0, 0.04);
   cursor: pointer;
-  transition: all 0.2s;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-sub, #475569);
+  text-decoration: none;
   user-select: none;
+  white-space: nowrap;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.feature-badge:hover {
-  color: var(--accent-indigo);
-  transform: translateY(-1px);
+.feature-chip:hover {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: var(--accent-indigo, #4f46e5);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(79, 70, 229, 0.12);
 }
 
-.feat-icon {
-  font-size: 14px;
+/* Active Chip Highlight for Tanglish to Tamil (the primary hero tool) */
+.feature-chip.active-chip {
+  background: #f5f3ff;
+  border-color: #c7d2fe;
+  color: #4338ca;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.12);
 }
 
-.feat-brand-badge {
+.feature-chip.active-chip:hover {
+  border-color: #a5b4fc;
+  box-shadow: 0 6px 18px rgba(99, 102, 241, 0.2);
+}
+
+/* ── Chip Micro-Icon Badges ── */
+.chip-brand-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 1.5px;
-  padding: 2px 6px;
-  height: 22px;
-  border-radius: 6px;
-  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 50%, #8b5cf6 100%);
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  background: linear-gradient(135deg, #4338ca 0%, #4f46e5 50%, #7c3aed 100%);
   border: 1px solid rgba(255, 255, 255, 0.25);
-  box-shadow: 0 2px 6px rgba(79, 70, 229, 0.28), inset 0 1px 1px rgba(255, 255, 255, 0.35);
+  box-shadow: 0 2px 6px rgba(79, 70, 229, 0.32), inset 0 1px 1px rgba(255, 255, 255, 0.4);
   line-height: 1;
   user-select: none;
   flex-shrink: 0;
-  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
+  transition: transform 0.2s ease;
 }
 
-.feature-badge:hover .feat-brand-badge {
-  transform: scale(1.1) translateY(-1px);
-  box-shadow: 0 4px 10px rgba(79, 70, 229, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.5);
+.feature-chip:hover .chip-brand-badge {
+  transform: scale(1.08);
 }
 
-.feat-brand-badge .badge-ta {
+.chip-brand-badge .badge-ta {
   font-family: 'Noto Sans Tamil', -apple-system, sans-serif;
   font-size: 11.5px;
   font-weight: 800;
@@ -388,7 +457,7 @@ const scrollToEditor = () => {
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
 }
 
-.feat-brand-badge .badge-en {
+.chip-brand-badge .badge-en {
   font-family: 'Inter', -apple-system, sans-serif;
   font-size: 9.5px;
   font-weight: 800;
@@ -398,10 +467,52 @@ const scrollToEditor = () => {
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
-.feat-divider {
-  color: var(--card-border);
-  font-size: 13px;
-  user-select: none;
+.chip-icon-box {
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.feature-chip:hover .chip-icon-box {
+  transform: scale(1.08);
+}
+
+.chip-svg {
+  width: 13.5px;
+  height: 13.5px;
+}
+
+.docs-icon-box {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #10b981;
+}
+
+.ocr-icon-box {
+  background: #f5f3ff;
+  border: 1px solid #ddd6fe;
+  color: #7c3aed;
+}
+
+.audio-icon-box {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #2563eb;
+}
+
+.sub-icon-box {
+  background: #fdf2f8;
+  border: 1px solid #fbcfe8;
+  color: #db2777;
+}
+
+.chip-label {
+  line-height: 1;
 }
 
 /* =========================================================================
@@ -940,14 +1051,12 @@ const scrollToEditor = () => {
     width: 100%;
   }
   .hero-features-bar {
-    border-radius: 20px;
-    padding: 10px 12px;
     gap: 8px;
-    flex-wrap: wrap;
     justify-content: center;
   }
-  .feat-divider {
-    display: none;
+  .feature-chip {
+    padding: 5px 12px 5px 8px;
+    font-size: 12px;
   }
   .hero-art-block {
     align-self: center;
