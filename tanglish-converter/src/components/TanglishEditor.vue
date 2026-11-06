@@ -141,27 +141,7 @@
           </button>
         </div>
 
-        <div class="toolbar-divider"></div>
 
-        <!-- Language Engine Toggle (தமிழ் / English) -->
-        <div class="engine-mode-pill" title="Toggle Tanglish transliteration or English typing">
-          <button 
-            type="button" 
-            class="mode-btn" 
-            :class="{ active: autoConvert }" 
-            @click="autoConvert = true"
-          >
-            தமிழ்
-          </button>
-          <button 
-            type="button" 
-            class="mode-btn" 
-            :class="{ active: !autoConvert }" 
-            @click="autoConvert = false"
-          >
-            English
-          </button>
-        </div>
 
         <div class="toolbar-divider"></div>
 
@@ -554,31 +534,10 @@
 
       <!-- 2. HOME PAGE EMBEDDED TOOLBAR (Clean 2-row mobile-optimized layout) -->
       <div v-else-if="editor" class="toolbar embedded-home-toolbar">
-        <!-- Row 1: Actions & Utilities (Language Mode, Font Selector, Grammar Checker, Download, Clear) -->
+        <!-- Row 1: Actions & Utilities (Font Selector, Grammar Checker, Download, Clear) -->
         <div class="embedded-toolbar-row embedded-actions-row">
-          <div class="toolbar-left-cluster">
-            <!-- Language Engine Toggle (தமிழ் / English) -->
-            <div class="engine-mode-pill" title="Toggle Tanglish transliteration or English typing">
-              <button 
-                type="button" 
-                class="mode-btn" 
-                :class="{ active: autoConvert }" 
-                @click="autoConvert = true"
-              >
-                தமிழ்
-              </button>
-              <button 
-                type="button" 
-                class="mode-btn" 
-                :class="{ active: !autoConvert }" 
-                @click="autoConvert = false"
-              >
-                English
-              </button>
-            </div>
-
-            <!-- Font Selector -->
-            <div class="toolbar-font-selector" ref="fontSelectorRef">
+          <!-- Font Selector -->
+          <div class="toolbar-font-selector" ref="fontSelectorRef">
             <button class="font-selector-btn" @click="showFontDropdown = !showFontDropdown" title="Change Tamil Font">
               <span class="font-preview">அ</span>
               <span class="font-name">{{ selectedFont.label }}</span>
@@ -597,7 +556,6 @@
                 <span class="font-label">{{ font.label }}</span>
               </div>
             </div>
-          </div>
           </div>
 
           <!-- Quick Actions Cluster -->
@@ -936,6 +894,48 @@
 
         <!-- Bottom Action Bar (Docked / Sticky at Bottom of Canvas) -->
         <div class="editor-bottom-bar" :class="{ 'full-page-dock': fullPage }">
+          <!-- Left: Language Input Mode Switcher (Complete, Polished Segmented Control) -->
+          <div class="bottom-mode-section">
+            <div class="input-mode-card">
+              <span class="mode-badge-label">
+                <svg class="mode-globe-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="2" y1="12" x2="22" y2="12"></line>
+                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                </svg>
+                <span class="mode-label-text">Input</span>
+              </span>
+
+              <div class="engine-mode-pill" role="tablist" title="Toggle Tanglish transliteration or English typing">
+                <button 
+                  type="button" 
+                  role="tab"
+                  :aria-selected="autoConvert"
+                  class="mode-btn mode-btn-ta" 
+                  :class="{ active: autoConvert }" 
+                  @click="autoConvert = true"
+                  title="Tanglish to Tamil (Type in English, converts to Tamil)"
+                >
+                  <span class="lang-glyph">அ</span>
+                  <span class="lang-text">தமிழ்</span>
+                </button>
+
+                <button 
+                  type="button" 
+                  role="tab"
+                  :aria-selected="!autoConvert"
+                  class="mode-btn mode-btn-en" 
+                  :class="{ active: !autoConvert }" 
+                  @click="autoConvert = false"
+                  title="Direct English typing"
+                >
+                  <span class="lang-glyph">A</span>
+                  <span class="lang-text">English</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
           <!-- Words / Chars Stats -->
           <div class="bottom-stats-label">
             <span>{{ wordCount }} words</span>
@@ -3351,12 +3351,7 @@ onBeforeUnmount(() => {
   flex-wrap: nowrap;
 }
 
-.toolbar-left-cluster {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
+
 
 .action-buttons-wrap {
   display: flex;
@@ -4727,6 +4722,47 @@ onBeforeUnmount(() => {
   background: #f1f5f9;
 }
 
+/* ── Complete Language Input Mode Switcher in Bottom Bar ── */
+.bottom-mode-section {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.input-mode-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 9999px;
+  padding: 3px 4px 3px 10px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05), 0 1px 2px rgba(15, 23, 42, 0.03);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.input-mode-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
+}
+
+.mode-badge-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  user-select: none;
+}
+
+.mode-globe-icon {
+  color: #6366f1;
+  flex-shrink: 0;
+}
+
 .engine-mode-pill {
   display: inline-flex;
   align-items: center;
@@ -4734,12 +4770,15 @@ onBeforeUnmount(() => {
   border: 1px solid #e2e8f0;
   border-radius: 9999px;
   padding: 2px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-  flex-shrink: 0;
+  gap: 2px;
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 .mode-btn {
-  padding: 4px 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
   border: none;
   background: transparent;
   font-size: 12.5px;
@@ -4747,18 +4786,42 @@ onBeforeUnmount(() => {
   color: #64748b;
   border-radius: 9999px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   line-height: 1.2;
 }
 
 .mode-btn:hover:not(.active) {
   color: #1e293b;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.mode-btn .lang-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 700;
+  transition: all 0.2s ease;
 }
 
 .mode-btn.active {
-  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
   color: #ffffff;
-  box-shadow: 0 2px 6px rgba(99, 102, 241, 0.35);
+  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.32);
+}
+
+.mode-btn.active .lang-glyph {
+  background: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
+.mode-btn .lang-text {
+  letter-spacing: 0.1px;
 }
 
 .bottom-stats-label {
@@ -6253,12 +6316,7 @@ onBeforeUnmount(() => {
     flex-wrap: nowrap !important;
   }
 
-  .toolbar-left-cluster {
-    display: flex !important;
-    align-items: center !important;
-    gap: 4px !important;
-    flex-shrink: 0 !important;
-  }
+
 
   .embedded-actions-row .toolbar-font-selector {
     flex: 0 1 auto !important;
