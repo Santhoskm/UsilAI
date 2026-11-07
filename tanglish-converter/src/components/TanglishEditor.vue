@@ -2358,6 +2358,13 @@ const updateStats = (editor) => {
 
 // Handle text input with improved conversion logic
 const handleTyping = (view, from, to, text) => {
+    // When in English mode, completely disable Tanglish conversion and suggestions
+    if (!autoConvert.value) {
+        showSuggestions.value = false
+        suggestionsList.value = []
+        return false
+    }
+
     const { state } = view
     const { selection } = state
     const { $from } = selection
@@ -2432,7 +2439,7 @@ const handleTyping = (view, from, to, text) => {
 
     // Update suggestions AFTER TipTap commits the new character
     setTimeout(() => {
-        if (!editor.value) return
+        if (!editor.value || !autoConvert.value) return
         const { state: newState } = editor.value
         const { $from: new$from } = newState.selection
         const newCursorPos = new$from.pos
@@ -2460,6 +2467,11 @@ const handleTyping = (view, from, to, text) => {
 
 // Handle keyboard navigation for suggestions
 const handleKeyDown = (view, event) => {
+  if (!autoConvert.value) {
+    showSuggestions.value = false
+    suggestionsList.value = []
+    return false
+  }
   if (!showSuggestions.value) return false
   
   switch (event.key) {
@@ -2511,7 +2523,7 @@ const handleKeyDown = (view, event) => {
       suggestionsList.value = []
       showSuggestions.value = false
       setTimeout(() => {
-        if (!editor.value) return
+        if (!editor.value || !autoConvert.value) return
         const { state } = view
         const { selection } = state
         const { $from } = selection
@@ -3029,6 +3041,11 @@ function buildRecognition() {
 
 function insertVoiceText(rawText) {
   if (!editor.value) return
+  if (!autoConvert.value) {
+    editor.value.commands.insertContent(rawText + ' ')
+    updateStats(editor.value)
+    return
+  }
   const words = rawText.trim().split(/\s+/)
   let textToInsert = ''
   for (const word of words) {
@@ -3112,7 +3129,11 @@ const editor = useEditor({
       }
     }),
     Placeholder.configure({
-      placeholder: 'Type in Tanglish — it converts to Tamil automatically when you press space or punctuation...'
+      placeholder: () => {
+        return autoConvert.value
+          ? 'Type in Tanglish — it converts to Tamil automatically when you press space or punctuation...'
+          : 'Type in English...'
+      }
     }),
     TextAlign.configure({
       types: ['heading', 'paragraph'],
@@ -3148,7 +3169,11 @@ const editor = useEditor({
 
 // Watch for autoConvert changes
 watch(autoConvert, (newValue) => {
-  console.log('Auto convert:', newValue ? 'ON' : 'OFF')
+  showSuggestions.value = false
+  suggestionsList.value = []
+  if (editor.value) {
+    editor.value.view.dispatch(editor.value.state.tr)
+  }
 })
 
 // Watch for authentication changes (login, logout, or account switch)
