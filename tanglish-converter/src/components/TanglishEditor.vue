@@ -897,13 +897,12 @@
           <!-- Left: Language Input Mode Switcher (Complete, Polished Segmented Control) -->
           <div class="bottom-mode-section">
             <div class="input-mode-card">
-              <span class="mode-badge-label">
+              <span class="mode-badge-label" title="Input language">
                 <svg class="mode-globe-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                   <circle cx="12" cy="12" r="10"></circle>
                   <line x1="2" y1="12" x2="22" y2="12"></line>
                   <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
                 </svg>
-                <span class="mode-label-text">Input</span>
               </span>
 
               <div class="engine-mode-pill" role="tablist" title="Toggle Tanglish transliteration or English typing">
@@ -3264,17 +3263,19 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   height: 100%;
+  box-sizing: border-box;
   font-family: 'Inter', 'Segoe UI', 'Noto Sans Tamil', sans-serif;
   background: var(--card-bg, #ffffff);
   border-radius: 14px;
   overflow: hidden;
-  box-shadow: none;
-  border: 1px solid var(--card-border, #e0e0e0);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  border: 1px solid var(--card-border, #e2e8f0);
 }
 
 .tanglish-editor-container.embedded-editor {
-  height: 520px;
-  max-height: 520px;
+  height: 100%;
+  max-height: 100%;
+  box-sizing: border-box;
 }
 
 .tanglish-editor-container.full-page-editor {
@@ -4189,6 +4190,7 @@ onBeforeUnmount(() => {
   overflow: hidden;
   min-height: 0;
   height: 100%;
+  box-sizing: border-box;
 }
 
 /* A4 Desk Canvas (Scrollable Document Workspace) */
@@ -4239,6 +4241,9 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .editor-background-layer {
@@ -4645,9 +4650,12 @@ onBeforeUnmount(() => {
   padding: 10px 20px;
   background: #f8fafc;
   border-top: 1px solid var(--card-border, #e2e8f0);
+  border-bottom-left-radius: 13px;
+  border-bottom-right-radius: 13px;
   gap: 14px;
   flex-wrap: wrap;
   flex-shrink: 0;
+  box-sizing: border-box;
 }
 
 .editor-bottom-bar.full-page-dock {
@@ -4732,13 +4740,14 @@ onBeforeUnmount(() => {
 .input-mode-card {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   background: #ffffff;
   border: 1px solid #e2e8f0;
   border-radius: 9999px;
-  padding: 3px 4px 3px 10px;
+  padding: 3px 4px 3px 8px;
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05), 0 1px 2px rgba(15, 23, 42, 0.03);
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
 }
 
 .input-mode-card:hover {
@@ -4749,12 +4758,7 @@ onBeforeUnmount(() => {
 .mode-badge-label {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  font-size: 11.5px;
-  font-weight: 700;
-  color: #64748b;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  justify-content: center;
   user-select: none;
 }
 

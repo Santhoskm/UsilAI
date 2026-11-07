@@ -804,7 +804,8 @@ const scrollToEditor = () => {
 .editor-component-wrapper {
   border-radius: 14px;
   overflow: hidden;
-  height: 520px;
+  height: 530px;
+  box-sizing: border-box;
   flex-shrink: 0;
 }
 
