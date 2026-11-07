@@ -490,8 +490,24 @@
 
         <div class="toolbar-divider"></div>
 
-        <!-- 8. Right Action Tools Segment (Clear, Grammar Checker, Download) -->
+        <!-- 8. Right Action Tools Segment (Convert All, Clear, Grammar Checker, Download) -->
         <div class="toolbar-group actions-tools-group">
+          <button 
+            v-if="isAuthenticated"
+            @click="convertAllToTamil" 
+            class="toolbar-btn btn-convert-all"
+            :class="{ 'btn-converting': isConvertingAll, 'btn-converted-success': convertedAllSuccess }"
+            :disabled="isConvertingAll"
+            title="Convert entire document / all Tanglish to Tamil"
+          >
+            <svg v-if="!convertedAllSuccess" class="convert-icon-svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 14a8 8 0 0 1 14.93-3M20 10a8 8 0 0 1-14.93 3"></path>
+              <polyline points="20 4 20 10 14 10"></polyline>
+              <polyline points="4 20 4 14 10 14"></polyline>
+            </svg>
+            <span v-else class="convert-check-icon">✓</span>
+            <span>{{ convertedAllSuccess ? 'Converted!' : isConvertingAll ? 'Converting...' : 'Convert All' }}</span>
+          </button>
           <button @click="clearEditor" class="toolbar-btn btn-clear" title="Clear Editor Content">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="3 6 5 6 21 6"></polyline>
@@ -560,6 +576,24 @@
 
           <!-- Quick Actions Cluster -->
           <div class="action-buttons-wrap">
+            <!-- Convert All to Tamil Button (Visible ONLY when logged in) -->
+            <button 
+              v-if="isAuthenticated"
+              @click="convertAllToTamil" 
+              class="toolbar-btn btn-convert-all"
+              :class="{ 'btn-converting': isConvertingAll, 'btn-converted-success': convertedAllSuccess }"
+              :disabled="isConvertingAll"
+              title="Convert entire document / all Tanglish to Tamil"
+            >
+              <svg v-if="!convertedAllSuccess" class="convert-icon-svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 14a8 8 0 0 1 14.93-3M20 10a8 8 0 0 1-14.93 3"></path>
+                <polyline points="20 4 20 10 14 10"></polyline>
+                <polyline points="4 20 4 14 10 14"></polyline>
+              </svg>
+              <span v-else class="convert-check-icon">✓</span>
+              <span class="btn-text-label">{{ convertedAllSuccess ? 'Converted!' : isConvertingAll ? 'Converting...' : 'Convert All' }}</span>
+            </button>
+
             <button 
               @click="toggleAIHelp" 
               class="toolbar-btn btn-ai"
@@ -890,6 +924,16 @@
             <span class="tamil-text-main">{{ suggestion.tamil }}</span>
             <span class="suggestion-space-hint" v-if="idx === 0">Space</span>
           </div>
+        </div>
+
+        <!-- Floating Paste-to-Convert Banner (Visible only when logged in) -->
+        <div v-if="isAuthenticated && showPasteConvertBanner" class="paste-convert-banner">
+          <span class="banner-icon">⚡</span>
+          <span class="banner-text">Pasted Tanglish text detected. Convert all to Tamil?</span>
+          <button type="button" class="banner-convert-btn" @click="convertAllToTamil">
+            Convert All
+          </button>
+          <button type="button" class="banner-close-btn" @click="showPasteConvertBanner = false" title="Dismiss">✕</button>
         </div>
 
         <!-- Bottom Action Bar (Docked / Sticky at Bottom of Canvas) -->
@@ -1268,7 +1312,7 @@ import { useAuth, registerPreLogoutHook } from '@/composables/useAuth'
 import { useTanglishConverter } from '@/composables/useTanglishConverter'
 import { useClaudeGrammarChecker } from '@/composables/useClaudeGrammarChecker'
 import { useCredits } from '@/composables/useCredits'
-import { fetchUserDocuments, syncUserDocuments, deleteUserDocument } from '@/services/apiService'
+import { fetchUserDocuments, syncUserDocuments, deleteUserDocument, getCachedGoogleInput, convertTanglishWithClaude } from '@/services/apiService'
 import AuthModal from '@/components/AuthModal.vue'
 import PrintPreviewModal from '@/components/PrintPreviewModal.vue'
 
@@ -1280,6 +1324,12 @@ const { checkGrammar, isChecking: aiChecking, error: aiError, correctionResult }
 const showAuthModal = ref(false)
 const onAuthSuccess = async () => {
   showAuthModal.value = false
+  if (pendingConvertAfterAuth.value) {
+    pendingConvertAfterAuth.value = false
+    setTimeout(() => {
+      convertAllToTamil()
+    }, 200)
+  }
   if (props.fullPage || props.enableSidebar) {
     await loadSavedFiles()
   }
@@ -1297,6 +1347,12 @@ const props = defineProps({
 })
 
 // ── File Management State (Up to 5 files for authenticated users with PostgreSQL DB persistence) ──
+const isConvertingAll = ref(false)
+const convertedAllSuccess = ref(false)
+const showPasteConvertBanner = ref(false)
+const pendingConvertAfterAuth = ref(false)
+let pasteBannerTimer = null
+
 const isMobileScreen = ref(typeof window !== 'undefined' ? window.innerWidth <= 768 : false)
 const showFilesSidebar = ref(props.enableSidebar && (typeof window !== 'undefined' ? window.innerWidth > 768 : true))
 const handleScreenResize = () => {
@@ -2348,6 +2404,160 @@ const updatePopupPosition = (view) => {
   }
 }
 
+// High-accuracy batch transliterator for full document text
+const transliterateBatchWords = async (wordsList) => {
+  if (!wordsList || wordsList.length === 0) return new Map()
+
+  const wordMap = new Map()
+  const cleanWords = Array.from(new Set(wordsList.map(w => w.toLowerCase().trim()).filter(w => /^[a-zA-Z]+$/.test(w))))
+
+  // 1. Check in-memory Google input cache & local trie
+  const missingWords = []
+  for (const word of cleanWords) {
+    const cached = getCachedGoogleInput(word)
+    if (cached && cached.length > 0 && cached[0].tamil) {
+      wordMap.set(word, cached[0].tamil)
+    } else {
+      missingWords.push(word)
+    }
+  }
+
+  // 2. Fetch missing words in parallel batches of 25 from Google Input Tools
+  const batchSize = 25
+  const batches = []
+  for (let i = 0; i < missingWords.length; i += batchSize) {
+    batches.push(missingWords.slice(i, i + batchSize))
+  }
+
+  if (batches.length > 0) {
+    await Promise.all(
+      batches.map(async (batch) => {
+        try {
+          const query = batch.join(',')
+          const url = `https://inputtools.google.com/request?text=${encodeURIComponent(query)}&itc=ta-t-i0-und&num=1&cp=0&cs=1&ie=utf-8&oe=utf-8&app=demopage`
+          const controller = new AbortController()
+          const timer = setTimeout(() => controller.abort(), 2800)
+          const res = await fetch(url, { signal: controller.signal })
+          clearTimeout(timer)
+
+          if (res.ok) {
+            const data = await res.json()
+            if (data && data[0] === 'SUCCESS' && Array.isArray(data[1])) {
+              for (const item of data[1]) {
+                const w = item[0]?.toLowerCase()
+                const candidate = item[1]?.[0]
+                if (w && candidate) {
+                  wordMap.set(w, candidate)
+                }
+              }
+            }
+          }
+        } catch (_) {}
+      })
+    )
+  }
+
+  // 3. Fallback for any word still not in wordMap: use local Trie (getSuggestions) or convertWord
+  for (const word of cleanWords) {
+    if (!wordMap.has(word)) {
+      const syncSuggs = getSuggestions(word)
+      if (syncSuggs && syncSuggs.length > 0 && syncSuggs[0].tamil) {
+        wordMap.set(word, syncSuggs[0].tamil)
+      } else {
+        wordMap.set(word, convertWord(word, ''))
+      }
+    }
+  }
+
+  return wordMap
+}
+
+// Convert all Tanglish/English text in the editor to Tamil using Claude API (Login required)
+const convertAllToTamil = async () => {
+  // Only authenticated / logged in users can use Convert All
+  if (!isAuthenticated.value) {
+    pendingConvertAfterAuth.value = true
+    showAuthModal.value = true
+    return
+  }
+
+  if (!editor.value) return
+  const fullText = editor.value.getText()
+  if (!fullText || !/[a-zA-Z]/.test(fullText)) {
+    return
+  }
+
+  isConvertingAll.value = true
+
+  try {
+    // Priority 1: Convert entire document using Claude API (state-of-the-art Tamil journalism quality)
+    const claudeConverted = await convertTanglishWithClaude(fullText)
+    if (claudeConverted && claudeConverted.trim()) {
+      // Split by paragraphs to set clean HTML content
+      const paragraphs = claudeConverted.split(/\r?\n/).filter(p => p.trim())
+      const htmlContent = paragraphs.map(p => `<p>${p}</p>`).join('')
+      editor.value.commands.setContent(htmlContent || `<p>${claudeConverted}</p>`)
+      updateStats(editor.value)
+      scheduleSaveCurrentFile()
+
+      convertedAllSuccess.value = true
+      setTimeout(() => {
+        convertedAllSuccess.value = false
+      }, 2500)
+      return
+    }
+
+    // Priority 2: Fallback to high-speed batch transliteration
+    const { state, view } = editor.value
+
+    // 1. Extract all English words from entire document
+    const wordsList = fullText.match(/[a-zA-Z]+/g) || []
+    if (wordsList.length === 0) return
+
+    // 2. Transliterate all words concurrently using high-precision Google Input Tools & Trie
+    const wordMap = await transliterateBatchWords(wordsList)
+
+    // 3. Collect node-level replacements while preserving formatting and marks
+    const replacements = []
+    state.doc.descendants((node, pos) => {
+      if (node.isText && /[a-zA-Z]/.test(node.text)) {
+        const converted = node.text.replace(/[a-zA-Z]+/g, (match) => {
+          return wordMap.get(match.toLowerCase()) || match
+        })
+        if (converted && converted !== node.text) {
+          replacements.push({
+            from: pos,
+            to: pos + node.text.length,
+            text: converted
+          })
+        }
+      }
+    })
+
+    if (replacements.length > 0) {
+      let tr = view.state.tr
+      // Replace from bottom to top so positions remain intact
+      for (let i = replacements.length - 1; i >= 0; i--) {
+        const rep = replacements[i]
+        tr = tr.insertText(rep.text, rep.from, rep.to)
+      }
+      view.dispatch(tr)
+      updateStats(editor.value)
+      scheduleSaveCurrentFile()
+
+      convertedAllSuccess.value = true
+      setTimeout(() => {
+        convertedAllSuccess.value = false
+      }, 2500)
+    }
+  } catch (err) {
+    console.error('Failed to convert all to Tamil:', err)
+  } finally {
+    isConvertingAll.value = false
+    showPasteConvertBanner.value = false
+  }
+}
+
 // Update word and character count
 const updateStats = (editor) => {
   const text = editor.getText()
@@ -2621,6 +2831,17 @@ const handlePaste = (view, event) => {
   const { selection } = state
   const tr = state.tr.insertText(pastedText, selection.from, selection.to)
   view.dispatch(tr)
+  updateStats(editor.value)
+  scheduleSaveCurrentFile()
+
+  // If autoConvert is active (Tamil mode) and pasted block contains English words, offer quick Convert All
+  if (autoConvert.value && /[a-zA-Z]{2,}/.test(pastedText)) {
+    showPasteConvertBanner.value = true
+    if (pasteBannerTimer) clearTimeout(pasteBannerTimer)
+    pasteBannerTimer = setTimeout(() => {
+      showPasteConvertBanner.value = false
+    }, 9000)
+  }
 
   // Show suggestions for the last word in pasted block
   setTimeout(() => {
@@ -5976,6 +6197,121 @@ onBeforeUnmount(() => {
   border-color: #e74c3c;
 }
 
+.toolbar-btn.btn-convert-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #475569 !important;
+  font-weight: 600 !important;
+  border-radius: 8px !important;
+  padding: 6px 13px !important;
+  font-size: 13px !important;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: all 0.18s ease;
+}
+
+.toolbar-btn.btn-convert-all:hover:not(:disabled) {
+  background: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+}
+
+.toolbar-btn.btn-convert-all:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.toolbar-btn.btn-convert-all.btn-converted-success {
+  background: #f1f5f9 !important;
+  border-color: #94a3b8 !important;
+  color: #0f172a !important;
+}
+
+.convert-check-icon {
+  font-weight: 800;
+  font-size: 13px;
+}
+
+/* Floating Paste-to-Convert Banner */
+.paste-convert-banner {
+  position: absolute;
+  bottom: 58px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #0f172a;
+  color: #f8fafc;
+  padding: 7px 14px 7px 16px;
+  border-radius: 9999px;
+  box-shadow: 0 10px 25px -4px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.15);
+  animation: slideUpBanner 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  max-width: calc(100% - 32px);
+}
+
+@keyframes slideUpBanner {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 12px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+.banner-icon {
+  font-size: 14px;
+}
+
+.banner-text {
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.banner-convert-btn {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: #ffffff;
+  border: none;
+  border-radius: 9999px;
+  padding: 5px 13px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(34, 197, 94, 0.35);
+}
+
+.banner-convert-btn:hover {
+  background: linear-gradient(135deg, #16a34a, #15803d);
+  transform: scale(1.02);
+}
+
+.banner-close-btn {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 2px 4px;
+  line-height: 1;
+  transition: color 0.15s ease;
+}
+
+.banner-close-btn:hover {
+  color: #ffffff;
+}
+
 .toolbar-btn.btn-ai {
   display: inline-flex;
   align-items: center;
@@ -6392,6 +6728,13 @@ onBeforeUnmount(() => {
     border-radius: 6px !important;
   }
 
+  .embedded-actions-row .btn-convert-all {
+    padding: 4px 8px !important;
+    height: 30px !important;
+    font-size: 11.5px !important;
+    border-radius: 6px !important;
+  }
+
   .embedded-actions-row .btn-clear {
     padding: 4px 8px !important;
     height: 30px !important;
@@ -6635,6 +6978,9 @@ onBeforeUnmount(() => {
 
 @media (max-width: 480px) {
   /* Extra compact for narrow phone screens */
+  .embedded-actions-row .btn-convert-all .btn-text-label {
+    display: none !important;
+  }
   .embedded-actions-row .btn-ai .btn-text-label {
     display: none !important;
   }

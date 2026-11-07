@@ -299,3 +299,31 @@ Tamil Transcript:
                 raw_text += block.get("text", "")
 
         return {"translated_text": raw_text.strip()}
+
+    async def convert_tanglish_to_tamil(self, text: str) -> Dict[str, Any]:
+        """Convert full Tanglish article / text to accurate Tamil using Claude."""
+        prompt = (
+            "You are the world's leading expert in Tanglish to Tamil transliteration and Tamil language journalism.\n"
+            "Your task is to convert the provided Tanglish (Tamil written in English letters / Latin script) text into natural, grammatically correct, standard written Tamil script (தமிழ்).\n\n"
+            "STRICT RULES:\n"
+            "1. Transliterate all Tanglish words into proper, standard Tamil spelling (e.g. 'arasiyal' -> 'அரசியல்', 'cinemavil' -> 'சினிமாவில்', 'thalaippu' -> 'தலைப்பு', 'krishnasamy' -> 'கிருஷ்ணசாமி', 'virumaandi' -> 'விருமாண்டி', 'sandiyar' -> 'சண்டியர்').\n"
+            "2. Preserve all paragraph breaks, line breaks, punctuation, quotes, and bullet points exactly.\n"
+            "3. Keep Arabic numbers (e.g. 237, 23, 2026) as standard digits.\n"
+            "4. Output ONLY the converted Tamil text. Do NOT add any preamble, explanation, notes, or markdown formatting.\n\n"
+            f"Tanglish Text:\n{text}"
+        )
+
+        payload = {
+            "model": "claude-haiku-4-5-20251001",
+            "max_tokens": 4000,
+            "temperature": 0.1,
+            "messages": [{"role": "user", "content": prompt}]
+        }
+
+        data = await self._post_anthropic(payload, timeout=45.0)
+        raw_text = ""
+        for block in data.get("content", []):
+            if block.get("type") == "text":
+                raw_text += block.get("text", "")
+
+        return {"converted_text": raw_text.strip()}

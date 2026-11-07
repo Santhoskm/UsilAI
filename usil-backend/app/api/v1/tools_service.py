@@ -92,3 +92,17 @@ async def translate_text(request: TranslateRequest):
         return result
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"Translation error: {str(e)}")
+
+
+class ConvertAllRequest(BaseModel):
+    text: str = Field(..., min_length=1)
+
+
+@router.post("/convert-all")
+async def convert_all_tanglish(request: ConvertAllRequest):
+    """Convert full Tanglish article / text to accurate Tamil using Claude."""
+    try:
+        result = await tools_service.convert_tanglish_to_tamil(request.text)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"Claude conversion error: {str(e)}")

@@ -774,3 +774,28 @@ export async function deleteUserDocument(docId, userId) {
 }
 
 
+
+/**
+ * Convert full Tanglish article or text to Tamil using Claude API via backend
+ * @param {string} text - Tanglish text to convert
+ * @returns {Promise<string|null>} - Converted Tamil text
+ */
+export async function convertTanglishWithClaude(text) {
+    if (!text || !text.trim()) return null;
+    try {
+        const response = await fetch(`${API_BASE}/tools/convert-all`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text })
+        });
+        if (response.ok) {
+            const data = await response.json();
+            if (data && data.converted_text) {
+                return data.converted_text;
+            }
+        }
+    } catch (err) {
+        console.warn('Claude full-text conversion request failed:', err);
+    }
+    return null;
+}
